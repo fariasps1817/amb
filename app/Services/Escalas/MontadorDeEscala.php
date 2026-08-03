@@ -148,16 +148,24 @@ class MontadorDeEscala
      */
     public function montarDaFrota(Escala $escala): int
     {
+        // A ordem dos postos define a sequencia dos blocos na planilha impressa:
+        // primeiro a ordem definida no cadastro da unidade, depois o nome dela e
+        // por fim a identificacao do veiculo (SEDE 1, SEDE 2, SEDE 3).
+        //
+        // A chave e montada como texto unico porque Collection::sortBy() com
+        // array espera pares [campo, direcao] — passar varias closures nao
+        // produz a ordenacao esperada.
         $ambulancias = Ambulancia::query()
             ->ativas()
             ->whereNotNull('unidade_id')
             ->with('unidade')
             ->get()
-            ->sortBy([
-                fn (Ambulancia $a) => $a->unidade?->ordem ?? 0,
-                fn (Ambulancia $a) => $a->unidade?->nome ?? '',
-                fn (Ambulancia $a) => $a->identificacao ?? $a->placa,
-            ]);
+            ->sortBy(fn (Ambulancia $a) => sprintf(
+                '%06d|%s|%s',
+                $a->unidade?->ordem ?? 0,
+                $a->unidade?->nome ?? '',
+                $a->identificacao ?: $a->placa,
+            ));
 
         $ordem = 0;
 
