@@ -33,7 +33,14 @@
     </div>
 @endif
 
-@if ($errors->any() && ! $errors->hasBag('default'))
+{{--
+    Resumo dos erros de validação no topo da tela.
+
+    Aparece sempre que houver erro, mesmo que a mensagem também apareça sob o
+    campo: em formulários longos o campo com problema costuma ficar fora da área
+    visível, e sem o resumo a tela recarrega sem explicar o que aconteceu.
+--}}
+@if ($errors->any())
     @php $total = $errors->count(); @endphp
 
     <div role="alert" class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">

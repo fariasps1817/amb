@@ -28,6 +28,19 @@ class Configuracao extends Model
     public const PASTA_IMAGENS = 'institucional';
 
     /**
+     * Campos de imagem e seus rotulos, na ordem em que aparecem na tela.
+     *
+     * Fica no model porque tanto a validacao quanto o controller e a view
+     * precisam da mesma lista.
+     */
+    public const CAMPOS_DE_IMAGEM = [
+        'logo_prefeitura' => 'Logo da prefeitura',
+        'logo_secretaria' => 'Logo da secretaria',
+        'brasao' => 'Brasão do município',
+        'imagem_ambulancia' => 'Imagem decorativa da ambulância',
+    ];
+
+    /**
      * Retorna a configuracao vigente, criando o registro vazio na primeira
      * execucao para que as telas nunca recebam null.
      *

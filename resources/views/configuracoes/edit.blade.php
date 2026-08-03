@@ -21,36 +21,20 @@
         >
             <div class="grid gap-4 sm:grid-cols-2">
                 @foreach ($imagens as $campo => $rotulo)
-                    <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-sm font-medium text-slate-700">{{ $rotulo }}</p>
-
-                        <div class="mt-2 flex h-24 items-center justify-center rounded-lg bg-slate-50 p-2 ring-1 ring-inset ring-slate-200">
-                            @if ($url = $configuracao->urlImagem($campo))
-                                <img src="{{ $url }}" alt="{{ $rotulo }}" class="max-h-full max-w-full object-contain">
-                            @else
-                                <span class="text-xs text-slate-400">Nenhuma imagem</span>
-                            @endif
-                        </div>
-
-                        <input
-                            type="file"
-                            name="{{ $campo }}"
-                            accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                            class="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-marca-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-marca-700 hover:file:bg-marca-100"
-                        >
-
-                        @error($campo)
-                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                        @enderror
-                    </div>
+                    <x-campo-imagem
+                        :campo="$campo"
+                        :rotulo="$rotulo"
+                        :url="$configuracao->urlImagem($campo)"
+                    />
                 @endforeach
             </div>
 
-            @if (collect(array_keys($imagens))->contains(fn ($c) => filled($configuracao->{$c})))
-                <p class="mt-3 text-xs text-slate-500">
-                    Para remover uma imagem, use os botões abaixo do formulário.
-                </p>
-            @endif
+            <p class="mt-3 text-xs text-slate-500">
+                As imagens só são gravadas ao clicar em <strong>Salvar identidade</strong>, no fim da página.
+                @if (collect(array_keys($imagens))->contains(fn ($c) => filled($configuracao->{$c})))
+                    Para remover alguma, use os botões no fim da página.
+                @endif
+            </p>
         </x-cartao>
 
         {{-- ------------------------------------------------------------
