@@ -8,8 +8,10 @@ use App\Enums\Vinculo;
 use App\Enums\VinculoAmbulancia;
 use App\Models\Ambulancia;
 use App\Models\Configuracao;
+use App\Models\Escala;
 use App\Models\Motorista;
 use App\Models\Unidade;
+use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Database\Seeder;
@@ -270,7 +272,7 @@ class DemonstracaoSeeder extends Seeder
         $montador = app(MontadorDeEscala::class);
         $hoje = now();
 
-        if (\App\Models\Escala::query()->doMes($hoje->year, $hoje->month)->exists()) {
+        if (Escala::query()->doMes($hoje->year, $hoje->month)->exists()) {
             $this->command?->warn('Já existe escala para o mês corrente; a montagem foi ignorada.');
 
             return;
@@ -283,7 +285,7 @@ class DemonstracaoSeeder extends Seeder
 
         // Dos que sobraram: dois em apoio, um de ferias, um de licenca e o
         // restante em sobreaviso.
-        $pendentes = \App\Services\Escalas\AnalisadorDeEfetivo::para(
+        $pendentes = AnalisadorDeEfetivo::para(
             $escala->fresh()->load('postos.lotacoes', 'lotacoes')
         )->motoristasSemDefinicao()->values();
 

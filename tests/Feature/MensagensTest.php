@@ -10,12 +10,13 @@ use App\Models\EscalaMensagem;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\Escalas\GeradorDeEscala;
+use App\Services\Escalas\MontadorDeEscala;
 use App\Services\Whatsapp\Contracts\DriverDeWhatsapp;
 use App\Services\Whatsapp\Drivers\DriverCloudApi;
 use App\Services\Whatsapp\Drivers\DriverDeLink;
+use App\Services\Whatsapp\EnviadorDeMensagens;
 use App\Services\Whatsapp\MontadorDeMensagens;
-use App\Services\Escalas\GeradorDeEscala;
-use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
@@ -360,7 +361,7 @@ class MensagensTest extends TestCase
         $mensagem = EscalaMensagem::query()->where('escala_id', $escala->id)->first();
         $mensagem->update(['telefone' => '123']);
 
-        app(\App\Services\Whatsapp\EnviadorDeMensagens::class)->enviar($mensagem->fresh());
+        app(EnviadorDeMensagens::class)->enviar($mensagem->fresh());
 
         $this->assertTrue($mensagem->fresh()->comErro());
         $this->assertStringContainsString('inválido', (string) $mensagem->fresh()->retorno);

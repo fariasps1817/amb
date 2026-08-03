@@ -6,6 +6,7 @@ use App\Models\Escala;
 use App\Models\EscalaLotacao;
 use App\Models\EscalaPlantao;
 use App\Models\EscalaPosto;
+use App\Models\Motorista;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -287,7 +288,7 @@ class GeradorDeEscala
      * Usado na tela de montagem para o operador conferir a fila antes de
      * confirmar a geracao.
      *
-     * @return array<string, array{data: Carbon, posicao: int, motorista: ?\App\Models\Motorista}>
+     * @return array<string, array{data: Carbon, posicao: int, motorista: ?Motorista}>
      */
     public function prever(EscalaPosto $posto): array
     {

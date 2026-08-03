@@ -9,6 +9,7 @@ use App\Models\EscalaPlantao;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Services\Escalas\AnalisadorDeEfetivo;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -67,7 +68,7 @@ class PainelController extends Controller
      * Cadastros que precisam de atencao: CNH vencida ou vencendo e contrato
      * proximo do fim. Evita descobrir o problema so na hora de fechar a escala.
      *
-     * @return array<string, \Illuminate\Support\Collection>
+     * @return array<string, Collection>
      */
     private function pendenciasDeCadastro(): array
     {

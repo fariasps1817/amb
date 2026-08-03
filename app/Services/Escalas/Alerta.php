@@ -11,7 +11,9 @@ namespace App\Services\Escalas;
 final readonly class Alerta
 {
     public const ERRO = 'erro';
+
     public const ATENCAO = 'atencao';
+
     public const INFORMACAO = 'informacao';
 
     public function __construct(

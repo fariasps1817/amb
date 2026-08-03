@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Escalas;
 
+use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
+use App\Models\Escala;
 use App\Models\EscalaPlantao;
 use App\Models\Motorista;
 use App\Models\Unidade;
@@ -177,7 +179,7 @@ class ValidadorDeEscalaTest extends TestCase
      * lotados, plantoes gerados e uma reserva para nao disparar o aviso de
      * ausencia de sobreaviso.
      */
-    private function escalaCompleta(int $ano = 2026, int $mes = 8): \App\Models\Escala
+    private function escalaCompleta(int $ano = 2026, int $mes = 8): Escala
     {
         $unidade = Unidade::factory()->regime2472()->create();
         Ambulancia::factory()->create(['unidade_id' => $unidade->id]);
@@ -193,7 +195,7 @@ class ValidadorDeEscalaTest extends TestCase
         app(MontadorDeEscala::class)->definirDestino(
             $escala,
             Motorista::factory()->create()->id,
-            \App\Enums\TipoDestino::Reserva
+            TipoDestino::Reserva
         );
 
         app(GeradorDeEscala::class)->gerar($escala->fresh());
@@ -202,7 +204,7 @@ class ValidadorDeEscalaTest extends TestCase
     }
 
     /** @return array<int, string> */
-    private function codigosDeErro(\App\Models\Escala $escala): array
+    private function codigosDeErro(Escala $escala): array
     {
         return array_values(array_unique(array_map(
             fn ($a) => $a->codigo,

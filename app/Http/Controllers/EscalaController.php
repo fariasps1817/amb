@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\StatusEscala;
 use App\Models\Ambulancia;
 use App\Models\Escala;
+use App\Models\EscalaPlantao;
+use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
@@ -47,7 +49,7 @@ class EscalaController extends Controller
             'ultimaEscala' => Escala::query()->maisRecentes()->first(),
             'frotaAtiva' => Ambulancia::query()->ativas()->whereNotNull('unidade_id')->count(),
             'demandaEstimada' => $this->demandaEstimada(),
-            'motoristasAtivos' => \App\Models\Motorista::query()->ativos()->count(),
+            'motoristasAtivos' => Motorista::query()->ativos()->count(),
         ]);
     }
 
@@ -250,7 +252,7 @@ class EscalaController extends Controller
      *
      * Estrutura: [posto_id => ['AAAA-MM-DD' => EscalaPlantao]]
      *
-     * @return array<int, array<string, \App\Models\EscalaPlantao>>
+     * @return array<int, array<string, EscalaPlantao>>
      */
     private function montarGrade(Escala $escala): array
     {

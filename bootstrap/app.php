@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\GarantirPerfilAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'admin' => \App\Http\Middleware\GarantirPerfilAdmin::class,
+            'admin' => GarantirPerfilAdmin::class,
         ]);
 
         // Visitante sem sessao vai para a tela de login do sistema.

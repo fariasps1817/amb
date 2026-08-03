@@ -10,6 +10,7 @@ use App\Models\Escala;
 use App\Models\EscalaLotacao;
 use App\Models\EscalaPosto;
 use App\Models\Motorista;
+use App\Models\Unidade;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -196,7 +197,7 @@ class MontadorDeEscala
      */
     public function adicionarPosto(Escala $escala, int $unidadeId, ?int $ambulanciaId, ?string $rotulo = null): EscalaPosto
     {
-        $unidade = \App\Models\Unidade::query()->findOrFail($unidadeId);
+        $unidade = Unidade::query()->findOrFail($unidadeId);
         $ambulancia = $ambulanciaId ? Ambulancia::query()->find($ambulanciaId) : null;
 
         if ($ambulanciaId !== null) {

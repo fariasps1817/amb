@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Telefone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -143,7 +144,7 @@ class Configuracao extends Model
     /** Local e data por extenso: "Cascavel-CE, 03 de agosto de 2026". */
     public function localData(?\DateTimeInterface $data = null): string
     {
-        $data = $data ? \Illuminate\Support\Carbon::instance($data) : now();
+        $data = $data ? Carbon::instance($data) : now();
         $local = trim(collect([$this->cidade, $this->uf])->filter()->implode('-'));
 
         $texto = $data->translatedFormat('d \d\e F \d\e Y');

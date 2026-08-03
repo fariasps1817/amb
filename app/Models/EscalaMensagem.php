@@ -21,7 +21,9 @@ class EscalaMensagem extends Model
     protected $table = 'escala_mensagens';
 
     public const PENDENTE = 'pendente';
+
     public const ENVIADA = 'enviada';
+
     public const ERRO = 'erro';
 
     protected function casts(): array

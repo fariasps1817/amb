@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\StatusMotorista;
 use App\Enums\Vinculo;
 use App\Models\Ambulancia;
+use App\Models\Configuracao;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -186,10 +188,10 @@ class CadastrosTest extends TestCase
         $unidade = Unidade::factory()->regime2448()->create();
         Ambulancia::factory()->create(['unidade_id' => $unidade->id]);
 
-        $escala = app(\App\Services\Escalas\MontadorDeEscala::class)->criar(2026, 8);
+        $escala = app(MontadorDeEscala::class)->criar(2026, 8);
         $motorista = Motorista::factory()->create();
 
-        app(\App\Services\Escalas\MontadorDeEscala::class)
+        app(MontadorDeEscala::class)
             ->lotarMotorista($escala->postos()->first(), $motorista->id, 1);
 
         $this->actingAs($this->operador)
@@ -330,7 +332,7 @@ class CadastrosTest extends TestCase
             'telefone_1' => '(85) 3334-2244',
         ])->assertRedirect('/configuracoes');
 
-        $configuracao = \App\Models\Configuracao::atual();
+        $configuracao = Configuracao::atual();
 
         $this->assertSame('CE', $configuracao->uf);
         $this->assertSame('8533342244', $configuracao->telefone_1);
