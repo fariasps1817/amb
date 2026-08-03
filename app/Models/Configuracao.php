@@ -29,15 +29,19 @@ class Configuracao extends Model
     /**
      * Retorna a configuracao vigente, criando o registro vazio na primeira
      * execucao para que as telas nunca recebam null.
+     *
+     * Como a tabela guarda um unico registro, buscamos o primeiro em vez de
+     * fixar o id — assim nao dependemos de atribuicao em massa da chave.
      */
     public static function atual(): self
     {
-        return static::query()->firstOrCreate(['id' => 1], [
-            'municipio' => '',
-            'prefeitura' => '',
-            'secretaria' => '',
-            'setor' => '',
-        ]);
+        return static::query()->orderBy('id')->first()
+            ?? static::query()->create([
+                'municipio' => '',
+                'prefeitura' => '',
+                'secretaria' => '',
+                'setor' => '',
+            ]);
     }
 
     // -----------------------------------------------------------------

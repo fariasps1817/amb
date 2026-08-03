@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Escala;
+use Illuminate\View\View;
+
 class MensagemController extends Controller
 {
-    // Implementado nas etapas seguintes.
+    public function index(Escala $escala): View
+    {
+        return view('mensagens.index', ['escala' => $escala]);
+    }
 }

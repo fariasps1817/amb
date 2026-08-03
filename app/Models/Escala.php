@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['ano', 'mes', 'status', 'observacao', 'criada_por'])]
+#[Fillable(['ano', 'mes', 'status', 'observacao', 'criada_por', 'gerada_em', 'publicada_em'])]
 class Escala extends Model
 {
     protected $table = 'escalas';

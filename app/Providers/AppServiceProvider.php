@@ -26,10 +26,14 @@ class AppServiceProvider extends ServiceProvider
         // numerica. Mantemos somente um tamanho minimo.
         Password::defaults(fn () => Password::min(4));
 
-        // Em desenvolvimento, falha alto quando um atributo enviado ao model
-        // nao esta em Fillable, em vez de descarta-lo em silencio. Nao ativamos
-        // preventLazyLoading porque as views de PDF percorrem varias relacoes
-        // sob demanda de forma proposital.
-        Model::preventSilentlyDiscardingAttributes($this->app->isLocal());
+        // Em desenvolvimento e nos testes, falha alto quando um atributo enviado
+        // ao model nao esta em Fillable, em vez de descarta-lo em silencio —
+        // esse descarte silencioso ja custou um campo de data que nunca gravava.
+        //
+        // Nao ativamos preventLazyLoading porque as views de documento percorrem
+        // varias relacoes sob demanda de forma proposital.
+        Model::preventSilentlyDiscardingAttributes(
+            $this->app->isLocal() || $this->app->runningUnitTests()
+        );
     }
 }
