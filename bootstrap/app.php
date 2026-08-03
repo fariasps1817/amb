@@ -12,7 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\GarantirPerfilAdmin::class,
+        ]);
+
+        // Visitante sem sessao vai para a tela de login do sistema.
+        $middleware->redirectGuestsTo('/entrar');
+        $middleware->redirectUsersTo('/painel');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

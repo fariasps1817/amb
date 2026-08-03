@@ -1,9 +1,86 @@
 @import 'tailwindcss';
 
+@source '../../app/Livewire/**/*.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta institucional da saude: verde-agua para acoes, apoiada em cinzas
+       neutros. Mantem contraste AA do texto sobre fundo claro. */
+    --color-marca-50: #eff9f7;
+    --color-marca-100: #d8f0eb;
+    --color-marca-200: #b4e1d9;
+    --color-marca-300: #83cbc1;
+    --color-marca-400: #52ada3;
+    --color-marca-500: #388f88;
+    --color-marca-600: #2b736e;
+    --color-marca-700: #265c59;
+    --color-marca-800: #234a49;
+    --color-marca-900: #203f3e;
+    --color-marca-950: #0e2525;
+}
+
+/* ---------------------------------------------------------------------------
+   Ajustes de base
+   --------------------------------------------------------------------------- */
+
+@layer base {
+    /* Evita o salto horizontal quando um modal abre em telas estreitas. */
+    html {
+        scrollbar-gutter: stable;
+    }
+
+    /* Alvo de toque confortavel nos campos de data e hora no celular. */
+    input[type='date'],
+    input[type='time'] {
+        min-height: 2.625rem;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilitarios do projeto
+   --------------------------------------------------------------------------- */
+
+@utility scrollbar-fina {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-slate-300) transparent;
+
+    &::-webkit-scrollbar {
+        height: 0.5rem;
+        width: 0.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background-color: var(--color-slate-300);
+        border-radius: 9999px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+}
+
+/* Texto girado 90 graus, usado nas colunas estreitas de placa e lotacao da
+   planilha da escala, como no documento impresso. */
+@utility texto-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+}
+
+/* ---------------------------------------------------------------------------
+   Impressao
+   --------------------------------------------------------------------------- */
+
+@media print {
+    .nao-imprimir {
+        display: none !important;
+    }
+
+    body {
+        background: #fff;
+    }
 }
