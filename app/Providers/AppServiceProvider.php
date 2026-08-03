@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\Whatsapp\Contracts\DriverDeWhatsapp;
+use App\Services\Whatsapp\Drivers\DriverCloudApi;
+use App\Services\Whatsapp\Drivers\DriverDeLink;
+use App\Services\Whatsapp\Drivers\DriverEvolution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
@@ -12,7 +16,16 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // O driver de WhatsApp e escolhido por configuracao. O padrao ("link")
+        // apenas gera as URLs wa.me para o operador enviar manualmente; os
+        // demais entregam por API.
+        $this->app->bind(DriverDeWhatsapp::class, function () {
+            return match (config('whatsapp.driver', 'link')) {
+                'cloud' => new DriverCloudApi,
+                'evolution' => new DriverEvolution,
+                default => new DriverDeLink,
+            };
+        });
     }
 
     public function boot(): void
