@@ -87,9 +87,10 @@ class EscalaPosto extends Model
         return $this->regime()->motoristasNecessarios();
     }
 
+    /** Usa a relacao ja carregada quando disponivel, evitando consulta extra. */
     public function vagasOcupadas(): int
     {
-        return $this->lotacoes()->count();
+        return $this->lotacoes->count();
     }
 
     public function vagasLivres(): int

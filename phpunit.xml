@@ -23,9 +23,14 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- O PHP do Laragon nao traz pdo_sqlite, e testar no mesmo banco da
+             producao (MySQL) e mais fiel. Crie o banco uma vez com:
+             mysql -uroot -e "CREATE DATABASE amb_testes CHARACTER SET utf8mb4" -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="amb_testes"/>
         <env name="DB_URL" value=""/>
+        <env name="APP_TIMEZONE" value="America/Fortaleza"/>
+        <env name="APP_LOCALE" value="pt_BR"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
