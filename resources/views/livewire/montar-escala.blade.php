@@ -180,6 +180,10 @@
                         </span>
                         <span class="block truncate text-xs text-slate-500">
                             {{ $posto->unidade?->nome }} · {{ $posto->vagasOcupadas() }}/{{ $vagas }} motoristas
+                            @if ($posto->data_inicio || $posto->data_fim)
+                                · opera de {{ $posto->inicioVigencia()->format('d/m') }}
+                                a {{ $posto->fimVigencia()->format('d/m') }}
+                            @endif
                         </span>
                     </span>
 
@@ -293,7 +297,7 @@
                 @endfor
             </div>
 
-            {{-- Painel expandido: remanejar a unidade do posto --}}
+            {{-- Painel expandido: lotação, período de operação e filtro --}}
             @if ($aberto)
                 <div class="border-t border-slate-200 bg-slate-50/70 px-4 py-3">
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -330,6 +334,52 @@
                             >
                             <p class="mt-1 text-xs text-slate-500">
                                 {{ $this->candidatos->count() }} motorista(s) disponível(is) para lotação.
+                            </p>
+                        </div>
+
+                        {{-- Período de operação: para a ambulância que entra ou
+                             sai no meio do mês --}}
+                        <div class="sm:col-span-2">
+                            <p class="mb-1.5 text-xs font-medium text-slate-700">
+                                Período de operação no mês
+                            </p>
+
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label for="inicio-posto-{{ $posto->id }}" class="mb-1 block text-xs text-slate-500">
+                                        Primeiro dia de plantão
+                                    </label>
+                                    <input
+                                        id="inicio-posto-{{ $posto->id }}"
+                                        type="date"
+                                        value="{{ $posto->data_inicio?->toDateString() }}"
+                                        min="{{ $escala->primeiroDia()->toDateString() }}"
+                                        max="{{ $escala->ultimoDia()->toDateString() }}"
+                                        wire:change="alterarVigencia({{ $posto->id }}, 'data_inicio', $event.target.value)"
+                                        class="block w-full rounded-lg border-0 bg-white px-2.5 py-1.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-marca-600"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label for="fim-posto-{{ $posto->id }}" class="mb-1 block text-xs text-slate-500">
+                                        Último dia de plantão
+                                    </label>
+                                    <input
+                                        id="fim-posto-{{ $posto->id }}"
+                                        type="date"
+                                        value="{{ $posto->data_fim?->toDateString() }}"
+                                        min="{{ $escala->primeiroDia()->toDateString() }}"
+                                        max="{{ $escala->ultimoDia()->toDateString() }}"
+                                        wire:change="alterarVigencia({{ $posto->id }}, 'data_fim', $event.target.value)"
+                                        class="block w-full rounded-lg border-0 bg-white px-2.5 py-1.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-marca-600"
+                                    >
+                                </div>
+                            </div>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Deixe em branco para operar o mês inteiro. Use quando a ambulância entra ou sai de
+                                operação no meio do mês — por exemplo, escala de {{ $posto->regimeNotacao() }} a partir
+                                do dia {{ $escala->primeiroDia()->copy()->addDays(3)->format('d/m') }}.
                             </p>
                         </div>
                     </div>

@@ -242,6 +242,94 @@ class FluxoDaEscalaTest extends TestCase
         $this->assertSame(0, $escala->fresh()->load('postos.lotacoes')->postos->sum(fn ($p) => $p->vagasLivres()));
     }
 
+    /**
+     * Requisito de operacao parcial: a ambulancia entregue no meio do mes so
+     * gera plantao a partir da data informada.
+     */
+    #[Test]
+    public function define_o_periodo_de_operacao_do_posto(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('alterarVigencia', $posto->id, 'data_inicio', '2026-08-04');
+
+        $posto->refresh();
+
+        $this->assertSame('2026-08-04', $posto->data_inicio->toDateString());
+
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        // Do dia 04 ao 31 são 28 dias.
+        $this->assertSame(28, $escala->fresh()->plantoes()->count());
+        $this->assertSame(
+            '2026-08-04',
+            $escala->fresh()->plantoes()->orderBy('data')->first()->data->toDateString()
+        );
+    }
+
+    /** Os campos de período aparecem ao expandir o posto. */
+    #[Test]
+    public function painel_do_posto_mostra_os_campos_de_periodo(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->assertDontSee('Período de operação no mês')
+            ->call('abrirPosto', $posto->id)
+            ->assertSee('Período de operação no mês')
+            ->assertSee('Primeiro dia de plantão')
+            ->assertSee('Último dia de plantão')
+            ->assertSee('Remanejar para outra unidade');
+    }
+
+    /** Data fora do mês da escala deixaria o posto sem nenhum plantão. */
+    #[Test]
+    public function recusa_vigencia_fora_do_mes(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('alterarVigencia', $posto->id, 'data_inicio', '2026-09-15')
+            ->assertDispatched('aviso', tipo: 'erro');
+
+        $this->assertNull($posto->fresh()->data_inicio);
+    }
+
+    #[Test]
+    public function recusa_termino_antes_do_inicio(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+        $posto->update(['data_inicio' => '2026-08-10']);
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('alterarVigencia', $posto->id, 'data_fim', '2026-08-05')
+            ->assertDispatched('aviso', tipo: 'erro');
+
+        $this->assertNull($posto->fresh()->data_fim);
+    }
+
+    /** Limpar o campo devolve o posto ao mês inteiro. */
+    #[Test]
+    public function limpar_a_vigencia_volta_ao_mes_inteiro(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+        $posto->update(['data_inicio' => '2026-08-10']);
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('alterarVigencia', $posto->id, 'data_inicio', '');
+
+        $this->assertNull($posto->fresh()->data_inicio);
+
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+        $this->assertSame(31, $escala->fresh()->plantoes()->count());
+    }
+
     #[Test]
     public function alterna_a_rotacao_continua_do_posto(): void
     {

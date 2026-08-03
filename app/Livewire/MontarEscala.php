@@ -11,6 +11,7 @@ use App\Models\Unidade;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -229,6 +230,58 @@ class MontarEscala extends Component
         }
 
         $this->dispatch('aviso', tipo: 'atencao', texto: $texto);
+    }
+
+    /**
+     * Define o periodo de operacao do posto dentro do mes.
+     *
+     * Permite a escala comecar depois do dia 1o — caso de ambulancia entregue no
+     * meio do mes — ou encerrar antes do ultimo dia, quando o veiculo sai de
+     * operacao. Vazio significa o mes inteiro.
+     */
+    public function alterarVigencia(int $postoId, string $campo, ?string $valor): void
+    {
+        if (! in_array($campo, ['data_inicio', 'data_fim'], true)) {
+            return;
+        }
+
+        $posto = $this->posto($postoId);
+        $data = blank($valor) ? null : Carbon::parse($valor)->startOfDay();
+
+        // A data precisa cair dentro do mes da escala, senao o posto ficaria sem
+        // nenhum dia de plantao sem que o operador entendesse o motivo.
+        if ($data !== null && ! $data->betweenIncluded($this->escala->primeiroDia(), $this->escala->ultimoDia())) {
+            $this->dispatch(
+                'aviso',
+                tipo: 'erro',
+                texto: 'A data precisa estar dentro de '.$this->escala->referenciaLonga().'.'
+            );
+
+            return;
+        }
+
+        $inicio = $campo === 'data_inicio' ? $data : $posto->data_inicio;
+        $fim = $campo === 'data_fim' ? $data : $posto->data_fim;
+
+        if ($inicio !== null && $fim !== null && $fim->lessThan($inicio)) {
+            $this->dispatch('aviso', tipo: 'erro', texto: 'O término não pode ser anterior ao início.');
+
+            return;
+        }
+
+        $posto->update([$campo => $data?->toDateString()]);
+
+        $this->limparCache();
+
+        $this->dispatch(
+            'aviso',
+            tipo: 'sucesso',
+            texto: $data === null
+                ? 'O posto volta a operar o mês inteiro.'
+                : ($campo === 'data_inicio'
+                    ? 'Os plantões deste posto começam em '.$data->format('d/m').'.'
+                    : 'Os plantões deste posto encerram em '.$data->format('d/m').'.'),
+        );
     }
 
     public function alternarRotacao(int $postoId): void
