@@ -610,13 +610,122 @@ class DocumentosTest extends TestCase
             'Com observação em todos os plantões a folha passou de uma página.'
         );
 
-        // Um motorista, uma folha — vale para a emissão em lote.
-        $escalados = $escala->fresh()->lotacoes->filter(fn ($l) => $l->escalado())->count();
+        // Um motorista, uma folha — vale para a emissão em lote, incluindo as
+        // folhas em branco de sobreaviso e apoio.
+        app(MontadorDeEscala::class)->definirDestino(
+            $escala,
+            Motorista::factory()->create()->id,
+            TipoDestino::Reserva
+        );
+
+        $comFolha = $escala->fresh()->lotacoes
+            ->filter(fn ($l) => $l->escalado() || $l->disponivel())
+            ->count();
+
+        $this->assertSame(5, $comFolha, '4 escalados mais a reserva.');
 
         $this->assertSame(
-            $escalados,
+            $comFolha,
             preg_match_all('#/Type\s*/Page[^s]#', $gerador->frequencias($escala->fresh())->output())
         );
+    }
+
+    /**
+     * Sobreaviso e apoio também prestam plantão e assinam frequência, mas seus
+     * dias não são definidos na escala: a folha sai inteira em branco, para o
+     * motorista assinar o que cumpriu.
+     */
+    #[Test]
+    public function sobreaviso_e_apoio_recebem_folha_em_branco(): void
+    {
+        $escala = $this->escalaCompleta();
+        $montador = app(MontadorDeEscala::class);
+
+        $reserva = Motorista::factory()->create(['nome_completo' => 'ANA RESERVA', 'nome_curto' => 'ANA']);
+        $apoio = Motorista::factory()->create(['nome_completo' => 'BRUNO APOIO', 'nome_curto' => 'BRUNO']);
+        $ferias = Motorista::factory()->create(['nome_completo' => 'CARLA FERIAS', 'nome_curto' => 'CARLA']);
+
+        $montador->definirDestino($escala, $reserva->id, TipoDestino::Reserva);
+        $montador->definirDestino($escala, $apoio->id, TipoDestino::Apoio);
+        $montador->definirDestino($escala, $ferias->id, TipoDestino::Ferias);
+
+        $folhas = app(GeradorDeDocumentos::class)->folhasDeFrequencia($escala->fresh());
+
+        // 4 escalados + reserva + apoio. Quem está de férias não recebe.
+        $this->assertCount(6, $folhas);
+        $this->assertNotContains('CARLA FERIAS', $folhas->pluck('motorista.nome_completo')->all());
+
+        $folhaReserva = $folhas->firstWhere('motorista.id', $reserva->id);
+
+        $this->assertNotNull($folhaReserva, 'A reserva deveria receber folha.');
+        $this->assertTrue($folhaReserva['todos_os_dias_em_branco']);
+        $this->assertSame('SOBREAVISO (RESERVA)', $folhaReserva['lotacao']);
+        // Sem posto, não há regime de plantão.
+        $this->assertSame('', $folhaReserva['regime']);
+
+        // Todos os dias do mês entram, e nenhum é marcado como plantão — logo
+        // nenhum sai marcado como folga.
+        $this->assertCount(31, $folhaReserva['linhas']);
+        $this->assertSame(
+            0,
+            collect($folhaReserva['linhas'])->where('plantao', true)->count()
+        );
+
+        // O apoio segue a mesma regra.
+        $this->assertTrue($folhas->firstWhere('motorista.id', $apoio->id)['todos_os_dias_em_branco']);
+
+        // Já a folha de quem está escalado continua marcando as folgas.
+        $escalado = $folhas->firstWhere('todos_os_dias_em_branco', false);
+        $this->assertGreaterThan(0, collect($escalado['linhas'])->where('plantao', true)->count());
+        $this->assertGreaterThan(0, collect($escalado['linhas'])->where('plantao', false)->count());
+    }
+
+    /** A marca de folga não aparece na folha de sobreaviso. */
+    #[Test]
+    public function a_folha_de_sobreaviso_nao_traz_marca_de_folga(): void
+    {
+        $escala = $this->escalaCompleta();
+        $reserva = Motorista::factory()->create();
+
+        app(MontadorDeEscala::class)->definirDestino($escala, $reserva->id, TipoDestino::Reserva);
+
+        $pdf = app(GeradorDeDocumentos::class)->frequencia($escala->fresh(), $reserva)->output();
+
+        $this->assertSame(1, preg_match_all('#/Type\s*/Page[^s]#', $pdf));
+
+        // O texto do PDF é montado caractere a caractere; comparamos sem espaços.
+        $conteudo = '';
+        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $blocos);
+
+        foreach ($blocos[1] as $bloco) {
+            $descomprimido = @gzuncompress($bloco);
+
+            if ($descomprimido !== false) {
+                $conteudo .= $descomprimido;
+            }
+        }
+
+        $this->assertStringNotContainsString('F o l g a', $conteudo);
+    }
+
+    /** A folha individual está disponível para quem está de sobreaviso. */
+    #[Test]
+    public function emite_folha_individual_de_quem_esta_de_sobreaviso(): void
+    {
+        $escala = $this->escalaCompleta();
+        $reserva = Motorista::factory()->create();
+
+        app(MontadorDeEscala::class)->definirDestino($escala, $reserva->id, TipoDestino::Reserva);
+
+        $this->get(route('documentos.frequencia', [$escala->fresh(), $reserva]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        // E aparece na lista da tela de documentos.
+        $this->get(route('documentos.index', $escala->fresh()))
+            ->assertOk()
+            ->assertSee($reserva->nome_curto)
+            ->assertSee('folha em branco');
     }
 
     /** O cabeçalho traz apenas a lotação e o vínculo do motorista. */

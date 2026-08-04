@@ -97,36 +97,57 @@
         />
 
         {{-- Documento 3 --}}
+        @php
+            $emSobreaviso = $comFolhaDeFrequencia->filter(fn ($l) => ! $l->escalado())->count();
+        @endphp
+
         <x-documento-cartao
             titulo="Folhas de frequência"
             descricao="Uma folha por motorista, com todos os dias do mês e espaço para assinatura nos dias de plantão. Os dias de descanso saem marcados como folga."
             icone="impressora"
             :detalhes="[
-                $totalEscalados.' folha(s)',
+                $comFolhaDeFrequencia->count().' folha(s)',
                 'uma por página',
                 'A4 retrato',
             ]"
             :ver="route('documentos.frequencias', $escala)"
             :baixar="route('documentos.frequencias', [$escala, 'download' => 1])"
-        />
+        >
+            @if ($emSobreaviso > 0)
+                <div class="mt-3 border-t border-slate-100 pt-3">
+                    <p class="text-xs text-slate-600">
+                        Inclui <strong>{{ $emSobreaviso }} folha(s) de sobreaviso e apoio</strong>, que saem com
+                        todas as linhas em branco — esses motoristas prestam plantão sem dia definido na escala e
+                        assinam apenas os dias em que foram acionados.
+                    </p>
+                </div>
+            @endif
+        </x-documento-cartao>
 
         {{-- Reemissão individual: útil quando um motorista perde a folha dele --}}
-        @if ($escalados->isNotEmpty())
+        @if ($comFolhaDeFrequencia->isNotEmpty())
             <x-cartao
                 titulo="Folha de frequência individual"
                 descricao="Reemitir a folha de um motorista específico"
             >
                 <div class="grid gap-2 sm:grid-cols-2">
-                    @foreach ($escalados as $lotacao)
+                    @foreach ($comFolhaDeFrequencia as $lotacao)
                         <a
                             href="{{ route('documentos.frequencia', [$escala, $lotacao->motorista]) }}"
                             target="_blank"
-                            class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 transition hover:bg-slate-100"
+                            class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition {{
+                                $lotacao->escalado() ? 'bg-slate-50 hover:bg-slate-100' : 'bg-sky-50 hover:bg-sky-100'
+                            }}"
                         >
                             <span class="min-w-0">
                                 <span class="block truncate text-sm text-slate-800">{{ $lotacao->motorista->nome_curto }}</span>
                                 <span class="block truncate text-xs text-slate-500">
-                                    {{ $lotacao->rotuloLotacao() }} · {{ $lotacao->plantoes_previstos }} plantão(ões)
+                                    {{ $lotacao->rotuloLotacao() }}
+                                    @if ($lotacao->escalado())
+                                        · {{ $lotacao->plantoesEfetivos() }} plantão(ões)
+                                    @else
+                                        · folha em branco
+                                    @endif
                                 </span>
                             </span>
                             <x-icone nome="impressora" class="size-4 shrink-0 text-slate-400" />

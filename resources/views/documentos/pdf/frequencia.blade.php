@@ -149,6 +149,13 @@
             font-size: 11pt;
             font-weight: bold;
         }
+
+        /* Aviso na folha de sobreaviso e apoio, cujos dias não são definidos. */
+        .nota-sobreaviso {
+            font-size: 7pt;
+            font-style: italic;
+            color: #7a4a00;
+        }
     </style>
 </head>
 <body>
@@ -170,7 +177,8 @@
             </td>
             <td style="width: 20%;">
                 <div class="etiqueta">Escala</div>
-                <div class="valor-campo">{{ $folha['regime'] }}</div>
+                {{-- Sobreaviso e apoio não seguem regime fixo de plantão --}}
+                <div class="valor-campo">{{ $folha['regime'] ?: '—' }}</div>
             </td>
             <td style="width: 22%;">
                 <div class="etiqueta">Referência</div>
@@ -185,6 +193,12 @@
                     <span style="color: #666;">&nbsp;–&nbsp;</span>
                     <span class="etiqueta">Vínculo:</span>
                     <strong>{{ $folha['vinculo'] }}</strong>
+
+                    @if ($folha['todos_os_dias_em_branco'])
+                        <span class="nota-sobreaviso">
+                            — assinar somente os dias em que houver plantão
+                        </span>
+                    @endif
                 </span>
             </td>
         </tr>
@@ -224,16 +238,22 @@
                 como no documento que o setor já usa. O que distingue o dia de
                 plantão é a coluna de assinatura: em branco quando há plantão,
                 marcada como folga quando não há.
+
+                Sobreaviso e apoio não têm dias definidos na escala, então a folha
+                sai inteira em branco — o motorista assina os dias em que foi
+                acionado e o coordenador aponta o restante.
             --}}
             @foreach ($folha['linhas'] as $linha)
-                <tr class="{{ $linha['plantao'] ? '' : 'linha-folga' }}">
+                @php $emBranco = $folha['todos_os_dias_em_branco'] || $linha['plantao']; @endphp
+
+                <tr class="{{ $emBranco ? '' : 'linha-folga' }}">
                     <td class="f-data">{{ $linha['entrada_data'] }}</td>
                     <td class="f-hora">{{ $linha['entrada_hora'] }}</td>
                     <td class="f-data">{{ $linha['saida_data'] }}</td>
                     <td class="f-hora">{{ $linha['saida_hora'] }}</td>
 
                     <td class="f-assinatura">
-                        @unless ($linha['plantao'])
+                        @unless ($emBranco)
                             <div class="folga">* * * * Folga * * * *</div>
                         @endunless
                     </td>

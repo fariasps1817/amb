@@ -146,12 +146,17 @@ Trocas pontuais feitas à mão são marcadas como ajuste manual e **sobrevivem**
 |-----------|---------|----------|
 | Planilha de plantões | A4 paisagem | Calendário com um X no dia de plantão de cada motorista, mais uma página final com os condutores fora de escala |
 | Lista mensal de ocorrências | A4 retrato | Todo o efetivo em ordem alfabética, com lotação, vínculo, plantões previstos e observações |
-| Folhas de frequência | A4 retrato | Uma folha por motorista, com espaço para assinatura nos dias de plantão |
+| Folhas de frequência | A4 retrato | Uma folha por motorista, com espaço para assinatura nos dias de plantão. Sobreaviso e apoio recebem folha em branco |
 
 A planilha traz, na última página, a **relação dos condutores fora de escala** agrupada por situação
 (sobreaviso, apoio, férias, licença), com o fechamento do efetivo — é o que o RH espera receber junto
 da escala. Para enviar só a grade às unidades, use `?fora_de_escala=0` ou o botão na tela de
 documentos.
+
+As folhas de frequência contemplam também quem está de **sobreaviso/reserva** e de **apoio**: eles
+prestam plantão sem dia definido na escala, então a folha sai com todas as linhas em branco — nenhuma
+marcada como folga — e assinam apenas os dias em que foram acionados. Quem está de férias, licença ou
+atestado não recebe folha.
 
 ### 4. Comunicação aos motoristas
 

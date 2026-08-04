@@ -37,8 +37,11 @@ class DocumentoController extends Controller
             'totalEscalados' => $escala->lotacoes->filter(fn ($l) => $l->escalado())->count(),
             'totalLinhasOcorrencias' => $escala->lotacoes->count(),
             'totalPlantoes' => $escala->plantoes()->count(),
-            'escalados' => $escala->lotacoes
-                ->filter(fn ($l) => $l->escalado() && $l->motorista !== null)
+
+            // Recebem folha de frequencia os escalados e tambem os de
+            // sobreaviso e apoio, que prestam plantao sem dia definido.
+            'comFolhaDeFrequencia' => $escala->lotacoes
+                ->filter(fn ($l) => $l->motorista !== null && ($l->escalado() || $l->disponivel()))
                 ->sortBy(fn ($l) => $l->motorista->nome_completo)
                 ->values(),
         ]);

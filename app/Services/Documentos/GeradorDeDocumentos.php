@@ -167,9 +167,14 @@ class GeradorDeDocumentos
      * Folhas de frequencia: uma por motorista escalado, com todos os dias do mes
      * e os dias de folga marcados.
      *
+     * Recebem folha os escalados em ambulancia e tambem os de sobreaviso/reserva
+     * e apoio — estes com todas as linhas em branco, porque seus dias nao sao
+     * definidos de antemao.
+     *
      * @return Collection<int, array{
-     *     motorista: Motorista, regime: string, linhas: array<int, array>,
-     *     total_plantoes: int
+     *     motorista: Motorista, lotacao: string, vinculo: string, placa: string,
+     *     regime: string, linhas: array<int, array>, total_plantoes: int,
+     *     todos_os_dias_em_branco: bool
      * }>
      */
     public function folhasDeFrequencia(Escala $escala, ?Motorista $motorista = null): Collection
@@ -177,15 +182,22 @@ class GeradorDeDocumentos
         $escala->loadMissing(['lotacoes.motorista', 'lotacoes.posto']);
 
         return $escala->lotacoes
-            ->filter(fn (EscalaLotacao $l) => $l->escalado() && $l->motorista !== null)
+            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null && $this->recebeFolha($l))
             ->when($motorista !== null, fn (Collection $c) => $c->where('motorista_id', $motorista->id))
             ->sortBy(fn (EscalaLotacao $l) => $this->chaveAlfabetica($l->motorista->nome_completo))
             ->values()
             ->map(function (EscalaLotacao $lotacao) use ($escala) {
-                $plantoes = $escala->plantoes()
-                    ->where('motorista_id', $lotacao->motorista_id)
-                    ->get()
-                    ->keyBy(fn ($p) => $p->data->toDateString());
+                // Sobreaviso e apoio nao tem dias definidos na escala: a folha sai
+                // com todas as linhas em branco, para o motorista assinar os dias
+                // em que foi efetivamente acionado.
+                $semDiasDefinidos = ! $lotacao->escalado();
+
+                $plantoes = $semDiasDefinidos
+                    ? collect()
+                    : $escala->plantoes()
+                        ->where('motorista_id', $lotacao->motorista_id)
+                        ->get()
+                        ->keyBy(fn ($p) => $p->data->toDateString());
 
                 $linhas = [];
 
@@ -211,8 +223,26 @@ class GeradorDeDocumentos
                     'regime' => $lotacao->posto?->regimeNotacao() ?? '',
                     'linhas' => $linhas,
                     'total_plantoes' => $plantoes->count(),
+                    // Quando verdadeiro, nenhuma linha e marcada como folga: todas
+                    // ficam disponiveis para assinatura.
+                    'todos_os_dias_em_branco' => $semDiasDefinidos,
                 ];
             });
+    }
+
+    /**
+     * Quem recebe folha de frequencia no mes.
+     *
+     * Alem dos escalados em ambulancia, tambem os de sobreaviso/reserva e os de
+     * apoio em carro extra: eles prestam plantao, so que sem dia definido de
+     * antemao. A folha desses sai inteira em branco e o coordenador aponta as
+     * assinaturas conforme forem acionados.
+     *
+     * Quem esta afastado — ferias, licenca, atestado, cedido — nao recebe.
+     */
+    private function recebeFolha(EscalaLotacao $lotacao): bool
+    {
+        return $lotacao->escalado() || $lotacao->disponivel();
     }
 
     // -----------------------------------------------------------------
