@@ -62,13 +62,21 @@
             margin-top: 2mm;
         }
 
+        /*
+            Altura das linhas calibrada para as 31 linhas de dia mais o cabeçalho
+            preencherem a folha A4 sem passar para uma segunda página.
+
+            Medido: com este padding, 6,5mm é o limite exato. Ficamos em 6,3mm
+            para sobrar margem quando alguma linha traz observação e quebra em
+            duas. Aumentar daqui empurra a última linha para a página seguinte.
+        */
         table.frequencia th,
         table.frequencia td {
             border: 0.5pt solid #555;
             padding: 0.35mm 1mm;
             font-size: 7.5pt;
             line-height: 1.1;
-            height: 5mm;
+            height: 6.3mm;
             vertical-align: middle;
         }
 
@@ -99,8 +107,15 @@
             color: #333;
         }
 
+        /*
+            Observação do plantão — anotações curtas: "troca com Fulano",
+            "atraso de 2h". Fica em uma linha só (o texto é truncado na
+            montagem) para a altura da folha ser previsível: se cada linha
+            puder crescer, a última acaba empurrada para uma segunda página.
+        */
         .f-observacao {
             font-size: 6.5pt;
+            white-space: nowrap;
         }
 
         /* Linha que só carrega as larguras; não deve ocupar espaço nem imprimir. */
@@ -128,25 +143,10 @@
             background-color: #fbfbfb;
         }
 
-        .rodape-folha {
-            margin-top: 2.5mm;
-        }
-
-        .rodape-folha table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .rodape-folha td {
-            border: none;
-            font-size: 6.5pt;
-            padding: 0;
-            vertical-align: bottom;
-        }
-
         .numero-folha {
+            margin-top: 2mm;
             text-align: right;
-            font-size: 12pt;
+            font-size: 11pt;
             font-weight: bold;
         }
     </style>
@@ -179,13 +179,12 @@
         </tr>
         <tr>
             <td colspan="3">
-                <span class="etiqueta">Lotação</span>
-                <span style="font-size: 8pt;">
-                    {{ $folha['lotacao'] }}
-                    @if ($folha['placa'])
-                        · Ambulância {{ $folha['placa'] }}
-                    @endif
-                    · {{ $folha['total_plantoes'] }} plantão(ões) previsto(s) no mês
+                <span style="font-size: 8.5pt;">
+                    <span class="etiqueta">Lotação:</span>
+                    <strong>{{ $folha['lotacao'] }}</strong>
+                    <span style="color: #666;">&nbsp;–&nbsp;</span>
+                    <span class="etiqueta">Vínculo:</span>
+                    <strong>{{ $folha['vinculo'] }}</strong>
                 </span>
             </td>
         </tr>
@@ -239,23 +238,16 @@
                         @endunless
                     </td>
 
-                    <td class="f-observacao">{{ $linha['observacao'] }}</td>
+                    {{-- 32 caracteres é o que a coluna acomoda em 6,5pt --}}
+                    <td class="f-observacao">{{ Str::limit((string) $linha['observacao'], 32) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    <div class="rodape-folha">
-        <table>
-            <tr>
-                <td>
-                    {{ $config->rodape() }}<br>
-                    {{ $config->localData() }}
-                </td>
-                <td class="numero-folha">{{ $loop->iteration }}</td>
-            </tr>
-        </table>
-    </div>
+    {{-- Só o número da folha: identificação do setor, local e data já vêm no
+         rodapé de todas as páginas, escrito no canvas do PDF. --}}
+    <div class="numero-folha">{{ $loop->iteration }}</div>
 
     @unless ($loop->last)
         <div class="quebra-pagina"></div>

@@ -206,6 +206,7 @@ class GeradorDeDocumentos
                 return [
                     'motorista' => $lotacao->motorista,
                     'lotacao' => $lotacao->rotuloLotacao(),
+                    'vinculo' => $lotacao->motorista->vinculo->rotulo(),
                     'placa' => $lotacao->posto?->rotuloPlaca() ?? '',
                     'regime' => $lotacao->posto?->regimeNotacao() ?? '',
                     'linhas' => $linhas,

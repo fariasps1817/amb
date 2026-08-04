@@ -578,6 +578,62 @@ class DocumentosTest extends TestCase
         );
     }
 
+    /**
+     * A folha é entregue ao motorista para assinar: tem de caber em uma página.
+     *
+     * As alturas estão calibradas no limite do papel, então qualquer aumento de
+     * fonte, espaçamento ou altura de linha empurra a última linha para uma
+     * segunda folha. O caso com observação em todos os plantões é o pior
+     * cenário — se ele passar, os demais passam.
+     */
+    #[Test]
+    public function cada_folha_de_frequencia_cabe_em_uma_pagina(): void
+    {
+        $escala = $this->escalaCompleta();
+        $motorista = $escala->plantoes()->first()->motorista;
+        $gerador = app(GeradorDeDocumentos::class);
+
+        $this->assertSame(
+            1,
+            preg_match_all('#/Type\s*/Page[^s]#', $gerador->frequencia($escala, $motorista)->output()),
+            'A folha de frequência passou de uma página.'
+        );
+
+        // Pior caso: observação longa em todos os plantões do motorista.
+        $escala->plantoes()
+            ->where('motorista_id', $motorista->id)
+            ->update(['observacao' => 'Trocou com outro motorista mediante autorização da coordenação']);
+
+        $this->assertSame(
+            1,
+            preg_match_all('#/Type\s*/Page[^s]#', $gerador->frequencia($escala->fresh(), $motorista)->output()),
+            'Com observação em todos os plantões a folha passou de uma página.'
+        );
+
+        // Um motorista, uma folha — vale para a emissão em lote.
+        $escalados = $escala->fresh()->lotacoes->filter(fn ($l) => $l->escalado())->count();
+
+        $this->assertSame(
+            $escalados,
+            preg_match_all('#/Type\s*/Page[^s]#', $gerador->frequencias($escala->fresh())->output())
+        );
+    }
+
+    /** O cabeçalho traz apenas a lotação e o vínculo do motorista. */
+    #[Test]
+    public function a_folha_identifica_lotacao_e_vinculo(): void
+    {
+        $escala = $this->escalaCompleta();
+        $folha = app(GeradorDeDocumentos::class)->folhasDeFrequencia($escala)->first();
+
+        // Vem da identificação da ambulância, não da sigla da unidade: é ela que
+        // distingue SEDE 1 de SEDE 2 quando a unidade tem mais de um veículo.
+        $this->assertSame('SEDE 1', $folha['lotacao']);
+
+        // Os motoristas de escalaCompleta() são contratados.
+        $this->assertSame('Contrato', $folha['vinculo']);
+    }
+
     #[Test]
     public function gera_o_pdf_de_frequencias(): void
     {
