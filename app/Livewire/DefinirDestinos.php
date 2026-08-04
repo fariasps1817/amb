@@ -177,7 +177,9 @@ class DefinirDestinos extends Component
         $this->periodoInicio = $lotacao->periodo_inicio?->toDateString();
         $this->periodoFim = $lotacao->periodo_fim?->toDateString();
         $this->observacao = $lotacao->observacao;
-        $this->plantoesPrevistos = $lotacao->plantoes_previstos;
+        // Abre com o valor que esta valendo hoje: o ajuste, se houver, ou a
+        // contagem da escala.
+        $this->plantoesPrevistos = $lotacao->plantoesEfetivos();
         $this->unidadeApoioId = $lotacao->unidade_apoio_id;
     }
 
@@ -201,6 +203,9 @@ class DefinirDestinos extends Component
             'observacao' => null,
             'periodo_inicio' => $lotacao->escalado() ? null : $lotacao->periodo_inicio,
             'periodo_fim' => $lotacao->escalado() ? null : $lotacao->periodo_fim,
+            // O ajuste de plantões acompanhava a ocorrência; sem ela, volta a
+            // valer a contagem da escala.
+            'plantoes_ajustados' => $lotacao->escalado() ? null : $lotacao->plantoes_ajustados,
         ]);
 
         $this->fecharEdicao();
@@ -238,15 +243,27 @@ class DefinirDestinos extends Component
             'unidadeApoioId' => 'unidade de apoio',
         ]);
 
+        $informado = $this->plantoesPrevistos;
+
         $lotacao->update([
             'periodo_inicio' => $this->periodoInicio,
             'periodo_fim' => $this->periodoFim,
             'observacao' => $this->observacao,
-            // Para quem esta escalado o total vem da contagem de plantoes e nao
-            // deve ser sobrescrito aqui.
+
+            // Para quem esta escalado, plantoes_previstos continua sendo a
+            // contagem da escala — refeita a cada geracao. O numero digitado vai
+            // para plantoes_ajustados, que sobrevive a regeracao e prevalece no
+            // documento; igual ao calculado, nao ha ajuste a guardar.
             'plantoes_previstos' => $lotacao->escalado()
                 ? $lotacao->plantoes_previstos
-                : ($this->plantoesPrevistos ?? 0),
+                : ($informado ?? 0),
+
+            'plantoes_ajustados' => $lotacao->escalado()
+                && $informado !== null
+                && (int) $informado !== (int) $lotacao->plantoes_previstos
+                    ? (int) $informado
+                    : null,
+
             'unidade_apoio_id' => $lotacao->tipo_destino === TipoDestino::Apoio ? $this->unidadeApoioId : null,
         ]);
 

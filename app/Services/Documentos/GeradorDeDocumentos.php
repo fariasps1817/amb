@@ -234,7 +234,11 @@ class GeradorDeDocumentos
             TipoDestino::Cedido,
         ], true);
 
-        return $afastado && $lotacao->plantoes_previstos === 0 ? '~' : $lotacao->plantoes_previstos;
+        // Vale o ajuste informado pelo operador quando houver — e o caso de quem
+        // faltou a um plantao e precisa aparecer com um a menos.
+        $plantoes = $lotacao->plantoesEfetivos();
+
+        return $afastado && $plantoes === 0 ? '~' : $plantoes;
     }
 
     /**

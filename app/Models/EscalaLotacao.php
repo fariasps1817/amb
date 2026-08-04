@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'escala_id', 'motorista_id', 'escala_posto_id', 'posicao',
     'tipo_destino', 'unidade_apoio_id', 'periodo_inicio', 'periodo_fim',
-    'plantoes_previstos', 'observacao',
+    'plantoes_previstos', 'plantoes_ajustados', 'observacao',
 ])]
 class EscalaLotacao extends Model
 {
@@ -33,6 +33,7 @@ class EscalaLotacao extends Model
             'periodo_inicio' => 'date',
             'periodo_fim' => 'date',
             'plantoes_previstos' => 'integer',
+            'plantoes_ajustados' => 'integer',
         ];
     }
 
@@ -178,5 +179,37 @@ class EscalaLotacao extends Model
         }
 
         return $this->tipo_destino?->rotulo() ?? 'Sem definição';
+    }
+
+    // -----------------------------------------------------------------
+    // Plantoes
+    // -----------------------------------------------------------------
+
+    /**
+     * Quantidade que vai para a coluna PLANTOES do documento.
+     *
+     * Por padrao e a contagem da escala; quando o operador informa um ajuste —
+     * o caso de quem faltou a um plantao — vale o numero informado.
+     */
+    public function plantoesEfetivos(): int
+    {
+        return $this->plantoes_ajustados ?? (int) $this->plantoes_previstos;
+    }
+
+    public function plantoesForamAjustados(): bool
+    {
+        return $this->plantoes_ajustados !== null
+            && $this->plantoes_ajustados !== (int) $this->plantoes_previstos;
+    }
+
+    /**
+     * Diferenca entre o informado e o calculado: -1 para quem faltou um plantao.
+     * Zero quando nao ha ajuste.
+     */
+    public function diferencaDePlantoes(): int
+    {
+        return $this->plantoes_ajustados === null
+            ? 0
+            : $this->plantoes_ajustados - (int) $this->plantoes_previstos;
     }
 }

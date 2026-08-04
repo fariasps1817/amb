@@ -146,8 +146,17 @@
                             <p class="mt-0.5 truncate text-xs text-slate-500">
                                 {{ $motorista->nome_completo }} ·
                                 {{ $motorista->vinculo->rotulo() }}
-                                @if ($lotacao->plantoes_previstos > 0)
-                                    · {{ $lotacao->plantoes_previstos }} plantão(ões)
+
+                                @if ($lotacao->plantoesEfetivos() > 0 || $lotacao->plantoesForamAjustados())
+                                    · {{ $lotacao->plantoesEfetivos() }} plantão(ões)
+
+                                    {{-- Quando ajustado, mostra de quanto era --}}
+                                    @if ($lotacao->plantoesForamAjustados())
+                                        <span class="font-medium text-amber-700">
+                                            ({{ $lotacao->diferencaDePlantoes() > 0 ? '+' : '' }}{{ $lotacao->diferencaDePlantoes() }},
+                                            escala prevê {{ $lotacao->plantoes_previstos }})
+                                        </span>
+                                    @endif
                                 @endif
                             </p>
 
@@ -241,24 +250,58 @@
                                     @error('periodoFim') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
 
-                                {{-- Para quem está escalado o total de plantões vem da
-                                     contagem da escala e não é editável à mão. --}}
+                                {{--
+                                    Quantidade que vai para a coluna PLANTÕES do
+                                    documento. Para quem está escalado, o número
+                                    da escala é a base; digitar outro valor grava
+                                    um ajuste, que sobrevive à regeração dos
+                                    plantões. É o caso de quem faltou a um dia.
+                                --}}
                                 <div>
                                     <label for="plantoes-{{ $lotacao->id }}" class="mb-1 block text-xs font-medium text-slate-700">
-                                        Plantões previstos
+                                        Plantões
                                     </label>
-                                    <input
-                                        id="plantoes-{{ $lotacao->id }}"
-                                        type="number"
-                                        min="0"
-                                        max="31"
-                                        wire:model="plantoesPrevistos"
-                                        @disabled($escalado)
-                                        class="block w-full rounded-lg border-0 px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-inset ring-slate-300 tabular-nums focus:ring-2 focus:ring-inset focus:ring-marca-600 {{ $escalado ? 'bg-slate-100 text-slate-500' : 'bg-white' }}"
-                                    >
+                                    <div class="flex items-center gap-1.5">
+                                        @if ($escalado)
+                                            <button
+                                                type="button"
+                                                wire:click="$set('plantoesPrevistos', {{ max(0, (int) $plantoesPrevistos - 1) }})"
+                                                class="shrink-0 rounded-md px-2 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-300 transition hover:bg-slate-100"
+                                                title="Um plantão a menos"
+                                            >−</button>
+                                        @endif
+
+                                        <input
+                                            id="plantoes-{{ $lotacao->id }}"
+                                            type="number"
+                                            min="0"
+                                            max="31"
+                                            wire:model="plantoesPrevistos"
+                                            class="block w-full rounded-lg border-0 bg-white px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-inset ring-slate-300 tabular-nums focus:ring-2 focus:ring-inset focus:ring-marca-600"
+                                        >
+
+                                        @if ($escalado)
+                                            <button
+                                                type="button"
+                                                wire:click="$set('plantoesPrevistos', {{ min(31, (int) $plantoesPrevistos + 1) }})"
+                                                class="shrink-0 rounded-md px-2 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-300 transition hover:bg-slate-100"
+                                                title="Um plantão a mais"
+                                            >+</button>
+                                        @endif
+                                    </div>
+
                                     @if ($escalado)
-                                        <p class="mt-1 text-xs text-slate-500">Contado pela escala.</p>
+                                        @php $calculado = (int) $lotacao->plantoes_previstos; @endphp
+
+                                        <p class="mt-1 text-xs {{ (int) $plantoesPrevistos !== $calculado ? 'font-medium text-amber-700' : 'text-slate-500' }}">
+                                            @if ((int) $plantoesPrevistos !== $calculado)
+                                                Ajustado — a escala prevê {{ $calculado }}.
+                                            @else
+                                                Contado pela escala.
+                                            @endif
+                                        </p>
                                     @endif
+
                                     @error('plantoesPrevistos') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
 

@@ -129,7 +129,10 @@ cabeçalho e no rodapé de todos os PDFs.
    publicar com motorista sem destino.
    É nessa tela que também se registra a **ocorrência de quem está escalado** — uma falta, um
    atestado, uma troca de plantão: o botão *Registrar ocorrência* na linha do motorista. O texto vai
-   para a coluna OCORRÊNCIA da lista mensal e o motorista continua escalado, com os mesmos plantões.
+   para a coluna OCORRÊNCIA da lista mensal e o motorista continua escalado.
+   No mesmo painel dá para **ajustar a quantidade de plantões**: quem tinha 8 previstos e faltou a um
+   passa a constar com 7. O número da escala continua guardado como base, e o ajuste sobrevive a uma
+   nova geração de plantões — apagar a ocorrência devolve a contagem automática.
 4. **Gerar plantões.** A fila é aplicada dia a dia.
 5. **Publicar.** Antes de liberar, o sistema verifica descanso insuficiente (inclusive na virada do
    mês), motorista em duas ambulâncias no mesmo dia, CNH vencida, contrato encerrado e dias sem

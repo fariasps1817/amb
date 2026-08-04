@@ -474,6 +474,150 @@ class FluxoDaEscalaTest extends TestCase
         $this->assertNull($lotacao->fresh()->observacao);
     }
 
+    /**
+     * Motorista com 8 plantões previstos que faltou a um deve aparecer com 7 na
+     * coluna PLANTÕES do documento.
+     */
+    #[Test]
+    public function ajusta_a_quantidade_de_plantoes_ao_registrar_a_falta(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $calculado = (int) $lotacao->plantoes_previstos;
+        $this->assertGreaterThan(0, $calculado);
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->set('observacao', 'Falta em 12/08')
+            ->set('plantoesPrevistos', $calculado - 1)
+            ->call('salvarDetalhes')
+            ->assertHasNoErrors();
+
+        $lotacao->refresh();
+
+        // A contagem da escala continua intacta; o ajuste fica à parte.
+        $this->assertSame($calculado, (int) $lotacao->plantoes_previstos);
+        $this->assertSame($calculado - 1, $lotacao->plantoes_ajustados);
+        $this->assertSame($calculado - 1, $lotacao->plantoesEfetivos());
+        $this->assertSame(-1, $lotacao->diferencaDePlantoes());
+        $this->assertTrue($lotacao->plantoesForamAjustados());
+
+        // E é o número ajustado que sai no documento.
+        $linha = app(GeradorDeDocumentos::class)
+            ->linhasDeOcorrencias($escala->fresh())
+            ->firstWhere('nome', $lotacao->motorista->nomeDocumento());
+
+        $this->assertSame($calculado - 1, $linha['plantoes']);
+        $this->assertSame('Falta em 12/08', $linha['ocorrencia']);
+    }
+
+    /**
+     * O ajuste precisa sobreviver a uma nova geração de plantões — do contrário
+     * seria silenciosamente desfeito, que é o motivo de não gravá-lo direto em
+     * plantoes_previstos.
+     */
+    #[Test]
+    public function o_ajuste_de_plantoes_sobrevive_a_regeracao(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $calculado = (int) $lotacao->plantoes_previstos;
+        $lotacao->update(['observacao' => 'Falta em 12/08', 'plantoes_ajustados' => $calculado - 1]);
+
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao->refresh();
+
+        $this->assertSame($calculado, (int) $lotacao->plantoes_previstos);
+        $this->assertSame($calculado - 1, $lotacao->plantoesEfetivos());
+    }
+
+    /** Informar o mesmo número calculado não grava ajuste algum. */
+    #[Test]
+    public function informar_o_valor_calculado_nao_registra_ajuste(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->set('observacao', 'Troca de plantão com Fulano')
+            ->set('plantoesPrevistos', (int) $lotacao->plantoes_previstos)
+            ->call('salvarDetalhes');
+
+        $this->assertNull($lotacao->fresh()->plantoes_ajustados);
+        $this->assertFalse($lotacao->fresh()->plantoesForamAjustados());
+    }
+
+    /** Remover a ocorrência devolve a contagem da escala. */
+    #[Test]
+    public function remover_a_ocorrencia_desfaz_o_ajuste_de_plantoes(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $calculado = (int) $lotacao->plantoes_previstos;
+        $lotacao->update(['observacao' => 'Falta em 12/08', 'plantoes_ajustados' => $calculado - 1]);
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->call('limparOcorrencia');
+
+        $lotacao->refresh();
+
+        $this->assertNull($lotacao->plantoes_ajustados);
+        $this->assertSame($calculado, $lotacao->plantoesEfetivos());
+    }
+
+    /** Para quem tem destino administrativo o número continua sendo direto. */
+    #[Test]
+    public function afastado_continua_com_plantoes_informados_direto(): void
+    {
+        $escala = $this->escalaMontada();
+        $apoio = Motorista::factory()->create();
+
+        app(MontadorDeEscala::class)->definirDestino($escala, $apoio->id, TipoDestino::Apoio);
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->where('motorista_id', $apoio->id)
+            ->firstOrFail();
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->set('plantoesPrevistos', 6)
+            ->call('salvarDetalhes');
+
+        $lotacao->refresh();
+
+        // Sem escala para contar, o valor vai direto em plantoes_previstos.
+        $this->assertSame(6, (int) $lotacao->plantoes_previstos);
+        $this->assertNull($lotacao->plantoes_ajustados);
+        $this->assertSame(6, $lotacao->plantoesEfetivos());
+    }
+
     /** A ocorrência pode ser removida depois. */
     #[Test]
     public function remove_a_ocorrencia_do_escalado(): void
