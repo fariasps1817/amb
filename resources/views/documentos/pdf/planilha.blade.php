@@ -68,9 +68,28 @@
             background-color: #e4e4e4;
         }
 
-        th.fim-de-semana,
+        /*
+            Sábado e domingo.
+
+            A marcação serve só para orientar a leitura ao longo da linha, então
+            fica bem discreta no corpo da tabela — o que precisa saltar aos olhos
+            é o X do plantão, não a coluna.
+
+            No cabeçalho o tom é um pouco mais forte que o das colunas de dia
+            útil, para a distinção continuar visível sobre o cinza já existente.
+            As regras vêm depois das de th.semana e th.numero-dia e têm
+            especificidade maior, garantindo a precedência.
+        */
         td.fim-de-semana {
-            background-color: #ededed;
+            background-color: #f7f7f7;
+        }
+
+        th.semana.fim-de-semana {
+            background-color: #e7e7e7;
+        }
+
+        th.numero-dia.fim-de-semana {
+            background-color: #d8d8d8;
         }
 
         td.numero {

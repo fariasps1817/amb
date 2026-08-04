@@ -65,9 +65,25 @@
             background-color: #e4e4e4;
         }
 
-        th.fim-de-semana,
+        /*
+            Sábado e domingo.
+
+            Marcação discreta no corpo da tabela: ela orienta a leitura ao longo
+            da linha, mas quem precisa saltar aos olhos é o X do plantão.
+
+            No cabeçalho o tom é um pouco mais forte que o das colunas de dia
+            útil, para a distinção continuar visível sobre o cinza já existente.
+        */
         td.fim-de-semana {
-            background-color: #ededed;
+            background-color: #f7f7f7;
+        }
+
+        th.semana.fim-de-semana {
+            background-color: #e7e7e7;
+        }
+
+        th.numero-dia.fim-de-semana {
+            background-color: #d8d8d8;
         }
 
         /* Faixa de identificação da ambulância, no lugar das colunas P e LOT. */
