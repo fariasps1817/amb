@@ -137,9 +137,14 @@ Trocas pontuais feitas à mão são marcadas como ajuste manual e **sobrevivem**
 
 | Documento | Formato | Conteúdo |
 |-----------|---------|----------|
-| Planilha de plantões | A4 paisagem | Calendário com um X no dia de plantão de cada motorista — o que vai para as unidades |
+| Planilha de plantões | A4 paisagem | Calendário com um X no dia de plantão de cada motorista, mais uma página final com os condutores fora de escala |
 | Lista mensal de ocorrências | A4 retrato | Todo o efetivo em ordem alfabética, com lotação, vínculo, plantões previstos e observações |
 | Folhas de frequência | A4 retrato | Uma folha por motorista, com espaço para assinatura nos dias de plantão |
+
+A planilha traz, na última página, a **relação dos condutores fora de escala** agrupada por situação
+(sobreaviso, apoio, férias, licença), com o fechamento do efetivo — é o que o RH espera receber junto
+da escala. Para enviar só a grade às unidades, use `?fora_de_escala=0` ou o botão na tela de
+documentos.
 
 ### 4. Comunicação aos motoristas
 

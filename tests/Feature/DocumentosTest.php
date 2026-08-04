@@ -161,7 +161,8 @@ class DocumentosTest extends TestCase
         $paginasLogicas = DadosDaPlanilha::para($escala)
             ->paginas(linhasPorPagina: $capacidade, linhasExtrasPorBloco: $extrasPorBloco);
 
-        $pdf = app(GeradorDeDocumentos::class)->planilha($escala, $layout)->output();
+        // Sem a página final de fora de escala: aqui medimos só a grade.
+        $pdf = app(GeradorDeDocumentos::class)->planilha($escala, $layout, false)->output();
         $paginasFisicas = preg_match_all('#/Type\s*/Page[^s]#', $pdf);
 
         $this->assertSame(
@@ -184,6 +185,127 @@ class DocumentosTest extends TestCase
             'clássico' => [GeradorDeDocumentos::LAYOUT_CLASSICO, 34, 0],
             'agrupado' => [GeradorDeDocumentos::LAYOUT_AGRUPADO, 32, 1],
         ];
+    }
+
+    // -----------------------------------------------------------------
+    // Página final: condutores fora de escala
+    // -----------------------------------------------------------------
+
+    /**
+     * A relação de quem está fora de escala fecha o quadro do efetivo na própria
+     * planilha, que é como o setor envia ao RH.
+     */
+    #[Test]
+    public function agrupa_os_condutores_fora_de_escala_por_situacao(): void
+    {
+        $escala = $this->escalaCompleta();
+        $montador = app(MontadorDeEscala::class);
+
+        $reserva = Motorista::factory()->create(['nome_completo' => 'BRUNO ALVES', 'nome_curto' => 'BRUNO']);
+        $outraReserva = Motorista::factory()->create(['nome_completo' => 'ANA LIMA', 'nome_curto' => 'ANA']);
+        $ferias = Motorista::factory()->create(['nome_completo' => 'CARLA DIAS', 'nome_curto' => 'CARLA']);
+
+        $montador->definirDestino($escala, $reserva->id, TipoDestino::Reserva);
+        $montador->definirDestino($escala, $outraReserva->id, TipoDestino::Reserva);
+        $montador->definirDestino(
+            $escala,
+            $ferias->id,
+            TipoDestino::Ferias,
+            periodoInicio: '2026-08-01',
+            periodoFim: '2026-08-30',
+        );
+
+        $grupos = DadosDaPlanilha::para($escala->fresh())->foraDeEscala();
+
+        // Reserva vem antes de férias: quem está à disposição aparece primeiro.
+        $this->assertSame(
+            ['SOBREAVISO (RESERVA)', 'FÉRIAS'],
+            $grupos->pluck('rotulo')->all()
+        );
+
+        $sobreaviso = $grupos->firstWhere('rotulo', 'SOBREAVISO (RESERVA)');
+        $this->assertTrue($sobreaviso['disponivel']);
+        $this->assertCount(2, $sobreaviso['linhas']);
+
+        // Ordem alfabética dentro do grupo.
+        $this->assertSame(
+            ['ANA LIMA', 'BRUNO ALVES'],
+            array_map(fn ($l) => $l['motorista']->nome_completo, $sobreaviso['linhas'])
+        );
+
+        // O período do afastamento é montado a partir das datas.
+        $grupoFerias = $grupos->firstWhere('rotulo', 'FÉRIAS');
+        $this->assertFalse($grupoFerias['disponivel']);
+        $this->assertSame('01 a 30/08', $grupoFerias['linhas'][0]['periodo']);
+
+        // O efetivo fecha: escalados + fora = total.
+        $dados = DadosDaPlanilha::para($escala->fresh());
+        $this->assertSame(4, $dados->totalLinhas());
+        $this->assertSame(3, $dados->totalForaDeEscala());
+    }
+
+    /** Quem está escalado não pode aparecer na relação de fora de escala. */
+    #[Test]
+    public function nao_lista_quem_esta_escalado(): void
+    {
+        $escala = $this->escalaCompleta();
+        $escalados = $escala->lotacoes->filter(fn ($l) => $l->escalado())->pluck('motorista_id');
+
+        $grupos = DadosDaPlanilha::para($escala)->foraDeEscala();
+
+        $listados = $grupos->flatMap(fn ($g) => array_map(fn ($l) => $l['motorista']->id, $g['linhas']));
+
+        $this->assertEmpty($listados->intersect($escalados));
+    }
+
+    /** A página final entra por padrão e pode ser omitida. */
+    #[Test]
+    #[DataProvider('layoutsDaPlanilha')]
+    public function pagina_de_fora_de_escala_e_opcional(string $layout): void
+    {
+        $escala = $this->escalaCompleta();
+        app(MontadorDeEscala::class)->definirDestino(
+            $escala,
+            Motorista::factory()->create()->id,
+            TipoDestino::Reserva
+        );
+
+        $gerador = app(GeradorDeDocumentos::class);
+        $escala = $escala->fresh();
+
+        $comAnexo = preg_match_all('#/Type\s*/Page[^s]#', $gerador->planilha($escala, $layout)->output());
+        $semAnexo = preg_match_all('#/Type\s*/Page[^s]#', $gerador->planilha($escala, $layout, false)->output());
+
+        $this->assertSame($semAnexo + 1, $comAnexo, "No layout {$layout} a página final não foi acrescentada.");
+    }
+
+    #[Test]
+    public function a_rota_permite_omitir_a_pagina_final(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        // Sem o parâmetro, a página vem junto.
+        $padrao = $this->get(route('documentos.planilha', $escala))->getContent();
+        $omitida = $this->get(route('documentos.planilha', [$escala, 'fora_de_escala' => 0]))->getContent();
+
+        $this->assertGreaterThan(
+            preg_match_all('#/Type\s*/Page[^s]#', $omitida),
+            preg_match_all('#/Type\s*/Page[^s]#', $padrao)
+        );
+    }
+
+    /** Sem ninguém fora de escala, a página sai informando isso. */
+    #[Test]
+    public function pagina_final_com_todos_escalados(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        $this->assertSame(0, DadosDaPlanilha::para($escala)->totalForaDeEscala());
+
+        // Continua gerando, sem quebrar.
+        $this->get(route('documentos.planilha', $escala))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
     }
 
     /** Um layout desconhecido cai no clássico, em vez de quebrar. */

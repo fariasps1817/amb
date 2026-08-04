@@ -2,12 +2,15 @@
 
 namespace App\Services\Documentos;
 
+use App\Enums\TipoDestino;
 use App\Models\Escala;
 use App\Models\EscalaLotacao;
 use App\Models\EscalaPlantao;
 use App\Models\EscalaPosto;
+use App\Models\Motorista;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Monta os dados da planilha mensal de plantoes — o documento distribuido as
@@ -91,6 +94,81 @@ final class DadosDaPlanilha
     public function totalLinhas(): int
     {
         return $this->blocos->sum(fn (array $bloco) => count($bloco['linhas']));
+    }
+
+    /**
+     * Condutores que nao estao em nenhuma ambulancia no mes, agrupados pelo
+     * destino: sobreaviso, apoio, ferias, licenca, atestado, cedido.
+     *
+     * Fecha o quadro do efetivo na propria planilha — o RH recebe a escala e a
+     * relacao de quem esta fora dela no mesmo documento — e serve as unidades,
+     * que precisam saber quem esta de sobreaviso para acionar em caso de falta.
+     *
+     * A ordem dos grupos segue TipoDestino, que ja coloca reserva e apoio
+     * primeiro: sao os que continuam a disposicao do setor.
+     *
+     * @return Collection<int, array{
+     *     tipo: TipoDestino, rotulo: string, disponivel: bool,
+     *     linhas: array<int, array{motorista: Motorista, vinculo: string,
+     *                              telefone: string, periodo: string,
+     *                              observacao: string, plantoes: int}>
+     * }>
+     */
+    public function foraDeEscala(): Collection
+    {
+        $this->escala->loadMissing(['lotacoes.motorista', 'lotacoes.unidadeApoio']);
+
+        $porTipo = $this->escala->lotacoes
+            ->filter(fn (EscalaLotacao $l) => ! $l->escalado()
+                && $l->tipo_destino !== null
+                && $l->motorista !== null)
+            ->groupBy(fn (EscalaLotacao $l) => $l->tipo_destino->value);
+
+        return collect(TipoDestino::cases())
+            ->filter(fn (TipoDestino $tipo) => $porTipo->has($tipo->value))
+            ->map(fn (TipoDestino $tipo) => [
+                'tipo' => $tipo,
+                'rotulo' => $tipo->rotuloLotacao(),
+                'disponivel' => $tipo->disponivel(),
+                'linhas' => $porTipo->get($tipo->value)
+                    ->sortBy(fn (EscalaLotacao $l) => Str::transliterate(mb_strtoupper($l->motorista->nome_completo)))
+                    ->values()
+                    ->map(fn (EscalaLotacao $l) => [
+                        'motorista' => $l->motorista,
+                        'vinculo' => $l->motorista->vinculo->rotuloDocumento(),
+                        'telefone' => $l->motorista->telefoneFormatado(),
+                        'periodo' => $this->periodo($l),
+                        'observacao' => $l->observacao ?? '',
+                        'plantoes' => (int) $l->plantoes_previstos,
+                    ])
+                    ->all(),
+            ])
+            ->values();
+    }
+
+    /** Quantos condutores estao fora de escala no mes. */
+    public function totalForaDeEscala(): int
+    {
+        return $this->foraDeEscala()->sum(fn (array $grupo) => count($grupo['linhas']));
+    }
+
+    /**
+     * Periodo do afastamento, quando informado: "01 a 30/08" ou "a partir de
+     * 12/08". Vazio quando o destino vale o mes inteiro.
+     */
+    private function periodo(EscalaLotacao $lotacao): string
+    {
+        if ($lotacao->periodo_inicio === null) {
+            return '';
+        }
+
+        if ($lotacao->periodo_fim === null) {
+            return 'a partir de '.$lotacao->periodo_inicio->format('d/m');
+        }
+
+        return $lotacao->periodo_inicio->isSameMonth($lotacao->periodo_fim)
+            ? $lotacao->periodo_inicio->format('d').' a '.$lotacao->periodo_fim->format('d/m')
+            : $lotacao->periodo_inicio->format('d/m').' a '.$lotacao->periodo_fim->format('d/m');
     }
 
     /**

@@ -37,7 +37,14 @@ class GeradorDeDocumentos
         self::LAYOUT_AGRUPADO => 'Agrupado — faixa de identificação por ambulância',
     ];
 
-    public function planilha(Escala $escala, ?string $layout = null): DomPdf
+    /**
+     * @param  bool  $incluirForaDeEscala  Acrescenta uma pagina final com os
+     *                                     condutores que nao estao em nenhuma
+     *                                     ambulancia no mes — sobreaviso, apoio,
+     *                                     ferias, licenca. E o que o RH espera
+     *                                     junto da escala.
+     */
+    public function planilha(Escala $escala, ?string $layout = null, bool $incluirForaDeEscala = true): DomPdf
     {
         $layout = array_key_exists((string) $layout, self::LAYOUTS)
             ? $layout
@@ -66,6 +73,7 @@ class GeradorDeDocumentos
             'dados' => $dados,
             'paginas' => $paginas,
             'config' => $config,
+            'incluirForaDeEscala' => $incluirForaDeEscala,
         ])->setPaper('a4', 'landscape');
 
         return $this->aplicarRodape($pdf, $config, 'landscape');

@@ -26,8 +26,14 @@ class DocumentoController extends Controller
     {
         $escala->load(['postos.unidade', 'postos.ambulancia', 'lotacoes.motorista']);
 
+        $layout = Configuracao::atual()->layout_planilha ?: GeradorDeDocumentos::LAYOUT_CLASSICO;
+
         return view('documentos.index', [
             'escala' => $escala,
+            'layoutAtual' => $layout,
+            'layoutAlternativo' => $layout === GeradorDeDocumentos::LAYOUT_AGRUPADO
+                ? GeradorDeDocumentos::LAYOUT_CLASSICO
+                : GeradorDeDocumentos::LAYOUT_AGRUPADO,
             'totalEscalados' => $escala->lotacoes->filter(fn ($l) => $l->escalado())->count(),
             'totalLinhasOcorrencias' => $escala->lotacoes->count(),
             'totalPlantoes' => $escala->plantoes()->count(),
@@ -43,15 +49,22 @@ class DocumentoController extends Controller
      *
      * O layout vem por parametro (?layout=classico|agrupado) e, quando ausente,
      * usa o que estiver definido na identidade institucional.
+     *
+     * A pagina final com os condutores fora de escala vem por padrao — e o que o
+     * RH espera junto da escala — e pode ser omitida com ?fora_de_escala=0,
+     * quando a copia se destina apenas as unidades.
      */
     public function planilha(Request $request, Escala $escala): Response
     {
         $layout = $request->string('layout')->toString()
             ?: Configuracao::atual()->layout_planilha;
 
+        $incluirForaDeEscala = ! $request->has('fora_de_escala')
+            || $request->boolean('fora_de_escala');
+
         return $this->responder(
             $request,
-            $this->gerador->planilha($escala, $layout),
+            $this->gerador->planilha($escala, $layout, $incluirForaDeEscala),
             $this->gerador->nomeArquivo($escala, 'escala'),
         );
     }

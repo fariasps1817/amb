@@ -37,6 +37,8 @@
         @endif
 
         {{-- Documento 1 --}}
+        @php $foraDeEscala = $totalLinhasOcorrencias - $totalEscalados; @endphp
+
         <x-documento-cartao
             titulo="Planilha de plantões"
             descricao="Calendário do mês com um X no dia de plantão de cada motorista. É o documento distribuído às unidades para acompanharem quem está de plantão."
@@ -49,7 +51,36 @@
             ]"
             :ver="route('documentos.planilha', $escala)"
             :baixar="route('documentos.planilha', [$escala, 'download' => 1])"
-        />
+        >
+            {{-- A página final fecha o quadro do efetivo, que é o que o RH espera
+                 receber junto da escala. Para as unidades ela é dispensável. --}}
+            <div class="mt-3 border-t border-slate-100 pt-3">
+                <p class="text-xs text-slate-600">
+                    <strong>Inclui a página final</strong> com os
+                    {{ $foraDeEscala }} condutor(es) fora de escala — sobreaviso, apoio, férias e licenças —
+                    fechando o efetivo de {{ $totalLinhasOcorrencias }}.
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <x-botao
+                        href="{{ route('documentos.planilha', [$escala, 'fora_de_escala' => 0]) }}"
+                        target="_blank"
+                        variante="secundario"
+                        tamanho="pequeno"
+                    >
+                        Só a grade, sem a página final
+                    </x-botao>
+                    <x-botao
+                        href="{{ route('documentos.planilha', [$escala, 'layout' => $layoutAlternativo]) }}"
+                        target="_blank"
+                        variante="texto"
+                        tamanho="pequeno"
+                        icone="olho"
+                    >
+                        Ver no layout {{ $layoutAlternativo === 'agrupado' ? 'agrupado' : 'clássico' }}
+                    </x-botao>
+                </div>
+            </div>
+        </x-documento-cartao>
 
         {{-- Documento 2 --}}
         <x-documento-cartao

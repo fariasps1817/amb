@@ -43,4 +43,9 @@
             @endif
         </div>
     </div>
+
+    {{-- Opções específicas do documento, quando houver --}}
+    @if (trim($slot) !== '')
+        {{ $slot }}
+    @endif
 </div>

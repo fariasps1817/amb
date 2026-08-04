@@ -282,5 +282,17 @@
     @endunless
 @endforeach
 
+{{-- Página final com os condutores fora de escala, quando solicitada --}}
+@if ($incluirForaDeEscala)
+    <div class="quebra-pagina"></div>
+
+    @include('documentos.pdf._fora-de-escala', [
+        'grupos' => $dados->foraDeEscala(),
+        'escala' => $escala,
+        'config' => $config,
+        'totalEscalados' => $dados->totalLinhas(),
+    ])
+@endif
+
 </body>
 </html>
