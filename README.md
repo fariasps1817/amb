@@ -124,8 +124,12 @@ cabeçalho e no rodapé de todos os PDFs.
    Marque *repetir a estrutura do mês anterior* para copiar ambulâncias, regimes e equipes.
 2. **Montagem.** Cada ambulância abre as vagas que o regime exige. Encaixe um motorista em cada
    posição; as setas reordenam, mudando o dia em que cada um pega plantão.
-3. **Destinos.** Quem não está em uma ambulância recebe uma situação: sobreaviso/reserva, apoio em
-   carro extra, férias, licença ou atestado. O sistema não deixa publicar com motorista sem destino.
+3. **Destinos e ocorrências.** Quem não está em uma ambulância recebe uma situação:
+   sobreaviso/reserva, apoio em carro extra, férias, licença ou atestado. O sistema não deixa
+   publicar com motorista sem destino.
+   É nessa tela que também se registra a **ocorrência de quem está escalado** — uma falta, um
+   atestado, uma troca de plantão: o botão *Registrar ocorrência* na linha do motorista. O texto vai
+   para a coluna OCORRÊNCIA da lista mensal e o motorista continua escalado, com os mesmos plantões.
 4. **Gerar plantões.** A fila é aplicada dia a dia.
 5. **Publicar.** Antes de liberar, o sistema verifica descanso insuficiente (inclusive na virada do
    mês), motorista em duas ambulâncias no mesmo dia, CNH vencida, contrato encerrado e dias sem

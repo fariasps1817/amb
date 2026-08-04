@@ -91,6 +91,7 @@ class DefinirDestinos extends Component
             'escalados' => $lotacoes->filter(fn ($l) => $l->escalado()),
             'destino' => $lotacoes->filter(fn ($l) => ! $l->escalado() && $l->tipo_destino !== null),
             'pendentes' => $lotacoes->filter(fn ($l) => ! $l->definido()),
+            'com_ocorrencia' => $lotacoes->filter(fn ($l) => filled($l->observacao)),
             default => $lotacoes,
         };
 
@@ -118,6 +119,7 @@ class DefinirDestinos extends Component
             'escalados' => $todas->filter(fn ($l) => $l->escalado())->count(),
             'destino' => $todas->filter(fn ($l) => ! $l->escalado() && $l->tipo_destino !== null)->count(),
             'pendentes' => $todas->filter(fn ($l) => ! $l->definido())->count(),
+            'com_ocorrencia' => $todas->filter(fn ($l) => filled($l->observacao))->count(),
         ];
     }
 
@@ -184,23 +186,57 @@ class DefinirDestinos extends Component
         $this->reset(['emEdicao', 'periodoInicio', 'periodoFim', 'observacao', 'plantoesPrevistos', 'unidadeApoioId']);
     }
 
+    /**
+     * Apaga a ocorrencia registrada, deixando a coluna em branco no documento.
+     *
+     * Para quem esta escalado o periodo so existe por causa da ocorrencia, entao
+     * ele e limpo junto; para quem tem destino administrativo o periodo continua
+     * valendo (e o das ferias, da licenca) e e preservado.
+     */
+    public function limparOcorrencia(): void
+    {
+        $lotacao = $this->lotacao($this->emEdicao);
+
+        $lotacao->update([
+            'observacao' => null,
+            'periodo_inicio' => $lotacao->escalado() ? null : $lotacao->periodo_inicio,
+            'periodo_fim' => $lotacao->escalado() ? null : $lotacao->periodo_fim,
+        ]);
+
+        $this->fecharEdicao();
+        $this->limparCache();
+
+        $this->dispatch('aviso', tipo: 'sucesso', texto: 'Ocorrência removida.');
+    }
+
     public function salvarDetalhes(): void
     {
-        $this->validate([
+        $lotacao = $this->lotacao($this->emEdicao);
+
+        $regras = [
             'periodoInicio' => ['nullable', 'date'],
             'periodoFim' => ['nullable', 'date', 'after_or_equal:periodoInicio'],
             'observacao' => ['nullable', 'string', 'max:255'],
             'plantoesPrevistos' => ['nullable', 'integer', 'min:0', 'max:31'],
             'unidadeApoioId' => ['nullable', 'exists:unidades,id'],
-        ], attributes: [
+        ];
+
+        // Quem esta escalado nao tem tipo de destino, entao o texto da ocorrencia
+        // nao pode ser deduzido do periodo — sem descricao, a data informada nao
+        // apareceria no documento e o registro se perderia em silencio.
+        if ($lotacao->escalado() && filled($this->periodoInicio)) {
+            $regras['observacao'] = ['required', 'string', 'max:255'];
+        }
+
+        $this->validate($regras, [
+            'observacao.required' => 'Descreva a ocorrência: só a data não aparece no documento.',
+        ], [
             'periodoInicio' => 'início do período',
             'periodoFim' => 'fim do período',
-            'observacao' => 'observação',
+            'observacao' => 'ocorrência',
             'plantoesPrevistos' => 'plantões previstos',
             'unidadeApoioId' => 'unidade de apoio',
         ]);
-
-        $lotacao = $this->lotacao($this->emEdicao);
 
         $lotacao->update([
             'periodo_inicio' => $this->periodoInicio,

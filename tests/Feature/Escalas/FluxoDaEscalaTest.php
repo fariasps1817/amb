@@ -12,6 +12,7 @@ use App\Models\EscalaLotacao;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\Documentos\GeradorDeDocumentos;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -408,6 +409,142 @@ class FluxoDaEscalaTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame('Férias de 01 a 30/08/26', $lotacao->fresh()->textoOcorrencia());
+    }
+
+    /**
+     * Motorista escalado que teve uma falta continua na escala, mas a ocorrência
+     * precisa constar na lista mensal enviada ao RH.
+     */
+    #[Test]
+    public function registra_ocorrencia_de_motorista_escalado(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $plantoesAntes = $lotacao->plantoes_previstos;
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->set('observacao', 'Falta em 12/08')
+            ->call('salvarDetalhes')
+            ->assertHasNoErrors();
+
+        $lotacao->refresh();
+
+        $this->assertSame('Falta em 12/08', $lotacao->textoOcorrencia());
+
+        // Continua escalado, com os mesmos plantões.
+        $this->assertTrue($lotacao->escalado());
+        $this->assertSame($plantoesAntes, $lotacao->plantoes_previstos);
+
+        // E a ocorrência chega ao documento.
+        $linha = app(GeradorDeDocumentos::class)
+            ->linhasDeOcorrencias($escala->fresh())
+            ->firstWhere('nome', $lotacao->motorista->nomeDocumento());
+
+        $this->assertSame('Falta em 12/08', $linha['ocorrencia']);
+    }
+
+    /**
+     * Sem tipo de destino não há como deduzir o texto a partir da data, então
+     * informar só o período deixaria o registro invisível no documento.
+     */
+    #[Test]
+    public function exige_descricao_quando_o_escalado_informa_periodo(): void
+    {
+        $escala = $this->escalaMontada();
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->set('periodoInicio', '2026-08-12')
+            ->set('observacao', '')
+            ->call('salvarDetalhes')
+            ->assertHasErrors('observacao');
+
+        $this->assertNull($lotacao->fresh()->observacao);
+    }
+
+    /** A ocorrência pode ser removida depois. */
+    #[Test]
+    public function remove_a_ocorrencia_do_escalado(): void
+    {
+        $escala = $this->escalaMontada();
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $lotacao->update(['observacao' => 'Falta em 12/08', 'periodo_inicio' => '2026-08-12']);
+
+        Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('editar', $lotacao->id)
+            ->call('limparOcorrencia');
+
+        $lotacao->refresh();
+
+        $this->assertNull($lotacao->observacao);
+        $this->assertNull($lotacao->periodo_inicio);
+        // Segue escalado.
+        $this->assertTrue($lotacao->escalado());
+    }
+
+    /** Regerar os plantões não apaga a ocorrência registrada. */
+    #[Test]
+    public function a_ocorrencia_sobrevive_a_regeracao_dos_plantoes(): void
+    {
+        $escala = $this->escalaMontada();
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $lotacao->update(['observacao' => 'Atestado de 10 a 12/08']);
+
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $this->assertSame('Atestado de 10 a 12/08', $lotacao->fresh()->observacao);
+    }
+
+    /** O filtro reúne quem tem ocorrência, escalado ou não. */
+    #[Test]
+    public function filtra_por_quem_tem_ocorrencia(): void
+    {
+        $escala = $this->escalaMontada();
+
+        $escalado = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->firstOrFail();
+
+        $escalado->update(['observacao' => 'Falta em 12/08']);
+
+        $afastado = Motorista::factory()->create();
+        app(MontadorDeEscala::class)->definirDestino(
+            $escala,
+            $afastado->id,
+            TipoDestino::Licenca,
+            observacao: 'Licença para tratamento de saúde'
+        );
+
+        $componente = Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('filtrar', 'com_ocorrencia');
+
+        $this->assertSame(2, $componente->get('contagens')['com_ocorrencia']);
+        $componente->assertSee('Falta em 12/08')
+            ->assertSee('Licença para tratamento de saúde');
     }
 
     #[Test]

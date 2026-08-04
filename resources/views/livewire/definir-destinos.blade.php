@@ -3,11 +3,24 @@
         'pendentes' => 'Pendentes',
         'escalados' => 'Escalados',
         'destino' => 'Com destino',
+        'com_ocorrencia' => 'Com ocorrência',
         'todos' => 'Todos',
     ];
 @endphp
 
 <div class="space-y-5">
+
+{{-- Textos frequentes na coluna OCORRÊNCIA, para agilizar o registro --}}
+<datalist id="ocorrencias-sugeridas">
+    <option value="Falta em "></option>
+    <option value="Atestado em "></option>
+    <option value="Atestado de "></option>
+    <option value="Troca de plantão em "></option>
+    <option value="Início em "></option>
+    <option value="Licença para tratamento de saúde"></option>
+    <option value="Licença-paternidade"></option>
+    <option value="Folga compensatória em "></option>
+</datalist>
 
     {{-- ------------------------------------------------------------
          Resumo do fechamento
@@ -138,13 +151,19 @@
                                 @endif
                             </p>
 
+                            {{-- Ocorrência do mês, exatamente como sai no documento --}}
                             @if ($lotacao->textoOcorrencia())
-                                <p class="mt-1 text-xs italic text-slate-600">{{ $lotacao->textoOcorrencia() }}</p>
+                                <p class="mt-1 flex items-start gap-1.5 text-xs italic text-slate-600">
+                                    <x-icone nome="documentos" class="mt-px size-3.5 shrink-0 text-slate-400" />
+                                    {{ $lotacao->textoOcorrencia() }}
+                                </p>
                             @endif
                         </div>
 
                         {{-- Seletor de destino: bloqueado para quem já está em uma
-                             ambulância, para evitar tirar alguém da escala por engano --}}
+                             ambulância, para evitar tirar alguém da escala por engano.
+                             A ocorrência do mês, essa sim, pode ser registrada para
+                             qualquer um — inclusive para quem está escalado. --}}
                         <div class="flex w-full shrink-0 items-center gap-2 sm:w-auto">
                             @if ($lotacao->escalado())
                                 <span class="text-xs text-slate-500">
@@ -153,6 +172,15 @@
                                         Alterar na montagem
                                     </a>
                                 </span>
+
+                                <x-botao
+                                    wire:click="editar({{ $lotacao->id }})"
+                                    :variante="$lotacao->observacao ? 'suave' : 'secundario'"
+                                    tamanho="pequeno"
+                                    :icone="$editando ? 'fechar' : 'lapis'"
+                                >
+                                    {{ $lotacao->observacao ? 'Ocorrência' : 'Registrar ocorrência' }}
+                                </x-botao>
                             @else
                                 <select
                                     wire:change="definir({{ $motorista->id }}, $event.target.value)"
@@ -181,13 +209,15 @@
                         </div>
                     </div>
 
-                    {{-- Painel de detalhes: período, observação e plantões previstos --}}
+                    {{-- Painel de detalhes: período, ocorrência e plantões previstos --}}
                     @if ($editando)
+                        @php $escalado = $lotacao->escalado(); @endphp
+
                         <div class="mt-3 rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200">
                             <div class="grid gap-3 sm:grid-cols-4">
                                 <div>
                                     <label for="inicio-{{ $lotacao->id }}" class="mb-1 block text-xs font-medium text-slate-700">
-                                        Início do período
+                                        {{ $escalado ? 'Data ou início da ocorrência' : 'Início do período' }}
                                     </label>
                                     <input
                                         id="inicio-{{ $lotacao->id }}"
@@ -200,7 +230,7 @@
 
                                 <div>
                                     <label for="fim-{{ $lotacao->id }}" class="mb-1 block text-xs font-medium text-slate-700">
-                                        Fim do período
+                                        {{ $escalado ? 'Fim, se durou mais de um dia' : 'Fim do período' }}
                                     </label>
                                     <input
                                         id="fim-{{ $lotacao->id }}"
@@ -211,6 +241,8 @@
                                     @error('periodoFim') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
 
+                                {{-- Para quem está escalado o total de plantões vem da
+                                     contagem da escala e não é editável à mão. --}}
                                 <div>
                                     <label for="plantoes-{{ $lotacao->id }}" class="mb-1 block text-xs font-medium text-slate-700">
                                         Plantões previstos
@@ -221,8 +253,12 @@
                                         min="0"
                                         max="31"
                                         wire:model="plantoesPrevistos"
-                                        class="block w-full rounded-lg border-0 bg-white px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-inset ring-slate-300 tabular-nums focus:ring-2 focus:ring-inset focus:ring-marca-600"
+                                        @disabled($escalado)
+                                        class="block w-full rounded-lg border-0 px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-inset ring-slate-300 tabular-nums focus:ring-2 focus:ring-inset focus:ring-marca-600 {{ $escalado ? 'bg-slate-100 text-slate-500' : 'bg-white' }}"
                                     >
+                                    @if ($escalado)
+                                        <p class="mt-1 text-xs text-slate-500">Contado pela escala.</p>
+                                    @endif
                                     @error('plantoesPrevistos') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
 
@@ -246,26 +282,51 @@
 
                                 <div class="sm:col-span-4">
                                     <label for="obs-{{ $lotacao->id }}" class="mb-1 block text-xs font-medium text-slate-700">
-                                        Observação impressa na lista mensal
+                                        Ocorrência impressa na lista mensal
                                     </label>
                                     <input
                                         id="obs-{{ $lotacao->id }}"
                                         type="text"
                                         maxlength="255"
                                         wire:model="observacao"
-                                        placeholder="Ex.: Férias de 01 a 30/08/26 · Início em 01/08/2026"
+                                        list="ocorrencias-sugeridas"
+                                        placeholder="{{ $escalado
+                                            ? 'Ex.: Falta em 12/08 · Atestado de 10 a 12/08 · Início em 01/08/2026'
+                                            : 'Ex.: Férias de 01 a 30/08/26 · Licença para tratamento de saúde' }}"
                                         class="block w-full rounded-lg border-0 bg-white px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-marca-600"
                                     >
                                     <p class="mt-1 text-xs text-slate-500">
-                                        Se deixar em branco e informar o período acima, o texto é montado automaticamente.
+                                        @if ($escalado)
+                                            É o que aparece na coluna OCORRÊNCIA da lista mensal. O motorista continua
+                                            escalado normalmente — registre aqui faltas, atestados, trocas e o que mais
+                                            o RH precise saber.
+                                        @else
+                                            Se deixar em branco e informar o período acima, o texto é montado automaticamente.
+                                        @endif
                                     </p>
                                     @error('observacao') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                 </div>
                             </div>
 
-                            <div class="mt-3 flex justify-end gap-2">
-                                <x-botao wire:click="fecharEdicao" variante="secundario" tamanho="pequeno">Cancelar</x-botao>
-                                <x-botao wire:click="salvarDetalhes" tamanho="pequeno" icone="check">Salvar</x-botao>
+                            <div class="mt-3 flex flex-wrap justify-between gap-2">
+                                <div>
+                                    @if ($lotacao->observacao)
+                                        <x-botao
+                                            wire:click="limparOcorrencia"
+                                            wire:confirm="Remover a ocorrência registrada para {{ $motorista->nome_curto }}?"
+                                            variante="texto"
+                                            tamanho="pequeno"
+                                            icone="lixeira"
+                                        >
+                                            Remover ocorrência
+                                        </x-botao>
+                                    @endif
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <x-botao wire:click="fecharEdicao" variante="secundario" tamanho="pequeno">Cancelar</x-botao>
+                                    <x-botao wire:click="salvarDetalhes" tamanho="pequeno" icone="check">Salvar</x-botao>
+                                </div>
                             </div>
                         </div>
                     @endif
