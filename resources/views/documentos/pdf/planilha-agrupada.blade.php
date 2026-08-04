@@ -86,26 +86,42 @@
             background-color: #d8d8d8;
         }
 
-        /* Faixa de identificação da ambulância, no lugar das colunas P e LOT. */
+        /*
+            Faixa de identificação da ambulância, no lugar das colunas P e LOT.
+
+            Ordem de leitura: sigla da lotação, nome da unidade e placa —
+            GUANACES · Posto de Saúde de Guanacés · THQ4J09.
+
+            A sigla e a placa vão em destaque por serem os identificadores que o
+            leitor procura; o nome da unidade fica discreto, apenas para
+            confirmar de que lugar se trata.
+        */
         td.faixa {
             background-color: #dce9e7;
             padding: 0.9mm 1.5mm;
             font-size: 7pt;
         }
 
-        td.faixa .placa {
+        td.faixa .sigla {
             font-weight: bold;
             font-size: 8pt;
+            letter-spacing: 0.2pt;
+        }
+
+        td.faixa .unidade {
+            font-weight: normal;
+            font-size: 6.5pt;
+            color: #2f5b58;
+        }
+
+        td.faixa .placa {
+            font-weight: bold;
+            font-size: 7.5pt;
             letter-spacing: 0.3pt;
         }
 
-        td.faixa .lotacao {
-            font-weight: bold;
-        }
-
-        td.faixa .detalhe {
-            font-weight: normal;
-            color: #234a49;
+        td.faixa .separador {
+            color: #6b8f8c;
         }
 
         td.numero {
@@ -213,15 +229,15 @@
                 {{-- Faixa da ambulância --}}
                 <tr>
                     <td class="faixa" colspan="{{ 3 + $qtdDias }}">
+                        <span class="sigla">{{ $bloco['lotacao'] }}</span>
+
+                        @if ($bloco['unidade'])
+                            <span class="separador"> · </span>
+                            <span class="unidade">{{ $bloco['unidade'] }}</span>
+                        @endif
+
+                        <span class="separador"> · </span>
                         <span class="placa">{{ $bloco['placa'] }}</span>
-                        <span class="detalhe"> · </span>
-                        <span class="lotacao">{{ $bloco['lotacao'] }}</span>
-                        <span class="detalhe">
-                            · {{ $bloco['regime'] }}
-                            @if ($bloco['unidade'])
-                                · {{ $bloco['unidade'] }}
-                            @endif
-                        </span>
                     </td>
                 </tr>
 
