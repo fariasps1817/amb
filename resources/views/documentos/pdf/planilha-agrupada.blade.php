@@ -89,12 +89,8 @@
         /*
             Faixa de identificação da ambulância, no lugar das colunas P e LOT.
 
-            Ordem de leitura: sigla da lotação, nome da unidade e placa —
-            GUANACES · Posto de Saúde de Guanacés · THQ4J09.
-
-            A sigla e a placa vão em destaque por serem os identificadores que o
-            leitor procura; o nome da unidade fica discreto, apenas para
-            confirmar de que lugar se trata.
+            Apenas os dois identificadores que o leitor procura — sigla da
+            lotação e placa: GUANACES - THQ4J09.
         */
         td.faixa {
             background-color: #dce9e7;
@@ -108,15 +104,9 @@
             letter-spacing: 0.2pt;
         }
 
-        td.faixa .unidade {
-            font-weight: normal;
-            font-size: 6.5pt;
-            color: #2f5b58;
-        }
-
         td.faixa .placa {
             font-weight: bold;
-            font-size: 7.5pt;
+            font-size: 8pt;
             letter-spacing: 0.3pt;
         }
 
@@ -230,13 +220,7 @@
                 <tr>
                     <td class="faixa" colspan="{{ 3 + $qtdDias }}">
                         <span class="sigla">{{ $bloco['lotacao'] }}</span>
-
-                        @if ($bloco['unidade'])
-                            <span class="separador"> · </span>
-                            <span class="unidade">{{ $bloco['unidade'] }}</span>
-                        @endif
-
-                        <span class="separador"> · </span>
+                        <span class="separador"> - </span>
                         <span class="placa">{{ $bloco['placa'] }}</span>
                     </td>
                 </tr>
