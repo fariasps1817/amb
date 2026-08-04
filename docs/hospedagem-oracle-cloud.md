@@ -12,8 +12,9 @@ está sendo feito e por quê**, não apenas o que clicar.
 
 ```
 ETAPA 1  Criar a conta na Oracle Cloud            você, no navegador     ~15 min
-ETAPA 2  Criar a máquina virtual (Instance)       você, no navegador     ~10 min
+ETAPA 2  Criar a rede (VCN) pelo assistente       você, no navegador      ~5 min
 ETAPA 3  Liberar as portas 80 e 443               você, no navegador      ~5 min
+ETAPA 2b Criar a máquina virtual (Instance)       você, no navegador     ~10 min
 ETAPA 4  Primeiro acesso por SSH                  nós dois, no terminal   ~5 min
 ETAPA 5  Instalar Nginx, PHP e MySQL              eu, por SSH            ~15 min
 ETAPA 6  Endereço na internet (DuckDNS)           você + eu               ~5 min
@@ -90,11 +91,42 @@ um e-mail avisando.
 
 ---
 
-## ETAPA 2 — Criar a máquina virtual
+## ETAPA 2 — Criar a rede ANTES da máquina
+
+> **Faça a rede primeiro.** Se você criar a instância deixando o formulário criar a
+> rede, o interruptor **"Designar endereço IPv4 público"** fica travado, com a
+> mensagem *"Você deve selecionar uma sub-rede pública"* — mesmo tendo marcado
+> "criar nova sub-rede pública".
+>
+> Motivo: o criador de instância monta uma sub-rede simples, sem o **Internet
+> Gateway**, que é a peça que liga a rede à internet. Sem endereço público, nem o
+> SSH nem o site funcionam.
+
+**Link:** https://cloud.oracle.com/networking/vcns
+
+1. **Iniciar assistente de VCN**
+2. **Criar VCN com conectividade de Internet** → *Iniciar workflow*
+3. Nome: `vcn-amb`
+4. Deixe todos os blocos CIDR no padrão
+5. **Criar**
+
+O assistente monta VCN, sub-rede pública, sub-rede privada, Internet Gateway,
+NAT Gateway e as tabelas de rota — tudo já conectado.
+
+Aproveite que está aqui e faça a **Etapa 3** (liberar as portas) antes de sair.
+
+---
+
+## ETAPA 2b — Criar a máquina virtual
 
 No painel da Oracle, o caminho é: **☰ Menu → Compute → Instances → Create instance**
 
 Link direto (depois de logado): https://cloud.oracle.com/compute/instances
+
+> O formulário é dividido em etapas numeradas: *Informações básicas*, *Segurança*,
+> *Rede*, *Armazenamento* e *Revisão*. Em **Segurança** não ative nada; em
+> **Armazenamento** deixe o tamanho padrão e não ative política de backup, que
+> pode gerar cobrança.
 
 ### Preenchimento campo por campo
 
@@ -128,8 +160,12 @@ Link direto (depois de logado): https://cloud.oracle.com/compute/instances
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIALacwv0wugICFRLWLEiQu7++zH2QmyH5NhFHrN9V3/s amb-oracle-20260804
 ```
 
-**Networking:** deixe como está. A Oracle cria a rede automaticamente e marca
-*"Assign a public IPv4 address"* — que é o que precisamos.
+**Rede (Etapa 3 do formulário):** aqui é onde a ordem importa. Com a VCN já criada:
+
+- **Rede principal:** *Selecionar rede virtual na nuvem existente* → `vcn-amb`
+- **Sub-rede:** *Selecionar sub-rede existente* → a que tem **"Public"** no nome
+- **Designar endereço IPv4 público automaticamente:** agora deixa **ligar** ✓
+- **IPv6:** pode deixar desligado
 
 Clique em **Create**. A máquina fica *PROVISIONING* por 1-2 minutos e depois
 *RUNNING* (verde).
@@ -310,6 +346,7 @@ configuração e um banco novo.
 
 | Sintoma | Causa provável |
 |---|---|
+| Interruptor de IPv4 público travado | A sub-rede foi criada pelo formulário da instância, sem Internet Gateway. Crie a VCN pelo assistente antes (Etapa 2) |
 | Navegador não abre o site | Portas 80/443 não liberadas na Security List (Etapa 3) |
 | `Connection refused` no SSH | IP errado, ou instância ainda provisionando |
 | `Permission denied (publickey)` | Chave pública não foi colada na criação da instância |
