@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Models\Configuracao;
+use App\Services\Documentos\GeradorDeDocumentos;
 use App\Support\Telefone;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ConfiguracaoRequest extends FormRequest
 {
@@ -55,6 +57,9 @@ class ConfiguracaoRequest extends FormRequest
             'responsavel_setor' => ['nullable', 'string', 'max:255'],
             'cargo_responsavel' => ['nullable', 'string', 'max:255'],
             'rodape_documentos' => ['nullable', 'string', 'max:255'],
+            // Opcional: a coluna tem padrao no banco, e quando o campo nao vem no
+            // envio o valor atual e preservado.
+            'layout_planilha' => ['nullable', Rule::in(array_keys(GeradorDeDocumentos::LAYOUTS))],
 
             // Imagens ate 2 MB — o dompdf embute o arquivo no PDF, por isso o
             // limite de tamanho.

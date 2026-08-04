@@ -27,15 +27,44 @@ class GeradorDeDocumentos
      * Com 31 colunas de dias mais os dados do condutor, o A4 em pe nao cabe; a
      * orientacao paisagem reproduz o documento que o setor ja usa.
      */
-    public function planilha(Escala $escala): DomPdf
+    /** Layouts disponiveis para a planilha mensal. */
+    public const LAYOUT_CLASSICO = 'classico';
+
+    public const LAYOUT_AGRUPADO = 'agrupado';
+
+    public const LAYOUTS = [
+        self::LAYOUT_CLASSICO => 'Clássico — colunas de placa e lotação à esquerda',
+        self::LAYOUT_AGRUPADO => 'Agrupado — faixa de identificação por ambulância',
+    ];
+
+    public function planilha(Escala $escala, ?string $layout = null): DomPdf
     {
+        $layout = array_key_exists((string) $layout, self::LAYOUTS)
+            ? $layout
+            : self::LAYOUT_CLASSICO;
+
         $dados = DadosDaPlanilha::para($escala);
         $config = Configuracao::atual();
 
-        $pdf = $this->pdf('documentos.pdf.planilha', [
+        // Capacidades calibradas na pratica, medindo quando a quebra do dompdf
+        // passa a ocorrer antes da nossa: se a pagina logica couber mais linhas
+        // do que a folha comporta, o dompdf quebra sozinho no meio de uma
+        // ambulancia e o rowspan de placa e lotacao fica orfao na folha seguinte.
+        //
+        // O layout agrupado gasta uma linha a mais por ambulancia com a faixa de
+        // identificacao, entao comporta menos motoristas por folha.
+        $paginas = $layout === self::LAYOUT_AGRUPADO
+            ? $dados->paginas(linhasPorPagina: 32, linhasExtrasPorBloco: 1)
+            : $dados->paginas(linhasPorPagina: 34);
+
+        $view = $layout === self::LAYOUT_AGRUPADO
+            ? 'documentos.pdf.planilha-agrupada'
+            : 'documentos.pdf.planilha';
+
+        $pdf = $this->pdf($view, [
             'escala' => $escala,
             'dados' => $dados,
-            'paginas' => $dados->paginas(),
+            'paginas' => $paginas,
             'config' => $config,
         ])->setPaper('a4', 'landscape');
 

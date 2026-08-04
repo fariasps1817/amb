@@ -101,9 +101,13 @@ final class DadosDaPlanilha
      * revezamento.
      *
      * @param  int  $linhasPorPagina  Capacidade util de linhas em cada folha.
+     * @param  int  $linhasExtrasPorBloco  Linhas que o layout gasta por bloco
+     *                                     alem das dos motoristas — o layout
+     *                                     agrupado usa uma para a faixa de
+     *                                     identificacao da ambulancia.
      * @return array<int, array{blocos: array<int, array>, primeiro_numero: int}>
      */
-    public function paginas(int $linhasPorPagina = 42): array
+    public function paginas(int $linhasPorPagina = 42, int $linhasExtrasPorBloco = 0): array
     {
         $paginas = [];
         $atual = [];
@@ -112,7 +116,9 @@ final class DadosDaPlanilha
         $primeiroNumero = 1;
 
         foreach ($this->blocos as $bloco) {
-            $altura = count($bloco['linhas']) + ($bloco['vagas_livres'] > 0 ? 1 : 0);
+            $altura = count($bloco['linhas'])
+                + $linhasExtrasPorBloco
+                + ($bloco['vagas_livres'] > 0 ? 1 : 0);
 
             if ($atual !== [] && $ocupadas + $altura > $linhasPorPagina) {
                 $paginas[] = ['blocos' => $atual, 'primeiro_numero' => $primeiroNumero];

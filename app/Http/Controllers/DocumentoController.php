@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Configuracao;
 use App\Models\Escala;
 use App\Models\Motorista;
 use App\Services\Documentos\GeradorDeDocumentos;
@@ -37,12 +38,20 @@ class DocumentoController extends Controller
         ]);
     }
 
-    /** Planilha mensal de plantoes, em paisagem. */
+    /**
+     * Planilha mensal de plantoes, em paisagem.
+     *
+     * O layout vem por parametro (?layout=classico|agrupado) e, quando ausente,
+     * usa o que estiver definido na identidade institucional.
+     */
     public function planilha(Request $request, Escala $escala): Response
     {
+        $layout = $request->string('layout')->toString()
+            ?: Configuracao::atual()->layout_planilha;
+
         return $this->responder(
             $request,
-            $this->gerador->planilha($escala),
+            $this->gerador->planilha($escala, $layout),
             $this->gerador->nomeArquivo($escala, 'escala'),
         );
     }

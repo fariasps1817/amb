@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
     'endereco', 'bairro', 'cidade', 'uf', 'cep', 'cnpj',
     'telefone_1', 'telefone_2', 'email', 'site',
     'logo_prefeitura', 'logo_secretaria', 'brasao', 'imagem_ambulancia',
-    'responsavel_setor', 'cargo_responsavel', 'rodape_documentos',
+    'responsavel_setor', 'cargo_responsavel', 'rodape_documentos', 'layout_planilha',
 ])]
 class Configuracao extends Model
 {

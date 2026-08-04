@@ -263,7 +263,12 @@ montagem dos três documentos.
   por dia; dois turnos no mesmo dia exigiriam mudança no modelo.
 - **Nas colunas de placa e lotação da planilha o texto vai na horizontal**, não girado 90° como no
   documento antigo — o dompdf não implementa rotação de texto. As colunas foram alargadas para
-  compensar.
+  compensar, e há o layout *agrupado* como alternativa (Identidade institucional → Layout da
+  planilha).
+- **As larguras de coluna da planilha estão calibradas para o papel A4 paisagem.** O dompdf ignora
+  `<colgroup>` e larguras em classes CSS quando a tabela tem muitas colunas: elas precisam ir em
+  `style="width"` na primeira linha, com células separadas. Mexer nisso pode fazer as colunas
+  colapsarem umas sobre as outras.
 - **O envio automático em lote depende de API contratada.** No modo padrão o envio é manual, um
   motorista por vez.
 

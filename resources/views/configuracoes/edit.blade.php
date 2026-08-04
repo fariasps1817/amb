@@ -130,6 +130,69 @@
             </div>
         </x-cartao>
 
+        {{-- ------------------------------------------------------------
+             Layout da planilha
+             ------------------------------------------------------------ --}}
+
+        <x-cartao
+            titulo="Layout da planilha de plantões"
+            descricao="Como a placa e a lotação de cada ambulância aparecem no documento distribuído às unidades."
+        >
+            @php $layoutAtual = old('layout_planilha', $configuracao->layout_planilha ?: 'classico'); @endphp
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <label class="cursor-pointer">
+                    <input
+                        type="radio"
+                        name="layout_planilha"
+                        value="classico"
+                        class="peer sr-only"
+                        @checked($layoutAtual === 'classico')
+                    >
+                    <div class="h-full rounded-lg p-3 ring-1 ring-slate-200 transition peer-checked:bg-marca-50 peer-checked:ring-2 peer-checked:ring-marca-600">
+                        <p class="text-sm font-medium text-slate-900">Clássico</p>
+                        <p class="mt-0.5 text-xs text-slate-600">
+                            Colunas <strong>P</strong> e <strong>LOT</strong> à esquerda, como no documento
+                            que a secretaria já utiliza.
+                        </p>
+                        <pre class="mt-2 overflow-x-auto rounded bg-white p-2 text-[0.6rem] leading-tight text-slate-600 ring-1 ring-slate-200">Nº CONDUTOR      FONE       P       LOT     01 02 03
+1  JOÃO BERNARDO  98692-6853 THQ4H34 SEDE 1  X
+2  MARIA DIVANIR  98849-2354         24/72      X</pre>
+                    </div>
+                </label>
+
+                <label class="cursor-pointer">
+                    <input
+                        type="radio"
+                        name="layout_planilha"
+                        value="agrupado"
+                        class="peer sr-only"
+                        @checked($layoutAtual === 'agrupado')
+                    >
+                    <div class="h-full rounded-lg p-3 ring-1 ring-slate-200 transition peer-checked:bg-marca-50 peer-checked:ring-2 peer-checked:ring-marca-600">
+                        <p class="text-sm font-medium text-slate-900">Agrupado</p>
+                        <p class="mt-0.5 text-xs text-slate-600">
+                            Faixa de identificação antes de cada ambulância. Sobra mais espaço para o nome
+                            e o telefone.
+                        </p>
+                        <pre class="mt-2 overflow-x-auto rounded bg-white p-2 text-[0.6rem] leading-tight text-slate-600 ring-1 ring-slate-200">Nº CONDUTOR            FONE       01 02 03
+── THQ4H34 · SEDE 1 · 24/72 ──────────────
+1  JOÃO BERNARDO       98692-6853 X
+2  MARIA DIVANIR       98849-2354    X</pre>
+                    </div>
+                </label>
+            </div>
+
+            @error('layout_planilha')
+                <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
+            @enderror
+
+            <p class="mt-3 text-xs text-slate-500">
+                Você pode conferir os dois a qualquer momento: na tela de documentos de uma escala, use
+                <code>?layout=classico</code> ou <code>?layout=agrupado</code> no fim do endereço.
+            </p>
+        </x-cartao>
+
         <div class="flex flex-wrap items-center justify-end gap-2">
             <x-botao href="{{ route('painel') }}" variante="secundario">Cancelar</x-botao>
             <x-botao type="submit" icone="check">Salvar identidade</x-botao>

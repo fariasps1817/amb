@@ -14,6 +14,7 @@ use App\Services\Documentos\GeradorDeDocumentos;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -124,6 +125,79 @@ class DocumentosTest extends TestCase
     }
 
     #[Test]
+    public function gera_o_pdf_da_planilha_no_layout_agrupado(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        $resposta = $this->get(route('documentos.planilha', [$escala, 'layout' => 'agrupado']));
+
+        $resposta->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $resposta->getContent());
+    }
+
+    /**
+     * A paginacao logica precisa acompanhar o que cabe na folha.
+     *
+     * Se a pagina logica comportar mais linhas do que o papel, o dompdf quebra
+     * por conta propria no meio de uma ambulancia e o rowspan de placa e lotacao
+     * fica orfao na folha seguinte — foi assim que a planilha saiu ilegivel.
+     * Comparar paginas logicas com paginas fisicas trava essa regressao.
+     */
+    #[Test]
+    #[DataProvider('layoutsDaPlanilha')]
+    public function a_quebra_de_pagina_nao_parte_uma_ambulancia(string $layout, int $capacidade, int $extrasPorBloco): void
+    {
+        // Frota grande o bastante para exigir mais de uma folha.
+        $unidade = Unidade::factory()->regime2472()->create();
+        Ambulancia::factory()->count(11)->create(['unidade_id' => $unidade->id]);
+
+        $escala = app(MontadorDeEscala::class)->criar(2026, 8);
+        Motorista::factory()->count(44)->create();
+        app(MontadorDeEscala::class)->preencherVagasAutomaticamente($escala);
+        app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        $escala = $escala->fresh();
+
+        $paginasLogicas = DadosDaPlanilha::para($escala)
+            ->paginas(linhasPorPagina: $capacidade, linhasExtrasPorBloco: $extrasPorBloco);
+
+        $pdf = app(GeradorDeDocumentos::class)->planilha($escala, $layout)->output();
+        $paginasFisicas = preg_match_all('#/Type\s*/Page[^s]#', $pdf);
+
+        $this->assertSame(
+            count($paginasLogicas),
+            $paginasFisicas,
+            "No layout {$layout} o dompdf quebrou páginas por conta própria, partindo uma ambulância ao meio."
+        );
+
+        // Nenhum bloco perde linhas na paginação.
+        foreach ($paginasLogicas as $pagina) {
+            foreach ($pagina['blocos'] as $bloco) {
+                $this->assertCount(4, $bloco['linhas']);
+            }
+        }
+    }
+
+    public static function layoutsDaPlanilha(): array
+    {
+        return [
+            'clássico' => [GeradorDeDocumentos::LAYOUT_CLASSICO, 34, 0],
+            'agrupado' => [GeradorDeDocumentos::LAYOUT_AGRUPADO, 32, 1],
+        ];
+    }
+
+    /** Um layout desconhecido cai no clássico, em vez de quebrar. */
+    #[Test]
+    public function layout_invalido_usa_o_classico(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        $this->get(route('documentos.planilha', [$escala, 'layout' => 'inexistente']))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    #[Test]
     public function baixa_a_planilha_com_nome_do_mes(): void
     {
         $escala = $this->escalaCompleta();
@@ -144,7 +218,9 @@ class DocumentosTest extends TestCase
     #[Test]
     public function lista_todo_o_efetivo_em_ordem_alfabetica(): void
     {
-        $escala = $this->escalaCompleta();
+        // Nomes controlados nos escalados também: os da factory são aleatórios e
+        // poderiam cair antes ou depois dos nomes verificados aqui.
+        $escala = $this->escalaCompleta(nomes: ['MARCOS DIAS', 'NELSON ROCHA', 'OTÁVIO PINTO', 'PAULO VIEIRA']);
 
         $reserva = Motorista::factory()->create(['nome_completo' => 'ZULMIRA DOS SANTOS', 'nome_curto' => 'ZULMIRA']);
         $ferias = Motorista::factory()->create(['nome_completo' => 'ÁLVARO PEREIRA', 'nome_curto' => 'ÁLVARO']);
@@ -158,9 +234,11 @@ class DocumentosTest extends TestCase
         // Seis servidores: quatro escalados, uma reserva e um de férias.
         $this->assertCount(6, $linhas);
 
-        // ÁLVARO vem primeiro apesar do acento.
-        $this->assertSame('ÁLVARO PEREIRA', $linhas->first()['nome']);
-        $this->assertSame('ZULMIRA DOS SANTOS', $linhas->last()['nome']);
+        // ÁLVARO vem primeiro apesar do acento, e a ordem é alfabética.
+        $this->assertSame(
+            ['ÁLVARO PEREIRA', 'MARCOS DIAS', 'NELSON ROCHA', 'OTÁVIO PINTO', 'PAULO VIEIRA', 'ZULMIRA DOS SANTOS'],
+            $linhas->pluck('nome')->all()
+        );
 
         // A numeracao e sequencial a partir de 1.
         $this->assertSame([1, 2, 3, 4, 5, 6], $linhas->pluck('numero')->all());
@@ -365,7 +443,13 @@ class DocumentosTest extends TestCase
     // -----------------------------------------------------------------
 
     /** Agosto/2026, uma ambulancia 24/72 com as quatro vagas e plantoes gerados. */
-    private function escalaCompleta(): Escala
+    /**
+     * @param  array<int, string>|null  $nomes  Nomes dos quatro escalados. Informe
+     *                                          quando o teste depender da ordem
+     *                                          alfabética — os nomes da factory
+     *                                          são aleatórios.
+     */
+    private function escalaCompleta(?array $nomes = null): Escala
     {
         $unidade = Unidade::factory()->regime2472()->create(['sigla' => 'UPA', 'nome' => 'UPA Centro']);
         Ambulancia::factory()->create([
@@ -377,7 +461,14 @@ class DocumentosTest extends TestCase
         $escala = app(MontadorDeEscala::class)->criar(2026, 8);
         $posto = $escala->postos()->first();
 
-        foreach (Motorista::factory()->count(4)->contratado()->create()->values() as $i => $motorista) {
+        $motoristas = $nomes === null
+            ? Motorista::factory()->count(4)->contratado()->create()
+            : collect($nomes)->map(fn (string $nome) => Motorista::factory()->contratado()->create([
+                'nome_completo' => $nome,
+                'nome_curto' => $nome,
+            ]));
+
+        foreach ($motoristas->values() as $i => $motorista) {
             app(MontadorDeEscala::class)->lotarMotorista($posto, $motorista->id, $i + 1);
         }
 
