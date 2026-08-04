@@ -308,6 +308,112 @@ class DocumentosTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    // -----------------------------------------------------------------
+    // Larguras de coluna
+    // -----------------------------------------------------------------
+
+    /**
+     * As colunas precisam sair com larguras distintas no PDF.
+     *
+     * O dompdf ignora width declarado em classe CSS e reparte o espaço
+     * igualmente — foi assim que a coluna "Nº" da lista de ocorrências saiu tão
+     * larga quanto a de nome. As larguras têm de ir em style="width" no
+     * cabeçalho. Aqui medimos as células desenhadas no PDF: se voltarem todas
+     * iguais, a declaração se perdeu de novo.
+     */
+    #[Test]
+    public function a_coluna_de_numero_da_lista_de_ocorrencias_e_estreita(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        $larguras = $this->largurasDoCabecalho(
+            app(GeradorDeDocumentos::class)->ocorrencias($escala)->output(),
+            qtdColunas: 6
+        );
+
+        $this->assertNotNull($larguras, 'Não foi possível medir as colunas.');
+
+        [$numero, $servidor] = $larguras;
+
+        // Com a distribuição igual do dompdf, todas ficariam com ~31 mm.
+        $this->assertLessThan(10, $numero, "A coluna Nº saiu com {$numero} mm; deveria caber só dois dígitos.");
+        $this->assertSame(min($larguras), $numero, 'A coluna Nº deveria ser a mais estreita.');
+
+        // O nome do servidor é o conteúdo mais longo e leva a maior fatia.
+        $this->assertSame(max($larguras), $servidor);
+        $this->assertGreaterThan(50, $servidor);
+    }
+
+    /** Na folha de frequência o que precisa de espaço é o campo de assinatura. */
+    #[Test]
+    public function a_folha_de_frequencia_reserva_espaco_para_assinatura(): void
+    {
+        $escala = $this->escalaCompleta();
+        $motorista = $escala->plantoes()->first()->motorista;
+
+        $larguras = $this->largurasDoCabecalho(
+            app(GeradorDeDocumentos::class)->frequencia($escala, $motorista)->output(),
+            qtdColunas: 6
+        );
+
+        $this->assertNotNull($larguras, 'Não foi possível medir as colunas.');
+
+        // Ordem: data e hora de entrada, data e hora de saída, assinatura, observação.
+        $assinatura = $larguras[4];
+
+        $this->assertSame(max($larguras), $assinatura, 'A assinatura deveria ser a coluna mais larga.');
+        $this->assertGreaterThan(60, $assinatura, "A assinatura saiu com {$assinatura} mm; é pouco para assinar.");
+
+        // As colunas de data e hora ficam compactas.
+        foreach (array_slice($larguras, 0, 4) as $largura) {
+            $this->assertLessThan(20, $largura);
+        }
+    }
+
+    /**
+     * Larguras em milímetros das células do cabeçalho desenhado no PDF.
+     *
+     * O dompdf pinta o fundo de cada célula com um retângulo "x y w h re f";
+     * as da mesma linha compartilham o y.
+     *
+     * @return array<int, float>|null
+     */
+    private function largurasDoCabecalho(string $pdf, int $qtdColunas): ?array
+    {
+        $conteudo = '';
+
+        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $blocos);
+
+        foreach ($blocos[1] as $bloco) {
+            $descomprimido = @gzuncompress($bloco);
+
+            if ($descomprimido !== false) {
+                $conteudo .= $descomprimido;
+            }
+        }
+
+        preg_match_all('/([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re f/', $conteudo, $m, PREG_SET_ORDER);
+
+        $porLinha = [];
+
+        foreach ($m as [, $x, $y, $largura]) {
+            $porLinha[(string) round((float) $y)][] = [(float) $x, (float) $largura];
+        }
+
+        foreach ($porLinha as $celulas) {
+            if (count($celulas) !== $qtdColunas) {
+                continue;
+            }
+
+            usort($celulas, fn ($a, $b) => $a[0] <=> $b[0]);
+
+            // pontos -> milímetros
+            return array_map(fn ($c) => round($c[1] * 25.4 / 72, 1), $celulas);
+        }
+
+        return null;
+    }
+
     /** Um layout desconhecido cai no clássico, em vez de quebrar. */
     #[Test]
     public function layout_invalido_usa_o_classico(): void

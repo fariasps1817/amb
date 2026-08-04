@@ -67,12 +67,12 @@
         background-color: #eeeeee;
     }
 
-    .f-num   { width: 7%;  text-align: center; font-size: 6.5pt; color: #444; }
-    .f-nome  { width: 34%; }
-    .f-vinc  { width: 12%; text-align: center; }
-    .f-fone  { width: 15%; text-align: center; white-space: nowrap; }
-    .f-per   { width: 14%; text-align: center; font-size: 7pt; }
-    .f-obs   { width: 18%; font-size: 6.5pt; font-style: italic; }
+    /* Larguras vão inline no cabeçalho; o dompdf ignora width em classe. */
+    .f-num   { text-align: center; font-size: 6.5pt; color: #444; }
+    .f-vinc  { text-align: center; }
+    .f-fone  { text-align: center; white-space: nowrap; }
+    .f-per   { text-align: center; font-size: 7pt; }
+    .f-obs   { font-size: 6.5pt; font-style: italic; }
 
     table.resumo-efetivo {
         width: 100%;
@@ -108,12 +108,12 @@
     <table class="fora">
         <thead>
             <tr>
-                <th class="f-num">Nº</th>
-                <th class="f-nome">Condutor</th>
-                <th class="f-vinc">Vínculo</th>
-                <th class="f-fone">Fone</th>
-                <th class="f-per">Período</th>
-                <th class="f-obs">Observação</th>
+                <th class="f-num" style="width: 4%">Nº</th>
+                <th class="f-nome" style="width: 36%">Condutor</th>
+                <th class="f-vinc" style="width: 12%">Vínculo</th>
+                <th class="f-fone" style="width: 15%">Fone</th>
+                <th class="f-per" style="width: 14%">Período</th>
+                <th class="f-obs" style="width: 19%">Observação</th>
             </tr>
         </thead>
         <tbody>

@@ -37,12 +37,15 @@
             text-transform: uppercase;
         }
 
-        .c-numero    { width: 8mm;  text-align: center; }
-        .c-servidor  { width: 66mm; }
-        .c-lotacao   { width: 34mm; }
-        .c-vinculo   { width: 20mm; text-align: center; }
-        .c-plantoes  { width: 15mm; text-align: center; }
-        .c-ocorrencia{ width: 47mm; font-style: italic; font-size: 6.5pt; }
+        /*
+            Alinhamento das colunas. As larguras NÃO ficam aqui: o dompdf ignora
+            width declarado em classe e distribui o espaço igualmente entre as
+            colunas. Elas vão em style="width" nos <th> do cabeçalho.
+        */
+        .c-numero    { text-align: center; }
+        .c-vinculo   { text-align: center; }
+        .c-plantoes  { text-align: center; }
+        .c-ocorrencia{ font-style: italic; font-size: 6.5pt; }
 
         tr.alternada td {
             background-color: #f7f7f7;
@@ -95,14 +98,18 @@
 ])
 
 <table class="lista">
+    {{--
+        As larguras vão inline nesta linha, que é onde o dompdf as lê. A soma
+        fecha 100% da área útil (A4 retrato menos as margens, ~190mm).
+    --}}
     <thead>
         <tr>
-            <th class="c-numero">Nº</th>
-            <th class="c-servidor">Servidor</th>
-            <th class="c-lotacao">Lotação</th>
-            <th class="c-vinculo">Vínculo</th>
-            <th class="c-plantoes">Plantões</th>
-            <th class="c-ocorrencia">Ocorrência</th>
+            <th class="c-numero" style="width: 3.5%">Nº</th>
+            <th class="c-servidor" style="width: 35.5%">Servidor</th>
+            <th class="c-lotacao" style="width: 19.0%">Lotação</th>
+            <th class="c-vinculo" style="width: 10.5%">Vínculo</th>
+            <th class="c-plantoes" style="width: 8.5%">Plantões</th>
+            <th class="c-ocorrencia" style="width: 23.0%">Ocorrência</th>
         </tr>
     </thead>
     <tbody>

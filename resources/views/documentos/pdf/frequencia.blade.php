@@ -81,28 +81,35 @@
             letter-spacing: 0.2pt;
         }
 
+        /*
+            Alinhamento e tipografia das colunas. As larguras vão em
+            style="width" no cabeçalho da tabela: o dompdf ignora width
+            declarado em classe e distribui o espaço igualmente.
+        */
         .f-data {
-            width: 17mm;
             text-align: center;
             font-family: 'DejaVu Sans Mono', monospace;
             font-size: 8pt;
         }
 
         .f-hora {
-            width: 15mm;
             text-align: center;
             font-family: 'DejaVu Sans Mono', monospace;
             font-size: 8pt;
             color: #333;
         }
 
-        .f-assinatura {
-            width: 62mm;
+        .f-observacao {
+            font-size: 6.5pt;
         }
 
-        .f-observacao {
-            width: 40mm;
-            font-size: 6.5pt;
+        /* Linha que só carrega as larguras; não deve ocupar espaço nem imprimir. */
+        table.frequencia tr.larguras td {
+            height: 0;
+            padding: 0;
+            border: none;
+            line-height: 0;
+            font-size: 0;
         }
 
         /* Dia de descanso: impresso em cinza e itálico, sem espaço de assinatura.
@@ -187,6 +194,24 @@
     {{-- Dias do mês --}}
     <table class="frequencia">
         <thead>
+            {{--
+                Linha sem altura que define as larguras das colunas.
+
+                O cabeçalho visível agrupa Entrada e Saída com colspan, e o
+                dompdf não deriva larguras individuais de uma linha com colspan —
+                acabaria distribuindo o espaço igualmente entre as seis colunas,
+                espremendo o campo de assinatura. Esta linha existe só para ele
+                ler as larguras; não imprime nada.
+            --}}
+            <tr class="larguras">
+                <td style="width: 9%"></td>    {{-- data de entrada  --}}
+                <td style="width: 8%"></td>    {{-- hora de entrada  --}}
+                <td style="width: 9%"></td>    {{-- data de saída    --}}
+                <td style="width: 8%"></td>    {{-- hora de saída    --}}
+                <td style="width: 44%"></td>   {{-- assinatura       --}}
+                <td style="width: 22%"></td>   {{-- observação       --}}
+            </tr>
+
             <tr>
                 <th colspan="2">Entrada</th>
                 <th colspan="2">Saída</th>
