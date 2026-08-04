@@ -104,14 +104,36 @@ um e-mail avisando.
 
 **Link:** https://cloud.oracle.com/networking/vcns
 
-1. **Iniciar assistente de VCN**
+> ⚠️ **Existem dois botões parecidos nessa página. Use o assistente.**
+>
+> | Botão | O que faz |
+> |---|---|
+> | `Criar VCN` | apenas a rede vazia — pede o bloco CIDR e para aí |
+> | **`Iniciar Assistente de VCN`** | rede + sub-redes + Internet Gateway + rotas |
+>
+> Se você cair na tela **"Criar uma Rede Virtual na Nuvem"** pedindo *Blocos CIDR
+> IPv4* (com aviso de "Obrigatório"), está no botão errado: cancele e procure o
+> assistente.
+
+1. **Iniciar Assistente de VCN**
 2. **Criar VCN com conectividade de Internet** → *Iniciar workflow*
 3. Nome: `vcn-amb`
-4. Deixe todos os blocos CIDR no padrão
+4. Deixe todos os blocos CIDR no padrão (`10.0.0.0/16`, `10.0.0.0/24`, `10.0.1.0/24`)
 5. **Criar**
 
 O assistente monta VCN, sub-rede pública, sub-rede privada, Internet Gateway,
 NAT Gateway e as tabelas de rota — tudo já conectado.
+
+### Se preferir o caminho manual
+
+Dá para fazer sem o assistente, mas são quatro peças em sequência e cada uma pode
+ser esquecida:
+
+1. Criar a VCN com CIDR `10.0.0.0/16` e label de DNS `vcnamb`
+2. Criar um **Gateway de Internet** na VCN
+3. Editar a **Tabela de Rotas** padrão, acrescentando a rota `0.0.0.0/0` apontando
+   para esse gateway — é isso que dá saída para a internet
+4. Criar a **Sub-rede pública** com CIDR `10.0.0.0/24`, associada a essa tabela
 
 Aproveite que está aqui e faça a **Etapa 3** (liberar as portas) antes de sair.
 
