@@ -328,24 +328,46 @@ Um sistema exposto na internet pede mais cuidado que um em rede local:
 
 ---
 
-## ETAPA 9 — Backup
+## ETAPA 9 — Backup ✅ pronto
 
-Banco de 0,8 MB: backup diário é trivial e custa quase nada.
+Banco de 0,8 MB: backup diário é trivial e custa quase nada. Já está rodando:
 
 ```
 Todo dia às 2h  →  mysqldump compactado em /var/backups/amb/
-                   mantém os últimos 30 dias
+                   mantém os últimos 30 dias, apaga os mais velhos
 ```
 
-Recomendo, além disso, **baixar uma cópia para o seu computador de vez em
-quando** — backup que mora só no mesmo servidor não protege contra perder o
-servidor.
+| O quê | Onde |
+|---|---|
+| Script | `/usr/local/bin/backup-amb.sh` |
+| Agendamento | `/etc/cron.d/backup-amb` |
+| Arquivos | `/var/backups/amb/amb-AAAA-MM-DD.sql.gz` |
+| Registro | `/var/log/backup-amb.log` |
+
+O backup foi **testado por restauração real** em um banco descartável: as 17
+tabelas voltaram com a contagem exata de registros. Backup que nunca foi
+restaurado não é backup — é esperança.
+
+### Baixar uma cópia para o seu computador
+
+Backup que mora só no mesmo servidor não protege contra perder o servidor.
+De vez em quando, rode isto no PowerShell da sua máquina:
+
+```powershell
+scp -i $HOME\.ssh\amb_oracle ubuntu@SEU_IP:/var/backups/amb/amb-*.sql.gz .
+```
+
+### Restaurar, se um dia precisar
+
+```bash
+gunzip -c /var/backups/amb/amb-2026-08-04.sql.gz | sudo mysql amb
+```
 
 ---
 
 ## Depois que estiver no ar
 
-### Atualizar o sistema
+### Atualizar o sistema ✅ pronto
 
 Você continua desenvolvendo no Laragon. Quando quiser publicar:
 
@@ -354,8 +376,23 @@ Você continua desenvolvendo no Laragon. Quando quiser publicar:
 git push
 
 # no servidor (eu ou você)
-ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP "cd /var/www/amb && ./deploy.sh"
+ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP "/var/www/amb/deploy.sh"
 ```
+
+O `deploy.sh` faz tudo sozinho, em oito passos:
+
+1. backup do banco **antes** de mexer em qualquer coisa
+2. põe o site em manutenção (ninguém grava dados no meio da troca)
+3. baixa a versão nova do GitHub — se já estiver atualizado, para aqui
+4. atualiza as dependências de PHP e JavaScript
+5. aplica as migrações do banco
+6. recompila CSS e JavaScript
+7. regenera os caches do Laravel
+8. tira o site da manutenção e confere se ele responde
+
+Se qualquer passo falhar, o script **para, tira o site da manutenção sozinho**
+e deixa a versão anterior no ar — depois mostra o comando exato para desfazer.
+Você nunca fica com o sistema fora do ar por causa de um deploy ruim.
 
 ### Vale para seus outros sistemas
 
@@ -372,7 +409,7 @@ configuração e um banco novo.
 | Navegador não abre o site | Portas 80/443 não liberadas na Security List (Etapa 3) |
 | `Connection refused` no SSH | IP errado, ou instância ainda provisionando |
 | `Permission denied (publickey)` | Chave pública não foi colada na criação da instância |
-| Erro 502 no navegador | PHP-FPM parado — `sudo systemctl restart php8.3-fpm` |
+| Erro 502 no navegador | PHP-FPM parado — `sudo systemctl restart php8.4-fpm` |
 | Erro 500 e tela branca | Ver `storage/logs/laravel.log` |
 | Site fora do ar sem motivo | Instância recuperada por inatividade (raro em uso real) |
 
