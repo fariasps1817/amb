@@ -419,7 +419,7 @@ Intel e Ampere — e a maioria é <strong>paga</strong>.</p>
 <tbody>
 <tr>
 <td><strong>Ampere</strong> <code>VM.Standard.A1.Flex</code></td>
-<td>✅ 4 núcleos e 24 GB no total</td>
+<td>✅ 2 núcleos e 12 GB no total</td>
 </tr>
 <tr>
 <td><strong>AMD</strong> <code>VM.Standard.E2.1.Micro</code></td>
@@ -1480,9 +1480,15 @@ COMPARTIMENTO=$TENANCY
 SUBREDE=ocid1.subnet.oc1...
 IMAGEM=ocid1.image.oc1...
 NOME=serv-ampere
-DISCO_GB=50
+
+# Disco grande de proposito -- ver &quot;O disco escala com o tamanho&quot; abaixo.
+DISCO_GB=150
+
 DOMINIOS=&quot;LtOi:SA-VINHEDO-1-AD-1&quot;
-CONFIGURACOES=&quot;4:24 2:12 1:6&quot;
+
+# Nunca acima de 2:12 -- ver o aviso sobre o corte de junho de 2026.
+CONFIGURACOES=&quot;2:12 1:6&quot;
+
 CHAVE_SSH=&quot;$(grep -v 'command=' ~/.ssh/authorized_keys | head -1)&quot;
 CFG
 chmod 600 ~/.oci/ampere.conf
@@ -1498,11 +1504,68 @@ SUPPRESS_LABEL_WARNING=True
 CRON
 sudo chmod 644 /etc/cron.d/tentar-ampere
 </code></pre>
-<p>O script pede 4 OCPUs e 24 GB primeiro e vai reduzindo para 2/12 e 1/6. Vale
-aceitar o que houver: <strong>1 OCPU e 6 GB já é seis vezes a memória da <code>E2.1.Micro</code></strong>,
-e ampliar depois é dentro da mesma família, onde o redimensionamento funciona.
-Ao conseguir, ele grava o endereço da nova máquina e <strong>se desagenda</strong>.</p>
-<p>Acompanhe com <code>tail -f ~/.oci/ampere.log</code>.</p>
+<p>O script tenta <strong>uma configuração por execução, alternando</strong> entre elas. Tentar
+as duas de uma vez dobra as chamadas e a Oracle responde <code>TooManyRequests</code> —
+recusando mesmo que houvesse vaga, o que faz perder justamente a janela que se
+quer pegar. Ao levar um desses, o script recua 30 minutos.</p>
+<p>Vale aceitar o que aparecer: <strong>1 OCPU e 6 GB já é seis vezes a memória da
+<code>E2.1.Micro</code></strong>. Ao conseguir, ele grava o endereço da nova máquina e
+<strong>se desagenda</strong>, para não criar uma segunda.</p>
+<blockquote class="armadilha"><p>⚠️ <strong>Nunca peça acima de 2 OCPUs e 12 GB.</strong> Em <strong>15 de junho de 2026</strong> a Oracle
+<strong>cortou o Ampere gratuito pela metade</strong> — de 4 núcleos/24 GB para 2 núcleos/12
+GB — sem anúncio público. Muita gente descobriu quando suas máquinas foram
+desligadas.</p>
+<p>O teto agora é <strong>1.500 OCPU-horas e 9.000 GB-horas por mês</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Máquina</th>
+<th>Consumo em 30 dias</th>
+<th>Cabe no gratuito?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 OCPU / 12 GB</td>
+<td>1.460 OCPU-h · 8.760 GB-h</td>
+<td>✅ com folga pequena</td>
+</tr>
+<tr>
+<td>4 OCPU / 24 GB</td>
+<td>2.920 OCPU-h · 17.520 GB-h</td>
+<td>❌ <strong>o dobro — cobrado</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Pior: <em>&quot;se um recurso existente for encerrado, pode não ser possível recriá-lo
+acima do novo limite&quot;</em>. Ou seja, quem tinha 4/24 e desligou, não recupera.</p>
+</blockquote>
+<h3>O disco escala com o tamanho do volume</h3>
+<p>Medição no servidor de 47 GB: <strong>50 MB/s</strong> de leitura e de escrita. Isso é
+velocidade de disco mecânico, e já estava no nível <em>equilibrado</em> — não é questão
+de escolher outro tipo de volume.</p>
+<p>A Oracle distribui o desempenho <strong>proporcionalmente ao tamanho</strong>: um volume de
+150 GB no mesmo nível recebe cerca de <strong>três vezes</strong> a vazão de um de 50 GB. Como
+a camada gratuita dá 200 GB no total e a máquina atual usa 47, sobram ~150 GB
+para a nova.</p>
+<p>Para um servidor com banco de dados, isso é a diferença mais sentida no dia a
+dia. <strong>Peça o disco grande desde a criação</strong> — aumentar depois é possível, mas
+exige redimensionar a partição.</p>
+<p>Acompanhe a caça com <code>tail -f ~/.oci/ampere.log</code>, ou veja o panorama completo:</p>
+<pre><code class="language-bash">ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP &quot;/usr/local/bin/status-servidor.sh&quot;
+</code></pre>
+<h3>Se a capacidade nunca aparecer</h3>
+<p>A Ampere vive esgotada nas regiões do Brasil, e pode levar semanas. O caminho
+mais eficaz é <strong>mudar a conta para &quot;Pay As You Go&quot;</strong>: contas pagas têm prioridade
+na fila de capacidade, e os recursos Always Free continuam gratuitos.</p>
+<blockquote class="armadilha"><p>⚠️ <strong>Pese o risco antes.</strong> Na avaliação grátis, um recurso pago só consome
+crédito. Em Pay As You Go, ele <strong>vira fatura de verdade, imediatamente</strong>. E há
+outra ressalva: relatos indicam que contas PAYG teriam mantido os 4/24
+gratuitos, mas a documentação da Oracle diz que o novo limite vale para <em>todas</em>
+as contas — o próprio suporte deu respostas contraditórias. Não conte com isso.</p>
+<p>Se for por esse caminho, <strong>crie um alerta de orçamento</strong> em
+<em>Billing → Budgets</em> com valor baixo, antes de qualquer outra coisa.</p>
+</blockquote>
 <hr />
 <hr />
 <h1 id="verificacao-final">Verificação final</h1>
@@ -1633,7 +1696,7 @@ então nunca é considerado ocioso. Sem risco na prática, mas vale conferir:</p
 <tbody>
 <tr>
 <td>Ampere <code>A1.Flex</code></td>
-<td>4 OCPUs e 24 GB no total, até 4 máquinas</td>
+<td><strong>2 OCPUs e 12 GB</strong> no total, até 4 máquinas</td>
 </tr>
 <tr>
 <td>AMD <code>E2.1.Micro</code></td>

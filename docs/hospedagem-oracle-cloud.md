@@ -54,7 +54,7 @@ Intel e Ampere — e a maioria é **paga**.
 
 | Família | Gratuito? |
 |---|---|
-| **Ampere** `VM.Standard.A1.Flex` | ✅ 4 núcleos e 24 GB no total |
+| **Ampere** `VM.Standard.A1.Flex` | ✅ 2 núcleos e 12 GB no total |
 | **AMD** `VM.Standard.E2.1.Micro` | ✅ 2 máquinas de 1 núcleo e 1 GB |
 | AMD `E3`/`E4`/`E5.Flex` | ❌ pago |
 | Intel qualquer | ❌ pago |
@@ -1156,9 +1156,15 @@ COMPARTIMENTO=$TENANCY
 SUBREDE=ocid1.subnet.oc1...
 IMAGEM=ocid1.image.oc1...
 NOME=serv-ampere
-DISCO_GB=50
+
+# Disco grande de proposito -- ver "O disco escala com o tamanho" abaixo.
+DISCO_GB=150
+
 DOMINIOS="LtOi:SA-VINHEDO-1-AD-1"
-CONFIGURACOES="4:24 2:12 1:6"
+
+# Nunca acima de 2:12 -- ver o aviso sobre o corte de junho de 2026.
+CONFIGURACOES="2:12 1:6"
+
 CHAVE_SSH="$(grep -v 'command=' ~/.ssh/authorized_keys | head -1)"
 CFG
 chmod 600 ~/.oci/ampere.conf
@@ -1175,12 +1181,65 @@ CRON
 sudo chmod 644 /etc/cron.d/tentar-ampere
 ```
 
-O script pede 4 OCPUs e 24 GB primeiro e vai reduzindo para 2/12 e 1/6. Vale
-aceitar o que houver: **1 OCPU e 6 GB já é seis vezes a memória da `E2.1.Micro`**,
-e ampliar depois é dentro da mesma família, onde o redimensionamento funciona.
-Ao conseguir, ele grava o endereço da nova máquina e **se desagenda**.
+O script tenta **uma configuração por execução, alternando** entre elas. Tentar
+as duas de uma vez dobra as chamadas e a Oracle responde `TooManyRequests` —
+recusando mesmo que houvesse vaga, o que faz perder justamente a janela que se
+quer pegar. Ao levar um desses, o script recua 30 minutos.
 
-Acompanhe com `tail -f ~/.oci/ampere.log`.
+Vale aceitar o que aparecer: **1 OCPU e 6 GB já é seis vezes a memória da
+`E2.1.Micro`**. Ao conseguir, ele grava o endereço da nova máquina e
+**se desagenda**, para não criar uma segunda.
+
+> ⚠️ **Nunca peça acima de 2 OCPUs e 12 GB.** Em **15 de junho de 2026** a Oracle
+> **cortou o Ampere gratuito pela metade** — de 4 núcleos/24 GB para 2 núcleos/12
+> GB — sem anúncio público. Muita gente descobriu quando suas máquinas foram
+> desligadas.
+>
+> O teto agora é **1.500 OCPU-horas e 9.000 GB-horas por mês**:
+>
+> | Máquina | Consumo em 30 dias | Cabe no gratuito? |
+> |---|---|---|
+> | 2 OCPU / 12 GB | 1.460 OCPU-h · 8.760 GB-h | ✅ com folga pequena |
+> | 4 OCPU / 24 GB | 2.920 OCPU-h · 17.520 GB-h | ❌ **o dobro — cobrado** |
+>
+> Pior: *"se um recurso existente for encerrado, pode não ser possível recriá-lo
+> acima do novo limite"*. Ou seja, quem tinha 4/24 e desligou, não recupera.
+
+### O disco escala com o tamanho do volume
+
+Medição no servidor de 47 GB: **50 MB/s** de leitura e de escrita. Isso é
+velocidade de disco mecânico, e já estava no nível *equilibrado* — não é questão
+de escolher outro tipo de volume.
+
+A Oracle distribui o desempenho **proporcionalmente ao tamanho**: um volume de
+150 GB no mesmo nível recebe cerca de **três vezes** a vazão de um de 50 GB. Como
+a camada gratuita dá 200 GB no total e a máquina atual usa 47, sobram ~150 GB
+para a nova.
+
+Para um servidor com banco de dados, isso é a diferença mais sentida no dia a
+dia. **Peça o disco grande desde a criação** — aumentar depois é possível, mas
+exige redimensionar a partição.
+
+Acompanhe a caça com `tail -f ~/.oci/ampere.log`, ou veja o panorama completo:
+
+```bash
+ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP "/usr/local/bin/status-servidor.sh"
+```
+
+### Se a capacidade nunca aparecer
+
+A Ampere vive esgotada nas regiões do Brasil, e pode levar semanas. O caminho
+mais eficaz é **mudar a conta para "Pay As You Go"**: contas pagas têm prioridade
+na fila de capacidade, e os recursos Always Free continuam gratuitos.
+
+> ⚠️ **Pese o risco antes.** Na avaliação grátis, um recurso pago só consome
+> crédito. Em Pay As You Go, ele **vira fatura de verdade, imediatamente**. E há
+> outra ressalva: relatos indicam que contas PAYG teriam mantido os 4/24
+> gratuitos, mas a documentação da Oracle diz que o novo limite vale para *todas*
+> as contas — o próprio suporte deu respostas contraditórias. Não conte com isso.
+>
+> Se for por esse caminho, **crie um alerta de orçamento** em
+> *Billing → Budgets* com valor baixo, antes de qualquer outra coisa.
 
 ---
 ---
@@ -1264,7 +1323,7 @@ free -m | awk 'NR==2{printf "memória em uso: %.0f%%\n", $3/$2*100}'
 
 | Recurso | Always Free |
 |---|---|
-| Ampere `A1.Flex` | 4 OCPUs e 24 GB no total, até 4 máquinas |
+| Ampere `A1.Flex` | **2 OCPUs e 12 GB** no total, até 4 máquinas |
 | AMD `E2.1.Micro` | 2 máquinas de 1 OCPU e 1 GB |
 | Armazenamento em bloco | 200 GB no total, incluindo os discos de boot |
 | Tráfego de saída | 10 TB por mês |

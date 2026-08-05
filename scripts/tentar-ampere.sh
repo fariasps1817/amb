@@ -2,14 +2,18 @@
 #
 # Tenta criar a maquina gratuita Ampere (ARM) na Oracle Cloud ate conseguir.
 #
-# A camada Always Free da 4 OCPUs e 24 GB de memoria em maquinas Ampere, mas
+# A camada Always Free da 2 OCPUs e 12 GB de memoria em maquinas Ampere, mas
 # elas vivem esgotadas nas regioes do Brasil. A vaga aparece e some em minutos,
 # entao tentar na mao e loteria. Este script tenta de tempos em tempos, sozinho.
 #
-# Estrategia: pede primeiro a maior configuracao e vai reduzindo. Uma maquina
-# de 1 OCPU e 6 GB ja seria seis vezes a memoria da atual, entao vale aceitar
-# o que aparecer -- dentro da mesma familia da para ampliar depois, quando
-# houver capacidade, sem precisar reinstalar nada.
+# ATENCAO ao teto: em 15/06/2026 a Oracle cortou o Ampere gratuito pela metade,
+# de 4 OCPUs/24 GB para 2 OCPUs/12 GB, sem anuncio publico. Pedir acima disso
+# cria uma maquina COBRADA. O limite atual e 1.500 OCPU-horas e 9.000 GB-horas
+# por mes: 2 OCPUs 24/7 dao 1.460 OCPU-horas e cabem; 4 OCPUs dao 2.920 e nao.
+# Por isso CONFIGURACOES nunca deve passar de "2:12".
+#
+# Estrategia: uma configuracao por execucao, alternando entre elas. Vale aceitar
+# o que aparecer -- 1 OCPU e 6 GB ja e seis vezes a memoria da E2.1.Micro.
 #
 # Uso:
 #   /usr/local/bin/tentar-ampere.sh          uma tentativa
