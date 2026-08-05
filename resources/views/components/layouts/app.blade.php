@@ -88,6 +88,9 @@
                     <x-nav-item rota="acessos.index" icone="cadeado" :ativo="request()->routeIs('acessos.*')">
                         Acessos
                     </x-nav-item>
+                    <x-nav-item rota="documentacao.index" icone="documentos" :ativo="request()->routeIs('documentacao.*')">
+                        Documentação
+                    </x-nav-item>
                 @endif
                 <x-nav-item rota="configuracoes.edit" icone="configuracoes" :ativo="request()->routeIs('configuracoes.*')">
                     Identidade institucional
