@@ -350,14 +350,38 @@ caches.
 
 ### Endurecimento de segurança
 
-Um sistema exposto na internet pede mais cuidado que um em rede local:
+Um sistema exposto na internet pede mais cuidado que um em rede local.
 
-- **Senha mínima maior em produção** — hoje o mínimo é 4 caracteres, definido para
-  uso interno. Online, sugiro exigir 8 no servidor, mantendo 4 na sua máquina
+**Já implementado:**
+
+- ✅ **HTTPS obrigatório**, redirecionando quem chegar por HTTP.
+- ✅ `APP_DEBUG=false` — impede que erros exponham trechos de código e credenciais.
+- ✅ **Limite de tentativas em duas camadas** — 5 erros bloqueiam a conta por 5
+  minutos; 20 erros vindos do mesmo computador bloqueiam a origem por 30 minutos.
+  A segunda camada é a que detém varredura, em que um mesmo computador tenta
+  dezenas de nomes diferentes.
+- ✅ **Registro de todas as tentativas**, visível na tela **Acessos** do sistema,
+  restrita ao administrador. Sem ele o bloqueio agiria em silêncio.
+- ✅ **Sessão encerrada por 30 minutos de inatividade**, com aviso e contagem
+  regressiva dois minutos antes.
+
+**Ainda pendente:**
+
+- ⬜ **Trocar a senha do `admin`**, hoje `1234`.
+- ⬜ **Senha mínima maior em produção** — hoje o mínimo é 4 caracteres, definido
+  para uso interno. Online vale exigir 8 no servidor, mantendo 4 na sua máquina
   para testar sem incômodo.
-- **Trocar a senha do `admin`** logo no primeiro acesso.
-- `APP_DEBUG=false` — impede que erros exponham trechos de código e credenciais.
-- HTTPS obrigatório, redirecionando quem chegar por HTTP.
+
+### Agendador de tarefas
+
+Uma linha de cron chama `schedule:run` a cada minuto; o que roda fica versionado
+em `routes/console.php`, e não espalhado em arquivos soltos do servidor.
+
+| O quê | Onde / quando |
+|---|---|
+| Cron | `/etc/cron.d/amb-agendador` |
+| Descarte de acessos com mais de 6 meses | todo dia às 3h20 |
+| Descarte de sessões vencidas | todo dia às 3h30 |
 
 ---
 

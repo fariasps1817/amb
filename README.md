@@ -211,7 +211,50 @@ Quando não há DDD, o sistema aplica o `WHATSAPP_DDD_PADRAO`.
 | Consulta | apenas visualizar e imprimir |
 
 A senha pode ser simples, inclusive só números (mínimo de 4 caracteres), conforme definido pela
-coordenação. As tentativas de login são limitadas por usuário e IP.
+coordenação.
+
+### Proteção da entrada
+
+Como a senha é simples de propósito e o sistema fica exposto na internet, a barreira contra
+tentativa exaustiva não é a força da senha e sim o **ritmo** permitido. São duas camadas
+independentes:
+
+| Camada | Conta | Limite | Bloqueio |
+|--------|-------|--------|----------|
+| **Conta** | usuário + computador de origem | 5 erros | 5 minutos |
+| **Origem** | apenas o computador de origem | 20 erros | 30 minutos |
+
+A camada de origem existe porque a de conta sozinha não detém varredura: quem tenta dezenas de
+nomes diferentes ganha um contador novo a cada nome, e nenhum chega ao limite.
+
+Toda tentativa fica registrada em `tentativas_de_acesso` com o motivo, visível na tela
+**Acessos** (só para administradores), com resumo das últimas 24h e destaque para as origens que
+mais erraram. Sem esse registro o bloqueio aconteceria em silêncio e ninguém ficaria sabendo que
+houve ataque.
+
+Dois cuidados na implementação:
+
+- **A senha digitada nunca é gravada**, nem quando está errada.
+- **A tela não revela se o usuário existe.** A distinção entre "usuário inexistente" e "senha
+  incorreta" fica só no registro interno; para quem está tentando, a mensagem é sempre a mesma.
+  Do contrário o próprio sistema confirmaria quais nomes de usuário são válidos.
+
+### Sessão por inatividade
+
+`SESSION_LIFETIME` define os minutos de inatividade até o encerramento — 30 em produção. O usuário
+é avisado dois minutos antes, com contagem regressiva, e continua conectado com um clique.
+
+Três detalhes que a implementação precisou cobrir:
+
+- Digitar um formulário longo não gera requisição nenhuma. Enquanto há atividade, o navegador avisa
+  o servidor a cada 4 minutos — sem isso, quem está trabalhando seria desconectado.
+- Com o sistema aberto em várias abas, cada uma teria o próprio relógio. O momento da última
+  atividade fica no `localStorage`, compartilhado entre elas.
+- O encerramento acontece **um minuto antes** do prazo do servidor. A saída é um `POST`, e um `POST`
+  com a sessão já morta cairia na tela "419 Page Expired" em vez da tela de login.
+
+O histórico de acessos com mais de 6 meses e as sessões vencidas são descartados diariamente pelo
+agendador (`routes/console.php`), que depende de uma linha de cron chamando `schedule:run`.
 
 ---
 
