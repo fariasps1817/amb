@@ -11,9 +11,9 @@
 #   3. baixa a nova versao do GitHub
 #   4. atualiza as dependencias (PHP e JavaScript)
 #   5. aplica as migracoes do banco
-#   6. recompila o CSS e o JavaScript
-#   7. regenera os caches do Laravel
-#   8. tira o site da manutencao
+#   6. regenera os caches do Laravel
+#   7. recompila o CSS e o JavaScript
+#   8. tira o site da manutencao e confere se ele responde
 #
 # Se qualquer etapa falhar, o script para e tira o site da manutencao,
 # deixando a versao anterior no ar.
@@ -21,6 +21,22 @@
 set -euo pipefail
 
 APP=/var/www/amb
+
+# O git substitui este proprio arquivo no passo 3. Como o bash le o script aos
+# poucos, conforme executa, a troca no meio do caminho o faria executar bytes da
+# versao antiga misturados com a nova. Por isso rodamos sempre de uma copia, que
+# o git nao alcanca.
+if [ "${DEPLOY_EM_COPIA:-}" != "1" ]; then
+    COPIA=$(mktemp /tmp/deploy-amb.XXXXXX.sh)
+    cp "$APP/deploy.sh" "$COPIA"
+    chmod +x "$COPIA"
+    # o "|| RESULTADO=$?" impede que o set -e aborte antes de apagar a copia
+    RESULTADO=0
+    DEPLOY_EM_COPIA=1 "$COPIA" "$@" || RESULTADO=$?
+    rm -f "$COPIA"
+    exit $RESULTADO
+fi
+
 cd "$APP"
 
 # Mesmo que algo falhe no meio, o site nao pode ficar preso em manutencao.
@@ -79,19 +95,24 @@ echo "[5/8] Aplicando migracoes do banco"
 php artisan migrate --force
 
 echo ""
-echo "[6/8] Recompilando CSS e JavaScript"
-npm run build
-
-echo ""
-echo "[7/8] Regenerando os caches"
+echo "[6/8] Regenerando os caches"
 php artisan optimize:clear >/dev/null
 php artisan config:cache >/dev/null
 php artisan route:cache >/dev/null
+# view:cache antes do build de proposito: o app.css tem um @source apontando
+# para as views compiladas, entao compilar todas antes garante que o Tailwind
+# veja sempre o mesmo conjunto e gere sempre o mesmo CSS.
 php artisan view:cache >/dev/null
 php artisan event:cache >/dev/null
+echo "      caches ok"
+
+echo ""
+echo "[7/8] Recompilando CSS e JavaScript"
+npm run build
+
 sudo chown -R ubuntu:www-data "$APP/storage" "$APP/bootstrap/cache"
 sudo systemctl reload php8.4-fpm
-echo "      caches e permissoes ok"
+echo "      assets e permissoes ok"
 
 echo ""
 echo "[8/8] Tirando o site da manutencao"
