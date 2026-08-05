@@ -125,7 +125,17 @@ echo " Pronto. No ar na versao $DEPOIS"
 echo "=================================================="
 echo ""
 echo "Conferindo se o site responde:"
-CODIGO=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/entrar)
+# O Host precisa bater com o server_name do Nginx: desde que o site ganhou
+# nome proprio, uma requisicao para "localhost" cai no servidor padrao e
+# responde 404 mesmo com o sistema no ar.
+ENDERECO=$(grep -oP '^APP_URL=https?://\K.*' "$APP/.env" | tr -d '\r/')
+CODIGO=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $ENDERECO" http://127.0.0.1/entrar --max-redirs 0)
+
+# Com o redirecionamento para HTTPS ativo, a resposta em texto puro e um 301.
+if [ "$CODIGO" = "301" ]; then
+    CODIGO=$(curl -s -o /dev/null -w '%{http_code}' "https://$ENDERECO/entrar")
+fi
+
 if [ "$CODIGO" = "200" ]; then
     echo "  tela de acesso respondeu HTTP 200 — tudo certo"
 else
