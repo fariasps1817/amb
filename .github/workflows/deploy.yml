@@ -68,6 +68,22 @@ jobs:
           npm ci
           npm run build
 
+      # O teste de saude do container responde a "mysqladmin ping" antes de a
+      # inicializacao terminar: o banco e as permissoes ainda podem nao existir.
+      # Esperar por uma consulta real evita falha intermitente na primeira etapa.
+      - name: Esperar o MySQL ficar pronto de verdade
+        run: |
+          for i in $(seq 1 30); do
+            if mysql -h 127.0.0.1 -P 3306 -u root -e 'SELECT 1' amb_testes >/dev/null 2>&1; then
+              echo "MySQL pronto na tentativa $i"
+              mysql -h 127.0.0.1 -P 3306 -u root -e 'SELECT VERSION()'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL nao respondeu a tempo"
+          exit 1
+
       - name: Rodar os testes
         env:
           DB_CONNECTION: mysql
