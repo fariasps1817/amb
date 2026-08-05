@@ -424,19 +424,62 @@ gunzip -c /var/backups/amb/amb-2026-08-04.sql.gz | sudo mysql amb
 
 ## Depois que estiver no ar
 
-### Atualizar o sistema ✅ pronto
+### Atualizar o sistema ✅ automático
 
-Você continua desenvolvendo no Laragon. Quando quiser publicar:
+Você continua desenvolvendo no Laragon. Para publicar, basta:
 
 ```bash
-# na sua máquina
 git push
+```
 
-# no servidor (eu ou você)
+O resto acontece sozinho. O GitHub Actions (`.github/workflows/deploy.yml`) monta
+um ambiente igual ao do servidor — Ubuntu, PHP 8.4, MySQL 8 — roda a suíte
+inteira e **só publica se tudo passar**. Um erro nunca chega em produção sem
+passar por esse portão.
+
+```
+git push  →  testes no GitHub  →  passou?  →  deploy no servidor
+                                  falhou?  →  para aqui, produção intacta
+```
+
+Também dá para disparar manualmente pela aba **Actions** do repositório, em
+*Testar e publicar → Run workflow*, sem precisar inventar um commit.
+
+#### Os dois segredos do repositório
+
+| Segredo | O que é |
+|---|---|
+| `SSH_CHAVE_DEPLOY` | chave privada dedicada, **separada da sua chave pessoal** |
+| `SSH_IMPRESSAO_DIGITAL` | identidade pública do servidor |
+
+A chave de deploy está presa a um **comando forçado** no `authorized_keys` do
+servidor: qualquer conexão feita com ela executa o `deploy.sh` e nada mais — sem
+shell, sem túnel, sem leitura de arquivos. Foi testada pedindo para ler o `.env`;
+ela ignorou o pedido e rodou o deploy. Mesmo que o segredo vaze do GitHub, o pior
+que alguém consegue é disparar um deploy do seu próprio código.
+
+O segundo segredo existe para o GitHub não entregar seu código a outra máquina
+que responda por aquele endereço. Sem ele, a conexão aceitaria qualquer servidor.
+
+#### Quando o CI falha
+
+O log do Actions só é legível por quem tem permissão de administrador no
+repositório. Para não depender disso, uma falha publica o trecho do erro como
+**comentário do commit**, que é público e legível pela API.
+
+> Isso já valeu a pena na primeira semana: o CI reprovou uma execução com os 218
+> testes verdes. O motivo era um provedor de dados passando três argumentos para
+> um teste que recebia um — o PHPUnit trata como aviso e encerra com código de
+> erro. Passava despercebido porque `php artisan test | tail` devolve o código de
+> saída do `tail`, e não o do teste.
+
+#### Manualmente, se precisar
+
+```bash
 ssh -i ~/.ssh/amb_oracle ubuntu@167.126.6.137 "/var/www/amb/deploy.sh"
 ```
 
-O `deploy.sh` faz tudo sozinho, em oito passos:
+O `deploy.sh` é o mesmo script que o GitHub executa, em oito passos:
 
 1. backup do banco **antes** de mexer em qualquer coisa
 2. põe o site em manutenção (ninguém grava dados no meio da troca)
@@ -450,6 +493,51 @@ O `deploy.sh` faz tudo sozinho, em oito passos:
 Se qualquer passo falhar, o script **para, tira o site da manutenção sozinho**
 e deixa a versão anterior no ar — depois mostra o comando exato para desfazer.
 Você nunca fica com o sistema fora do ar por causa de um deploy ruim.
+
+### Subir para uma máquina maior, sem sair do gratuito
+
+A camada Always Free tem **duas famílias independentes**, e você pode ter as duas
+ao mesmo tempo:
+
+| Família | Cota gratuita permanente |
+|---|---|
+| **AMD** `E2.1.Micro` | 2 máquinas, 1 OCPU e **1 GB** cada — *é onde estamos* |
+| **Ampere ARM** `A1.Flex` | **4 OCPUs e 24 GB** no total, em até 4 máquinas |
+
+Dentro da AMD não há para onde subir: `E3`, `E4` e `E5` são todas pagas. O
+caminho é a Ampere — e ela vive esgotada, porque Vinhedo tem **um único domínio
+de disponibilidade**.
+
+Não é um botão de "aumentar". AMD e Ampere são arquiteturas diferentes (`x86_64`
+e `aarch64`), e o sistema instalado no disco não roda na outra. Precisa ser uma
+máquina nova, com a imagem ARM do Ubuntu. Como temos backup testado, `deploy.sh`
+e este guia, reconstruir é repetir os passos — e a máquina atual continua no ar
+durante todo o processo, porque só reapontamos o DuckDNS no final.
+
+#### O script que fica tentando
+
+`scripts/tentar-ampere.sh` roda a cada 7 minutos e pega a vaga assim que ela
+aparecer. A vaga surge e some em minutos, então tentar na mão é loteria.
+
+| O quê | Onde |
+|---|---|
+| Script | `/usr/local/bin/tentar-ampere.sh` |
+| Agendamento | `/etc/cron.d/tentar-ampere` |
+| Configuração | `~/.oci/ampere.conf` (fora do repositório) |
+| Credencial | `~/.oci/config` e `~/.oci/api_oracle.pem` |
+| Registro | `~/.oci/ampere.log` |
+
+Ele pede 4 OCPUs e 24 GB primeiro e vai reduzindo para 2/12 e 1/6 — vale aceitar
+o que houver, porque **1 OCPU e 6 GB já é seis vezes a memória atual**, e ampliar
+depois é dentro da mesma família, onde o redimensionamento funciona. Ao
+conseguir, grava o endereço da nova máquina e **se desagenda**, para não criar
+uma segunda.
+
+Para acompanhar:
+
+```bash
+tail -f ~/.oci/ampere.log
+```
 
 ### Vale para seus outros sistemas
 
