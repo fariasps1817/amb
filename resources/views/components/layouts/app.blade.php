@@ -85,6 +85,9 @@
                     <x-nav-item rota="usuarios.index" icone="usuarios" :ativo="request()->routeIs('usuarios.*')">
                         Usuários
                     </x-nav-item>
+                    <x-nav-item rota="acessos.index" icone="cadeado" :ativo="request()->routeIs('acessos.*')">
+                        Acessos
+                    </x-nav-item>
                 @endif
                 <x-nav-item rota="configuracoes.edit" icone="configuracoes" :ativo="request()->routeIs('configuracoes.*')">
                     Identidade institucional
@@ -152,8 +155,12 @@
     </div>
 
     <x-toast />
+    <x-aviso-de-inatividade />
 </div>
 
+{{-- Antes do @livewireScripts: e ele que carrega o Alpine, e o aviso de
+     inatividade precisa se registrar no evento alpine:init. --}}
+@stack('scripts')
 @livewireScripts
 </body>
 </html>

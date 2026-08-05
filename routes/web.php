@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcessoController;
 use App\Http\Controllers\AmbulanciaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConfiguracaoController;
@@ -109,4 +110,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('usuarios', UsuarioController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->middleware('admin');
+
+    Route::get('acessos', AcessoController::class)
+        ->middleware('admin')
+        ->name('acessos.index');
+
+    // Chamada pelo aviso de inatividade quando o usuario pede para continuar
+    // conectado. Qualquer requisicao autenticada ja renova a sessao; esta
+    // existe apenas para fazer isso sem recarregar a tela.
+    Route::post('sessao/renovar', fn () => response()->noContent())->name('sessao.renovar');
 });

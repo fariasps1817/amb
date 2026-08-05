@@ -44,6 +44,12 @@
    Utilitarios do projeto
    --------------------------------------------------------------------------- */
 
+/* Esconde o elemento ate o Alpine assumir o controle, para que o aviso de
+   inatividade nao pisque na tela durante o carregamento da pagina. */
+[x-cloak] {
+    display: none !important;
+}
+
 @utility scrollbar-fina {
     scrollbar-width: thin;
     scrollbar-color: var(--color-slate-300) transparent;

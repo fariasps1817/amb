@@ -28,6 +28,18 @@
                 </p>
             @endif
 
+            {{-- Sessao encerrada por inatividade: sem esta mensagem o usuario
+                 volta para o login sem entender por que foi desconectado. --}}
+            @if (session('atencao'))
+                <div
+                    role="status"
+                    class="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                >
+                    <x-icone nome="relogio" class="mt-0.5 size-4 shrink-0" />
+                    <p>{{ session('atencao') }}</p>
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('login') }}" class="space-y-4">
                 @csrf
 
