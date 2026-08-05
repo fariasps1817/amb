@@ -10,6 +10,10 @@
 
     <link rel="icon" href="data:image/svg+xml,{{ rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#2b736e"/><path d="M16 7v18M7 16h18" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg>') }}">
 
+    {{-- Carrega a Instrument Sans a partir dos arquivos do proprio servidor.
+         Sem esta linha o Vite gera as fontes, mas nada as referencia, e o
+         sistema cai na fonte padrao do sistema operacional. --}}
+    {{ Vite::fonts() }}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
