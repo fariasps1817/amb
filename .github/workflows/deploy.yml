@@ -21,6 +21,10 @@ jobs:
     name: Testes
     runs-on: ubuntu-latest
 
+    # Necessario para comentar no commit quando algo falha.
+    permissions:
+      contents: write
+
     services:
       mysql:
         image: mysql:8.0
@@ -85,6 +89,7 @@ jobs:
           exit 1
 
       - name: Rodar os testes
+        shell: bash
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
@@ -92,7 +97,26 @@ jobs:
           DB_DATABASE: amb_testes
           DB_USERNAME: root
           DB_PASSWORD: ''
-        run: php artisan test
+        run: php artisan test 2>&1 | tee /tmp/testes.log
+
+      # O log do Actions so e legivel por quem tem permissao de administrador
+      # no repositorio. Publicar o trecho da falha como comentario do commit
+      # deixa o diagnostico acessivel sem precisar entrar no painel.
+      - name: Publicar a falha no commit
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo 'Testes falharam no GitHub Actions.'
+            echo
+            echo '```'
+            sed -e 's/\x1b\[[0-9;]*m//g' /tmp/testes.log | grep -vE '^\s*✓' | tail -80
+            echo '```'
+          } > /tmp/comentario.md
+
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -f body="$(cat /tmp/comentario.md)" --silent
 
   publicar:
     name: Publicar no servidor
