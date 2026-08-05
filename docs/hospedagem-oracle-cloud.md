@@ -229,7 +229,7 @@ público. O acesso ao *sistema* continua protegido por usuário e senha.
 Com o IP em mãos, testamos a conexão. O comando é:
 
 ```bash
-ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP
+ssh -i ~/.ssh/amb_oracle ubuntu@167.126.6.137
 ```
 
 Na primeira vez aparece uma pergunta sobre autenticidade do host — responda `yes`.
@@ -264,36 +264,69 @@ Também vou:
 
 ---
 
-## ETAPA 6 — Endereço na internet
+## ETAPA 6 — Endereço na internet ✅ pronto
 
-Um IP como `150.230.10.20` funciona, mas ninguém decora. E o certificado HTTPS
-gratuito exige um nome de domínio.
+Um IP como `167.126.6.137` funciona, mas ninguém decora. E o certificado HTTPS
+gratuito **não é emitido para número de IP** — só para nome. Por isso o nome não
+é enfeite: é o que destrava o cadeado.
 
-**Solução gratuita: DuckDNS** — https://www.duckdns.org
+**Registrado no DuckDNS** (gratuito, sem prazo de validade):
 
-1. Entre com Google/GitHub
-2. Digite um nome, por exemplo `amb-cascavel`
-3. No campo *current ip*, cole o IP do servidor e clique em **update ip**
+```
+ambulancia.duckdns.org  →  167.126.6.137
+```
 
-O endereço fica: `https://amb-cascavel.duckdns.org`
+O servidor **reconfirma esse apontamento a cada 30 minutos**, sozinho. Serve para
+dois fins: mantém o domínio ativo (o DuckDNS remove os abandonados) e conserta o
+endereço automaticamente se a Oracle um dia trocar o IP da máquina.
+
+| O quê | Onde |
+|---|---|
+| Script | `/usr/local/bin/atualizar-duckdns.sh` |
+| Agendamento | `/etc/cron.d/duckdns` |
+| Token | `/root/.token-duckdns` (só o root lê) |
+| Registro | `/var/log/duckdns.log` |
+
+> **O token do DuckDNS é uma senha.** Quem tiver acesso a ele consegue apontar
+> `ambulancia.duckdns.org` para outro servidor. Nunca compartilhe prints da
+> página do DuckDNS — o token aparece nela.
 
 > **Alternativa institucional:** se a prefeitura tiver domínio próprio
 > (`cascavel.ce.gov.br`), vale pedir ao TI um subdomínio apontando para este IP —
 > algo como `ambulancias.cascavel.ce.gov.br`. Fica mais apropriado para uso
-> oficial. O DuckDNS resolve enquanto isso.
+> oficial, e a troca depois é simples: emito um certificado novo e pronto. O
+> DuckDNS resolve enquanto isso, e nada impede manter os dois.
 
 ---
 
-## ETAPA 7 — Certificado HTTPS
+## ETAPA 7 — Certificado HTTPS ✅ pronto
 
 Sem HTTPS, tudo o que trafega vai em texto puro — inclusive as senhas dos
 usuários. Considerando que o sistema guarda CPF, data de nascimento, telefone e
 endereço de 49 servidores públicos, é obrigatório.
 
-O **Let's Encrypt** emite certificados válidos e gratuitos. Instalo o `certbot`,
-que emite o certificado e cria uma tarefa para renová-lo sozinho a cada 90 dias.
+Certificado do **Let's Encrypt** emitido pelo `certbot`:
 
-Resultado: o cadeado no navegador, sem aviso de "site não seguro".
+```
+https://ambulancia.duckdns.org     cadeado, sem aviso de "não seguro"
+http://ambulancia.duckdns.org      redireciona sozinho para https
+```
+
+| | |
+|---|---|
+| Validade | até 03/11/2026 |
+| Renovação | automática, pelo `certbot.timer` do sistema |
+| Certificado | `/etc/letsencrypt/live/ambulancia.duckdns.org/` |
+
+A renovação foi **testada em modo simulado** e passou. Para repetir o teste:
+
+```bash
+sudo certbot renew --dry-run --no-random-sleep-on-renew
+```
+
+> O `--no-random-sleep-on-renew` importa: sem ele o certbot dorme até 8 minutos
+> antes de agir, para não sobrecarregar o Let's Encrypt com milhões de servidores
+> pedindo no mesmo instante. Parece travado, mas está só esperando.
 
 ---
 
@@ -354,7 +387,7 @@ Backup que mora só no mesmo servidor não protege contra perder o servidor.
 De vez em quando, rode isto no PowerShell da sua máquina:
 
 ```powershell
-scp -i $HOME\.ssh\amb_oracle ubuntu@SEU_IP:/var/backups/amb/amb-*.sql.gz .
+scp -i $HOME\.ssh\amb_oracle ubuntu@167.126.6.137:/var/backups/amb/amb-*.sql.gz .
 ```
 
 ### Restaurar, se um dia precisar
@@ -376,7 +409,7 @@ Você continua desenvolvendo no Laragon. Quando quiser publicar:
 git push
 
 # no servidor (eu ou você)
-ssh -i ~/.ssh/amb_oracle ubuntu@SEU_IP "/var/www/amb/deploy.sh"
+ssh -i ~/.ssh/amb_oracle ubuntu@167.126.6.137 "/var/www/amb/deploy.sh"
 ```
 
 O `deploy.sh` faz tudo sozinho, em oito passos:
