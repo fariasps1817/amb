@@ -1289,3 +1289,36 @@ subdomínio no DuckDNS.
 Para cada sistema novo, os passos que se repetem são: Etapa 10 (banco), Etapa 11
 (publicar), Etapa 13 (subdomínio) e Etapa 14 (certificado). O resto — servidor,
 firewall, swap, backup, agendador — já está pronto e é compartilhado.
+
+---
+
+# Versão para imprimir
+
+Existe uma versão em HTML deste guia, com sumário navegável e estilo próprio
+para impressão: [`hospedagem-oracle-cloud.html`](hospedagem-oracle-cloud.html).
+
+Abra no navegador e faça **Ctrl+P** → *Salvar como PDF*. Marque a opção
+**"Gráficos de segundo plano"** para manter as cores dos títulos e das tabelas —
+sem ela o PDF sai em preto e branco puro.
+
+Cada PARTE começa em folha nova, e comandos, tabelas e avisos nunca são partidos
+ao meio entre páginas: um comando cortado na dobra é inútil para quem está
+copiando.
+
+Se você editar o Markdown, gere o HTML de novo com:
+
+```bash
+php scripts/gerar-html-do-guia.php
+```
+
+O script serve para qualquer documento da pasta `docs/`:
+
+```bash
+php scripts/gerar-html-do-guia.php docs/outro-documento.md
+```
+
+> **Por que não gerar o PDF direto?** O `dompdf`, que o sistema usa para os
+> documentos da escala, ignora quebra de página condicional e boa parte do CSS
+> moderno — foi o que nos obrigou a calibrar a paginação da planilha na mão. Para
+> um texto longo com tabelas, o motor de impressão do navegador entrega resultado
+> melhor e não custa nenhuma dependência nova.

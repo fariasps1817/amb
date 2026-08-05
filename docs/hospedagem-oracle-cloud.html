@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Montar o servidor do zero — Oracle Cloud Always Free</title>
+<style>
+/* ---------------------------------------------------------------------------
+   Tela
+   --------------------------------------------------------------------------- */
+
+:root {
+    --marca: #265c59;
+    --marca-clara: #eff9f7;
+    --texto: #1e293b;
+    --suave: #64748b;
+    --borda: #e2e8f0;
+    --fundo-codigo: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--texto);
+    background: #f1f5f9;
+}
+
+.folha {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 3rem 3.5rem 5rem;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+/* Cabecalho ------------------------------------------------------------- */
+
+.capa {
+    border-bottom: 3px solid var(--marca);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.capa h1 {
+    margin: 0;
+    font-size: 2.1rem;
+    line-height: 1.2;
+    color: var(--marca);
+    border: 0;
+    padding: 0;
+}
+
+.capa .assinatura {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--suave);
+}
+
+/* Titulos --------------------------------------------------------------- */
+
+h1, h2, h3, h4 { line-height: 1.25; }
+
+h1 {
+    font-size: 1.75rem;
+    color: #fff;
+    background: var(--marca);
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    margin: 3.5rem 0 1.5rem;
+}
+
+h2 {
+    font-size: 1.35rem;
+    color: var(--marca);
+    border-bottom: 2px solid var(--borda);
+    padding-bottom: 0.35rem;
+    margin: 2.5rem 0 1rem;
+}
+
+h3 {
+    font-size: 1.1rem;
+    margin: 1.75rem 0 0.6rem;
+}
+
+h4 {
+    font-size: 1rem;
+    color: var(--suave);
+    margin: 1.25rem 0 0.5rem;
+}
+
+/* Sumario --------------------------------------------------------------- */
+
+.sumario {
+    background: var(--marca-clara);
+    border: 1px solid #b4e1d9;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.sumario h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 0;
+    padding: 0;
+}
+
+.sumario ol { margin: 0; padding: 0; list-style: none; }
+
+.sumario li { font-size: 0.9rem; padding: 0.12rem 0; }
+
+.sumario li.parte {
+    font-weight: 600;
+    margin-top: 0.6rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid #b4e1d9;
+}
+
+.sumario li.parte:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
+.sumario li.etapa { padding-left: 1.1rem; }
+
+.sumario a { color: var(--texto); text-decoration: none; }
+.sumario a:hover { text-decoration: underline; }
+
+/* Texto ----------------------------------------------------------------- */
+
+a { color: #1d5f5b; }
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--borda);
+    margin: 2.5rem 0;
+}
+
+/* Codigo ---------------------------------------------------------------- */
+
+code {
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-size: 0.86em;
+    background: #eef2f6;
+    padding: 0.12em 0.35em;
+    border-radius: 3px;
+}
+
+pre {
+    background: var(--fundo-codigo);
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--marca);
+    border-radius: 5px;
+    padding: 0.9rem 1.1rem;
+    overflow-x: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+
+pre code {
+    background: 0;
+    padding: 0;
+    font-size: inherit;
+}
+
+/* Tabelas --------------------------------------------------------------- */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    font-size: 0.9rem;
+}
+
+th, td {
+    border: 1px solid var(--borda);
+    padding: 0.5rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: var(--marca-clara);
+    font-weight: 600;
+    color: #1d4b48;
+}
+
+tbody tr:nth-child(even) { background: #fbfcfd; }
+
+/* Citacoes -------------------------------------------------------------- */
+
+blockquote {
+    margin: 1.25rem 0;
+    padding: 0.75rem 1.1rem;
+    border-left: 4px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 0 5px 5px 0;
+}
+
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+blockquote.armadilha {
+    border-left-color: #d97706;
+    background: #fffbeb;
+}
+
+blockquote.seguranca {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+}
+
+details {
+    border: 1px solid var(--borda);
+    border-radius: 5px;
+    padding: 0.75rem 1rem;
+    margin: 1.25rem 0;
+    background: var(--fundo-codigo);
+}
+
+summary { cursor: pointer; font-weight: 600; }
+
+/* ---------------------------------------------------------------------------
+   Impressao
+   --------------------------------------------------------------------------- */
+
+@page {
+    size: A4;
+    margin: 16mm 14mm 18mm;
+}
+
+@media print {
+
+    body {
+        background: #fff;
+        font-size: 10.5pt;
+        line-height: 1.45;
+    }
+
+    .folha {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .aviso-impressao { display: none; }
+
+    /* Cada PARTE comeca em folha nova. O seletor precisa ser ".folha > h1"
+       e nao "h1": o titulo da capa tambem e um h1, e uma quebra antes dele
+       produziria uma primeira pagina em branco. */
+    .folha > h1 { page-break-before: always; }
+    .capa h1 { page-break-before: avoid; }
+
+    /* Um titulo sozinho no pe da pagina nao ajuda ninguem. */
+    h1, h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
+
+    /* Partir um comando ao meio inutiliza o trecho para quem esta copiando. */
+    pre, table, blockquote, details {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    tr, li { page-break-inside: avoid; }
+
+    /* Cores de fundo so saem na impressao se forem explicitamente pedidas. */
+    h1, th, blockquote, pre, .sumario {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    h1 {
+        font-size: 15pt;
+        padding: 0.35rem 0.7rem;
+    }
+
+    h2 { font-size: 12.5pt; }
+    h3 { font-size: 11pt; }
+
+    pre { font-size: 8pt; }
+    table { font-size: 8.5pt; }
+
+    a { color: var(--texto); text-decoration: none; }
+
+    /* No papel o link nao clica: o endereco precisa estar escrito.
+       Vale so para enderecos externos -- imprimir "#etapa-5" ao lado de cada
+       item do sumario deixaria a lista ilegivel. */
+    a[href^="http"]::after {
+        content: " (" attr(href) ")";
+        font-size: 7.5pt;
+        color: #475569;
+        word-break: break-all;
+    }
+
+    .sumario { page-break-after: always; }
+}
+</style>
+</head>
+<body>
+<div class="folha">
+
+    <header class="capa">
+        <h1>Montar o servidor do zero — Oracle Cloud Always Free</h1>
+        <p class="assinatura">
+            Gerado em 05/08/2026 · Coordenação de Ambulâncias · Secretaria Municipal de Saúde
+        </p>
+    </header>
+
+    <p class="aviso-impressao">
+        <em>Para gerar um PDF: <strong>Ctrl+P</strong> → Destino
+        <strong>Salvar como PDF</strong> → marque <strong>Gráficos de segundo
+        plano</strong> para manter as cores dos títulos e tabelas.</em>
+    </p>
+
+    <nav class="sumario">
+        <h2>Conteúdo</h2>
+        <ol>
+<li class="etapa"><a href="#o-que-voce-tera-ao-final">O que você terá ao final</a></li>
+<li class="etapa"><a href="#leia-isto-antes-de-comecar">⚠️ Leia isto antes de começar</a></li>
+<li class="etapa"><a href="#vocabulario-que-vai-aparecer">Vocabulário que vai aparecer</a></li>
+<li class="etapa"><a href="#o-mapa-do-caminho">O mapa do caminho</a></li>
+<li class="parte"><a href="#parte-1-no-navegador">PARTE 1 — No navegador</a></li>
+<li class="etapa"><a href="#etapa-1-criar-a-conta">ETAPA 1 — Criar a conta</a></li>
+<li class="etapa"><a href="#etapa-2-gerar-a-chave-ssh">ETAPA 2 — Gerar a chave SSH</a></li>
+<li class="etapa"><a href="#etapa-3-criar-a-rede-vcn">ETAPA 3 — Criar a rede (VCN)</a></li>
+<li class="etapa"><a href="#etapa-4-liberar-as-portas-80-e-443">ETAPA 4 — Liberar as portas 80 e 443</a></li>
+<li class="etapa"><a href="#etapa-5-criar-a-maquina-virtual">ETAPA 5 — Criar a máquina virtual</a></li>
+<li class="etapa"><a href="#etapa-6-primeiro-acesso-por-ssh">ETAPA 6 — Primeiro acesso por SSH</a></li>
+<li class="parte"><a href="#parte-2-no-servidor">PARTE 2 — No servidor</a></li>
+<li class="etapa"><a href="#etapa-7-memoria-de-troca-e-fuso-horario">ETAPA 7 — Memória de troca e fuso horário</a></li>
+<li class="etapa"><a href="#etapa-8-firewall-interno-do-ubuntu">ETAPA 8 — Firewall interno do Ubuntu</a></li>
+<li class="etapa"><a href="#etapa-9-instalar-o-servidor">ETAPA 9 — Instalar o servidor</a></li>
+<li class="etapa"><a href="#etapa-10-criar-o-banco-de-dados">ETAPA 10 — Criar o banco de dados</a></li>
+<li class="etapa"><a href="#etapa-11-publicar-o-sistema">ETAPA 11 — Publicar o sistema</a></li>
+<li class="etapa"><a href="#etapa-12-ajustar-os-limites-do-php">ETAPA 12 — Ajustar os limites do PHP</a></li>
+<li class="parte"><a href="#parte-3-endereco-e-cadeado">PARTE 3 — Endereço e cadeado</a></li>
+<li class="etapa"><a href="#etapa-13-endereco-gratuito-no-duckdns">ETAPA 13 — Endereço gratuito no DuckDNS</a></li>
+<li class="etapa"><a href="#etapa-14-certificado-https">ETAPA 14 — Certificado HTTPS</a></li>
+<li class="parte"><a href="#parte-4-deixar-rodando-sozinho">PARTE 4 — Deixar rodando sozinho</a></li>
+<li class="etapa"><a href="#etapa-15-backup-diario-do-banco">ETAPA 15 — Backup diário do banco</a></li>
+<li class="etapa"><a href="#etapa-16-deploy-automatico-a-cada-git-push">ETAPA 16 — Deploy automático a cada git push</a></li>
+<li class="etapa"><a href="#etapa-17-agendador-de-tarefas">ETAPA 17 — Agendador de tarefas</a></li>
+<li class="etapa"><a href="#etapa-18-cacador-de-capacidade-ampere-opcional">ETAPA 18 — Caçador de capacidade Ampere (opcional)</a></li>
+<li class="parte"><a href="#verificacao-final">Verificação final</a></li>
+<li class="parte"><a href="#problemas-comuns">Problemas comuns</a></li>
+<li class="parte"><a href="#o-que-e-gratis-e-o-que-nao-e">O que é grátis e o que não é</a></li>
+<li class="parte"><a href="#vale-para-seus-outros-sistemas">Vale para seus outros sistemas</a></li>
+<li class="parte"><a href="#versao-para-imprimir">Versão para imprimir</a></li>
+
+        </ol>
+    </nav>
+
+<p>Roteiro completo para colocar o sistema no ar em um servidor <strong>gratuito e
+permanente</strong>, acessível de qualquer lugar por HTTPS.</p>
+<p>Escrito depois de fazer isso de verdade, uma vez, tropeçando em tudo o que dava
+para tropeçar. Cada armadilha que custou tempo está marcada <strong>no ponto exato onde
+ela aparece</strong>, com o sintoma que você vai ver na tela e o motivo.</p>
+<p>Feito para quem nunca administrou um servidor Linux. Cada etapa explica <strong>o que
+está sendo feito e por quê</strong>, não apenas o que clicar.</p>
+<hr />
+<h2 id="o-que-voce-tera-ao-final">O que você terá ao final</h2>
+<pre><code>https://seu-nome.duckdns.org        sistema no ar, com cadeado
+├── certificado que se renova sozinho
+├── backup do banco todo dia às 2h, guardando 30 dias
+├── git push publica sozinho, depois de passar nos testes
+├── bloqueio automático contra tentativa de invasão
+└── custo: R$ 0,00 por mês, para sempre
+</code></pre>
+<p><strong>Tempo:</strong> cerca de 2 horas na primeira vez, quase tudo espera de instalação.
+Seguindo este roteiro sem os erros que cometemos, fica em 1 hora.</p>
+<hr />
+<h2 id="leia-isto-antes-de-comecar">⚠️ Leia isto antes de começar</h2>
+<p>Seis coisas que custaram tempo. Se você souber delas de antemão, o caminho fica
+reto.</p>
+<h3>1. &quot;Avaliação Grátis&quot; e &quot;Always Free&quot; são coisas diferentes</h3>
+<p>Ao criar a conta, aparece uma faixa dizendo <em>&quot;Você está em uma Avaliação Grátis&quot;</em>
+com US$ 300 de crédito por 30 dias. Isso <strong>não</strong> é a camada gratuita permanente.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Avaliação Grátis</th>
+<th>Always Free</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Duração</td>
+<td>30 dias</td>
+<td>permanente</td>
+</tr>
+<tr>
+<td>Recursos</td>
+<td>quase todos</td>
+<td>uma lista curta e específica</td>
+</tr>
+<tr>
+<td>Ao terminar</td>
+<td>tudo que não for Always Free <strong>é desligado</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Se você criar uma máquina potente durante a avaliação, ela funciona por 30 dias e
+depois some. <strong>Só crie recursos marcados como &quot;Always Free eligible&quot;.</strong></p>
+<h3>2. Só duas famílias de máquina são gratuitas</h3>
+<p>Este é o erro mais caro possível. Ao escolher o tamanho da máquina você vê AMD,
+Intel e Ampere — e a maioria é <strong>paga</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Família</th>
+<th>Gratuito?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ampere</strong> <code>VM.Standard.A1.Flex</code></td>
+<td>✅ 4 núcleos e 24 GB no total</td>
+</tr>
+<tr>
+<td><strong>AMD</strong> <code>VM.Standard.E2.1.Micro</code></td>
+<td>✅ 2 máquinas de 1 núcleo e 1 GB</td>
+</tr>
+<tr>
+<td>AMD <code>E3</code>/<code>E4</code>/<code>E5.Flex</code></td>
+<td>❌ pago</td>
+</tr>
+<tr>
+<td>Intel qualquer</td>
+<td>❌ pago</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Como identificar:</strong> procure a etiqueta verde <strong>&quot;Always Free eligible&quot;</strong> /
+<em>&quot;Always Free elegível&quot;</em>. Ela só aparece em duas abas: <strong>Ampere</strong> e
+<strong>Especialidade e geração anterior</strong>. Se você estiver na aba AMD ou Intel e não
+vir a etiqueta, está prestes a criar algo cobrado.</p>
+<p>Quase criamos uma <code>E4.Flex</code> de 32 GB. Custaria cerca de <strong>US$ 90 por mês</strong>, e
+ela pareceria funcionar normalmente durante os 30 dias de avaliação.</p>
+</blockquote>
+<h3>3. Crie a REDE antes da MÁQUINA</h3>
+<p>Se você criar a máquina primeiro e deixar o formulário criar a rede, o
+interruptor <strong>&quot;Designar endereço IPv4 público&quot;</strong> fica <strong>travado</strong>, com a mensagem
+<em>&quot;Você deve selecionar uma sub-rede pública&quot;</em> — mesmo tendo marcado &quot;criar nova
+sub-rede pública&quot;.</p>
+<p><strong>Motivo:</strong> o formulário da instância monta uma sub-rede simples, sem o <em>Internet
+Gateway</em> — a peça que liga a rede à internet. Sem endereço público, nem o SSH nem
+o site funcionam, e não há como consertar sem refazer.</p>
+<h3>4. Dois botões parecidos na tela de rede</h3>
+<p>Na página de redes existem <strong><code>Criar VCN</code></strong> e <strong><code>Iniciar Assistente de VCN</code></strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Botão</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Criar VCN</code></td>
+<td>só a rede vazia — pede o bloco CIDR e para aí</td>
+</tr>
+<tr>
+<td><strong><code>Iniciar Assistente de VCN</code></strong></td>
+<td>rede + sub-redes + gateway + rotas, tudo ligado</td>
+</tr>
+</tbody>
+</table>
+<p>Se você cair numa tela pedindo <em>&quot;Blocos CIDR IPv4&quot;</em> com aviso de <strong>Obrigatório</strong>,
+e a lista de blocos estiver <strong>vazia</strong>, está no botão errado. Cancele e procure o
+assistente.</p>
+<h3>5. &quot;Out of host capacity&quot; não é erro seu</h3>
+<p>Ao criar a máquina Ampere é comum aparecer:</p>
+<pre><code>Erro de API
+Capacidade insuficiente para a forma VM.Standard.A1.Flex no domínio
+de disponibilidade AD-1
+</code></pre>
+<p>É <strong>falta de estoque</strong> na região, não problema da sua conta. A Ampere vive
+esgotada no Brasil. Duas saídas:</p>
+<ul>
+<li>Comece com a AMD <code>E2.1.Micro</code> (1 GB) e migre depois — foi o que fizemos</li>
+<li>Deixe um script tentando de tempos em tempos (Etapa 18)</li>
+</ul>
+<blockquote>
+<p>Vinhedo tem <strong>um único domínio de disponibilidade</strong>, então não há um segundo
+lugar para tentar dentro da região. Isso explica a escassez.</p>
+</blockquote>
+<h3>6. 1 GB de RAM exige memória de troca</h3>
+<p>Se você ficar com a <code>E2.1.Micro</code>, ela tem 954 MB utilizáveis. Um Laravel com
+MySQL usa mais que isso em picos — a geração de PDF pediu 266 MB só de PHP.
+Sem <em>swap</em>, o Linux mata processos no meio. A Etapa 7 resolve.</p>
+<hr />
+<h2 id="vocabulario-que-vai-aparecer">Vocabulário que vai aparecer</h2>
+<table>
+<thead>
+<tr>
+<th>Termo</th>
+<th>O que é</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Instance</strong></td>
+<td>A máquina virtual. É o que outras empresas chamam de VPS.</td>
+</tr>
+<tr>
+<td><strong>Tenancy</strong></td>
+<td>Sua conta/organização na Oracle.</td>
+</tr>
+<tr>
+<td><strong>Compartment</strong></td>
+<td>Pasta lógica para organizar recursos. Usaremos a raiz.</td>
+</tr>
+<tr>
+<td><strong>Shape</strong></td>
+<td>O &quot;tamanho&quot; da máquina: quantos processadores e memória.</td>
+</tr>
+<tr>
+<td><strong>OCPU</strong></td>
+<td>Um núcleo físico. Costuma equivaler a 2 processadores lógicos.</td>
+</tr>
+<tr>
+<td><strong>VCN</strong></td>
+<td><em>Virtual Cloud Network</em> — a rede da sua máquina.</td>
+</tr>
+<tr>
+<td><strong>Security List</strong></td>
+<td>O firewall <strong>da rede</strong>. É onde liberamos as portas 80/443.</td>
+</tr>
+<tr>
+<td><strong>iptables</strong></td>
+<td>O firewall <strong>de dentro</strong> do Ubuntu. Os dois precisam estar abertos.</td>
+</tr>
+<tr>
+<td><strong>SSH</strong></td>
+<td>Terminal remoto seguro. É por onde administramos o servidor.</td>
+</tr>
+<tr>
+<td><strong>Chave SSH</strong></td>
+<td>Par de arquivos que substitui a senha.</td>
+</tr>
+<tr>
+<td><strong>AD</strong></td>
+<td><em>Availability Domain</em> — um centro de dados dentro da região.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="o-mapa-do-caminho">O mapa do caminho</h2>
+<pre><code>PARTE 1 — NO NAVEGADOR
+  1  Criar a conta na Oracle                         ~15 min
+  2  Gerar a chave SSH no seu computador              ~2 min
+  3  Criar a rede (VCN) pelo assistente               ~5 min
+  4  Liberar as portas 80 e 443                       ~5 min
+  5  Criar a máquina virtual                         ~10 min
+  6  Primeiro acesso por SSH                          ~5 min
+
+PARTE 2 — NO SERVIDOR
+  7  Memória de troca e fuso horário                  ~5 min
+  8  Firewall interno do Ubuntu                       ~5 min
+  9  Instalar Nginx, PHP, MySQL, Composer e Node     ~20 min
+ 10  Criar o banco de dados                           ~3 min
+ 11  Publicar o sistema                              ~15 min
+ 12  Ajustar os limites do PHP                        ~5 min
+
+PARTE 3 — ENDEREÇO E CADEADO
+ 13  Endereço gratuito no DuckDNS                     ~5 min
+ 14  Certificado HTTPS                                ~5 min
+
+PARTE 4 — DEIXAR RODANDO SOZINHO
+ 15  Backup diário do banco                           ~5 min
+ 16  Deploy automático a cada git push               ~15 min
+ 17  Agendador de tarefas                             ~2 min
+ 18  Caçador de capacidade Ampere (opcional)         ~10 min
+</code></pre>
+<blockquote>
+<p><strong>Nossa instalação, para referência.</strong> Onde o roteiro disser <code>SEU_IP</code>,
+<code>SEU_DOMINIO</code> ou <code>seu-usuario</code>, troque pelos seus. Os nossos são:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IP</td>
+<td><code>167.126.6.137</code></td>
+</tr>
+<tr>
+<td>Domínio</td>
+<td><code>ambulancia.duckdns.org</code></td>
+</tr>
+<tr>
+<td>Região</td>
+<td><code>sa-vinhedo-1</code> (Brazil Southeast / Vinhedo)</td>
+</tr>
+<tr>
+<td>Máquina</td>
+<td><code>VM.Standard.E2.1.Micro</code> — 1 OCPU, 1 GB</td>
+</tr>
+<tr>
+<td>Chave SSH</td>
+<td><code>~/.ssh/amb_oracle</code></td>
+</tr>
+<tr>
+<td>Repositório</td>
+<td><code>github.com/fariasps1817/amb</code></td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<hr />
+<hr />
+<h1 id="parte-1-no-navegador">PARTE 1 — No navegador</h1>
+<h2 id="etapa-1-criar-a-conta">ETAPA 1 — Criar a conta</h2>
+<p><strong>Link:</strong> <a href="https://www.oracle.com/br/cloud/free/">https://www.oracle.com/br/cloud/free/</a></p>
+<p>Clique em <strong>&quot;Comece sempre gratuito&quot;</strong> / <em>&quot;Start for free&quot;</em>.</p>
+<h3>O que preencher</h3>
+<ol>
+<li>País: <strong>Brasil</strong>, e-mail e nome</li>
+<li>Verificação do e-mail (chega um código)</li>
+<li>Senha da conta e <strong>nome do tenancy</strong> — algo como <code>sms-cascavel</code></li>
+</ol>
+<h3>A escolha da região é PERMANENTE</h3>
+<p>A região da conta (<em>home region</em>) <strong>não pode ser alterada depois</strong>. Ela define
+onde ficam seus servidores e afeta a velocidade de acesso.</p>
+<table>
+<thead>
+<tr>
+<th>Região</th>
+<th>Latência do Ceará</th>
+<th>Conseguir máquina Ampere</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Brazil Southeast (Vinhedo)</strong> <code>sa-vinhedo-1</code></td>
+<td>ótima (~30 ms)</td>
+<td>média — <strong>recomendada</strong></td>
+</tr>
+<tr>
+<td>Brazil East (São Paulo) <code>sa-saopaulo-1</code></td>
+<td>ótima (~25 ms)</td>
+<td>difícil, muito disputada</td>
+</tr>
+<tr>
+<td>US East (Ashburn) <code>us-ashburn-1</code></td>
+<td>ruim (~120 ms)</td>
+<td>mais fácil</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recomendação: Vinhedo.</strong> Bom desempenho e menos concorrência que São Paulo
+pelas máquinas gratuitas.</p>
+<h3>O cartão de crédito</h3>
+<p>Vai ser pedido, e incomoda — mas serve só para verificar que você é uma pessoa
+real. A Oracle faz uma <strong>pré-autorização de cerca de US$ 1, estornada em alguns
+dias</strong>. Dentro do Always Free não há cobrança.</p>
+<p>A conta leva de 5 a 20 minutos para ser liberada. Chega um e-mail avisando.</p>
+<hr />
+<h2 id="etapa-2-gerar-a-chave-ssh">ETAPA 2 — Gerar a chave SSH</h2>
+<p>Faça isto <strong>antes</strong> de criar a máquina: a chave pública é colada no formulário de
+criação, e depois não dá para acrescentar sem trabalho extra.</p>
+<p>No <strong>PowerShell</strong> do seu computador:</p>
+<pre><code class="language-powershell">ssh-keygen -t ed25519 -f $HOME\.ssh\amb_oracle -C &quot;amb-oracle&quot;
+</code></pre>
+<p>Quando pedir <em>passphrase</em>, pode deixar em branco (Enter duas vezes) — a chave já
+fica protegida pelo seu usuário do Windows.</p>
+<p>Isso cria dois arquivos:</p>
+<pre><code>C:\Users\SEU_USUARIO\.ssh\amb_oracle       ← PRIVADA. Nunca compartilhe.
+C:\Users\SEU_USUARIO\.ssh\amb_oracle.pub   ← PÚBLICA. Esta vai para a Oracle.
+</code></pre>
+<p>A pública é como um cadeado que você distribui; a privada é a única chave que o
+abre. Por isso não existe senha para descobrir: <strong>sem o arquivo privado, ninguém
+entra</strong>.</p>
+<p>Para ver o conteúdo da pública, que você vai colar daqui a pouco:</p>
+<pre><code class="language-powershell">Get-Content $HOME\.ssh\amb_oracle.pub
+</code></pre>
+<p>Sai uma linha só, começando com <code>ssh-ed25519</code>.</p>
+<hr />
+<h2 id="etapa-3-criar-a-rede-vcn">ETAPA 3 — Criar a rede (VCN)</h2>
+<blockquote class="armadilha"><p>⚠️ <strong>Esta etapa vem antes da máquina.</strong> Ver armadilha nº 3 no início.</p>
+</blockquote>
+<p><strong>Link:</strong> <a href="https://cloud.oracle.com/networking/vcns">https://cloud.oracle.com/networking/vcns</a></p>
+<ol>
+<li>Clique em <strong><code>Iniciar Assistente de VCN</code></strong>
+<em>(não o <code>Criar VCN</code> — ver armadilha nº 4)</em></li>
+<li>Escolha <strong>&quot;Criar VCN com conectividade de Internet&quot;</strong> → <em>Iniciar workflow</em></li>
+<li>Nome: <code>vcn-amb</code></li>
+<li>Deixe todos os blocos CIDR no padrão:
+<code>10.0.0.0/16</code>, <code>10.0.0.0/24</code>, <code>10.0.1.0/24</code></li>
+<li><strong>Criar</strong></li>
+</ol>
+<p>O assistente monta de uma vez a VCN, a sub-rede pública, a sub-rede privada, o
+Internet Gateway, o NAT Gateway e as tabelas de rota — tudo já conectado. É esse
+&quot;tudo já conectado&quot; que o formulário da instância não faz.</p>
+<details>
+<summary>Se preferir montar à mão</summary>
+<p>São quatro peças em sequência, e esquecer qualquer uma quebra o conjunto:</p>
+<ol>
+<li>Criar a VCN com CIDR <code>10.0.0.0/16</code> e rótulo de DNS <code>vcnamb</code></li>
+<li>Criar um <strong>Gateway de Internet</strong> na VCN</li>
+<li>Editar a <strong>Tabela de Rotas</strong> padrão, acrescentando a rota <code>0.0.0.0/0</code>
+apontando para esse gateway — é isso que dá saída para a internet</li>
+<li>Criar a <strong>Sub-rede pública</strong> com CIDR <code>10.0.0.0/24</code>, associada a essa tabela</li>
+</ol>
+</details>
+<hr />
+<h2 id="etapa-4-liberar-as-portas-80-e-443">ETAPA 4 — Liberar as portas 80 e 443</h2>
+<p>Aproveite que está na tela de rede. Por padrão a Oracle libera apenas a porta 22
+(SSH). Sem este passo o site não abre: o servidor responde, mas o firewall da
+rede barra antes.</p>
+<p><strong>Caminho:</strong> clique na VCN → <strong>Sub-redes</strong> → a sub-rede <strong>pública</strong> → a
+<strong>Security List</strong> (<code>Default Security List for vcn-amb</code>) → <strong>Add Ingress Rules</strong></p>
+<p>Adicione <strong>duas</strong> regras:</p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Regra 1 (HTTP)</th>
+<th>Regra 2 (HTTPS)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stateless</td>
+<td>desmarcado</td>
+<td>desmarcado</td>
+</tr>
+<tr>
+<td>Source Type</td>
+<td>CIDR</td>
+<td>CIDR</td>
+</tr>
+<tr>
+<td>Source CIDR</td>
+<td><code>0.0.0.0/0</code></td>
+<td><code>0.0.0.0/0</code></td>
+</tr>
+<tr>
+<td>IP Protocol</td>
+<td>TCP</td>
+<td>TCP</td>
+</tr>
+<tr>
+<td>Destination Port Range</td>
+<td><code>80</code></td>
+<td><code>443</code></td>
+</tr>
+<tr>
+<td>Description</td>
+<td>HTTP</td>
+<td>HTTPS</td>
+</tr>
+</tbody>
+</table>
+<p><code>0.0.0.0/0</code> significa &quot;de qualquer lugar da internet&quot; — é o esperado para um site
+público. O acesso ao <em>sistema</em> continua protegido por usuário e senha.</p>
+<blockquote>
+<p>Existe um segundo firewall <strong>dentro</strong> do Ubuntu. Ele é tratado na Etapa 8, e
+os dois precisam estar abertos para o site funcionar.</p>
+</blockquote>
+<hr />
+<h2 id="etapa-5-criar-a-maquina-virtual">ETAPA 5 — Criar a máquina virtual</h2>
+<p><strong>Link:</strong> <a href="https://cloud.oracle.com/compute/instances">https://cloud.oracle.com/compute/instances</a> → <strong>Create instance</strong></p>
+<p>O formulário é dividido em etapas numeradas. Em <strong>Segurança</strong> não ative nada; em
+<strong>Armazenamento</strong> deixe o tamanho padrão e <strong>não</strong> ative política de backup, que
+pode gerar cobrança.</p>
+<h3>Nome</h3>
+<p><code>amb-servidor</code> — ou o que preferir.</p>
+<h3>Imagem e formato → botão <strong>Editar</strong></h3>
+<p><strong>Imagem:</strong> <em>Alterar imagem</em> → <strong>Canonical Ubuntu 24.04</strong></p>
+<blockquote>
+<p>Atenção ao escolher: existe uma versão <strong>x86_64</strong> e uma <strong>aarch64</strong>. A
+arquitetura precisa combinar com a máquina:</p>
+<table>
+<thead>
+<tr>
+<th>Se escolher a máquina</th>
+<th>Use a imagem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AMD <code>E2.1.Micro</code></td>
+<td><code>x86_64</code></td>
+</tr>
+<tr>
+<td>Ampere <code>A1.Flex</code></td>
+<td><code>aarch64</code></td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<p><strong>Formato:</strong> <em>Alterar formato</em> → tente nesta ordem:</p>
+<table>
+<thead>
+<tr>
+<th>Tentativa</th>
+<th>Aba</th>
+<th>Formato</th>
+<th>Configuração</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1ª — ideal</td>
+<td><strong>Ampere</strong></td>
+<td><code>VM.Standard.A1.Flex</code></td>
+<td>2 OCPU e 12 GB</td>
+</tr>
+<tr>
+<td>2ª — se der erro</td>
+<td><strong>Especialidade e geração anterior</strong></td>
+<td><code>VM.Standard.E2.1.Micro</code></td>
+<td>fixo, 1 GB</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="armadilha"><p>⚠️ <strong>Confirme a etiqueta &quot;Always Free elegível&quot;</strong> antes de seguir. Ela só
+aparece nessas duas abas. Ver armadilha nº 2.</p>
+</blockquote>
+<blockquote>
+<p>Se aparecer <strong>&quot;Capacidade insuficiente&quot;</strong>, é falta de estoque — ver armadilha
+nº 5. Vá para a <code>E2.1.Micro</code> e migre depois pela Etapa 18. Para um sistema com
+49 motoristas e poucos usuários ao mesmo tempo, 1 GB dá conta.</p>
+</blockquote>
+<h3>Chaves SSH</h3>
+<ul>
+<li>Marque <strong>&quot;Colar chaves públicas&quot;</strong> / <em>Paste public keys</em></li>
+<li>Cole a linha inteira que saiu do <code>Get-Content</code> na Etapa 2</li>
+</ul>
+<h3>Rede — onde a ordem importa</h3>
+<p>Com a VCN já criada na Etapa 3:</p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Escolha</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rede principal</td>
+<td><em>Selecionar rede virtual na nuvem existente</em> → <code>vcn-amb</code></td>
+</tr>
+<tr>
+<td>Sub-rede</td>
+<td><em>Selecionar sub-rede existente</em> → a que tem <strong>&quot;Public&quot;</strong> no nome</td>
+</tr>
+<tr>
+<td>Designar endereço IPv4 público</td>
+<td><strong>ligado</strong> ✓ — agora ele destrava</td>
+</tr>
+<tr>
+<td>IPv6</td>
+<td>pode deixar desligado</td>
+</tr>
+</tbody>
+</table>
+<p>Clique em <strong>Criar</strong>. A máquina fica <em>PROVISIONING</em> por 1 a 2 minutos e depois
+<em>RUNNING</em> (verde).</p>
+<p><strong>Anote o &quot;Public IP address&quot;</strong> que aparece na tela — algo como <code>150.230.x.x</code>.</p>
+<hr />
+<h2 id="etapa-6-primeiro-acesso-por-ssh">ETAPA 6 — Primeiro acesso por SSH</h2>
+<p>No PowerShell:</p>
+<pre><code class="language-powershell">ssh -i $HOME\.ssh\amb_oracle ubuntu@SEU_IP
+</code></pre>
+<p>Na primeira vez aparece uma pergunta sobre autenticidade do host — responda
+<code>yes</code>. Isso grava a identidade do servidor para detectar falsificação depois.</p>
+<p>O usuário é <strong><code>ubuntu</code></strong> (padrão das imagens Ubuntu na Oracle), e ele tem poder
+de administrador via <code>sudo</code>.</p>
+<p>Se aparecer <code>Permission denied (publickey)</code>, a chave pública não foi colada
+corretamente na criação — é mais rápido apagar a instância e refazer a Etapa 5.</p>
+<hr />
+<hr />
+<h1 id="parte-2-no-servidor">PARTE 2 — No servidor</h1>
+<p>Daqui em diante os comandos rodam <strong>dentro</strong> do servidor, pela sessão SSH.</p>
+<h2 id="etapa-7-memoria-de-troca-e-fuso-horario">ETAPA 7 — Memória de troca e fuso horário</h2>
+<p>Obrigatório se a máquina tem 1 GB. Ver armadilha nº 6.</p>
+<pre><code class="language-bash"># 2 GB de memória de troca em disco
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# torna permanente, para sobreviver a reinícios
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# fuso horário
+sudo timedatectl set-timezone America/Fortaleza
+
+# conferindo
+free -h
+date
+</code></pre>
+<p>O <em>swap</em> não substitui memória real — disco é ordens de grandeza mais lento —
+mas evita que o Linux mate processos em picos.</p>
+<hr />
+<h2 id="etapa-8-firewall-interno-do-ubuntu">ETAPA 8 — Firewall interno do Ubuntu</h2>
+<blockquote class="armadilha"><p>⚠️ <strong>A ordem das regras importa, e é onde se erra.</strong> O iptables avalia de cima
+para baixo e para na primeira que combina. A imagem da Oracle já vem com uma
+regra <code>REJECT</code> no final. Se você acrescentar o <code>ACCEPT</code> <strong>depois</strong> dela, ele
+nunca é alcançado — e o site continua sem abrir, sem nenhum erro visível.</p>
+</blockquote>
+<p>Primeiro veja onde está o <code>REJECT</code>:</p>
+<pre><code class="language-bash">sudo iptables -L INPUT --line-numbers -n
+</code></pre>
+<p>A saída mostra algo assim:</p>
+<pre><code>num  target     prot opt source               destination
+1    ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0    state RELATED,ESTABLISHED
+2    ACCEPT     icmp --  0.0.0.0/0            0.0.0.0/0
+3    ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0
+4    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0    tcp dpt:22
+5    REJECT     all  --  0.0.0.0/0            0.0.0.0/0    reject-with icmp-host-prohibited
+</code></pre>
+<p>O <code>REJECT</code> está na linha <strong>5</strong>. Insira as novas regras <strong>nessa posição</strong>, o que
+empurra o <code>REJECT</code> para baixo:</p>
+<pre><code class="language-bash">sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT
+
+# confira: os ACCEPT de 80 e 443 precisam aparecer ANTES do REJECT
+sudo iptables -L INPUT --line-numbers -n
+
+# salva para sobreviver a reinícios
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
+sudo netfilter-persistent save
+</code></pre>
+<hr />
+<h2 id="etapa-9-instalar-o-servidor">ETAPA 9 — Instalar o servidor</h2>
+<p>O que cada peça faz:</p>
+<pre><code>Nginx        recebe as requisições da internet e entrega as páginas
+PHP 8.4-FPM  executa o código do sistema
+MySQL 8      guarda os dados
+Composer     instala as bibliotecas do Laravel
+Node.js      compila o CSS e o JavaScript
+</code></pre>
+<pre><code class="language-bash">sudo apt-get update
+sudo apt-get upgrade -y
+</code></pre>
+<h3>PHP 8.4 — não use o do Ubuntu</h3>
+<blockquote class="armadilha"><p>⚠️ <strong>Armadilha real.</strong> O Ubuntu 24.04 traz PHP 8.3.6. O <code>composer.lock</code> deste
+projeto exige <strong>PHP ≥ 8.4.1</strong>, porque foi gerado numa máquina com 8.5. Instalar
+o PHP do Ubuntu leva a:</p>
+<pre><code>Your lock file does not contain a compatible set of packages
+symfony/console v8.1 requires php &gt;=8.4.1
+</code></pre>
+<p>A tentação é rodar <code>composer update</code> para resolver. <strong>Não faça isso</strong>: ele
+atualizaria todas as bibliotecas para versões que nunca foram testadas.
+Instale o PHP certo.</p>
+</blockquote>
+<pre><code class="language-bash">sudo apt-get install -y software-properties-common
+sudo add-apt-repository -y ppa:ondrej/php
+sudo apt-get update
+
+sudo apt-get install -y \
+    nginx \
+    php8.4-cli php8.4-fpm php8.4-mysql php8.4-mbstring php8.4-xml \
+    php8.4-curl php8.4-zip php8.4-gd php8.4-bcmath php8.4-intl \
+    mysql-server \
+    git unzip curl
+
+# o php8.4-cli é o que faz o &quot;php artisan&quot; funcionar; o fpm sozinho
+# atende o navegador mas não dá linha de comando
+php -v
+</code></pre>
+<h3>Composer e Node</h3>
+<pre><code class="language-bash"># Composer
+curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer
+
+# Node 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# conferindo tudo
+php -v &amp;&amp; composer --version &amp;&amp; node -v &amp;&amp; nginx -v &amp;&amp; mysql --version
+</code></pre>
+<hr />
+<h2 id="etapa-10-criar-o-banco-de-dados">ETAPA 10 — Criar o banco de dados</h2>
+<pre><code class="language-bash"># gera uma senha forte e guarda onde só o root lê
+openssl rand -base64 24 | sudo tee /root/.senha-bd-amb &gt;/dev/null
+sudo chmod 600 /root/.senha-bd-amb
+
+SENHA=$(sudo cat /root/.senha-bd-amb)
+
+sudo mysql &lt;&lt;SQL
+CREATE DATABASE amb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'amb'@'localhost' IDENTIFIED BY '$SENHA';
+GRANT ALL PRIVILEGES ON amb.* TO 'amb'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+
+echo &quot;Banco criado. A senha está em /root/.senha-bd-amb&quot;
+</code></pre>
+<p>A senha fica fora do repositório e fora do histórico do terminal.</p>
+<hr />
+<h2 id="etapa-11-publicar-o-sistema">ETAPA 11 — Publicar o sistema</h2>
+<pre><code class="language-bash">sudo mkdir -p /var/www
+sudo chown ubuntu:ubuntu /var/www
+git clone https://github.com/fariasps1817/amb.git /var/www/amb
+cd /var/www/amb
+
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+</code></pre>
+<blockquote class="armadilha"><p>⚠️ Use <strong><code>npm ci</code></strong>, não <code>npm install</code>. O <code>install</code> reescreve o
+<code>package-lock.json</code> no servidor (remove dependências específicas do Windows),
+sujando a árvore do git e fazendo o próximo <code>git pull</code> falhar. O <code>ci</code> instala
+exatamente o que está no arquivo e não o altera.</p>
+</blockquote>
+<h3>Arquivo de configuração</h3>
+<pre><code class="language-bash">cp .env.example .env
+nano .env
+</code></pre>
+<p>Ajuste estas linhas:</p>
+<pre><code class="language-ini">APP_NAME=&quot;Coordenação de Ambulâncias&quot;
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=http://SEU_IP
+
+APP_TIMEZONE=America/Fortaleza
+APP_LOCALE=pt_BR
+
+DB_CONNECTION=mysql
+DB_DATABASE=amb
+DB_USERNAME=amb
+DB_PASSWORD=cole-aqui-o-conteudo-de-/root/.senha-bd-amb
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=30
+</code></pre>
+<p><code>APP_DEBUG=false</code> é obrigatório em produção: com <code>true</code>, qualquer erro mostra
+trechos do código e credenciais para quem estiver na tela.</p>
+<pre><code class="language-bash">php artisan key:generate
+php artisan migrate --force
+
+# cria o usuário inicial (admin / 1234) e a identidade institucional
+php artisan db:seed --force
+
+php artisan storage:link
+
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan event:cache
+
+# o Nginx roda como www-data e precisa escrever nessas pastas
+sudo chown -R ubuntu:www-data storage bootstrap/cache
+sudo chmod -R 775 storage bootstrap/cache
+</code></pre>
+<h3>Configurar o Nginx</h3>
+<pre><code class="language-bash">sudo tee /etc/nginx/sites-available/amb &gt;/dev/null &lt;&lt;'CONF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    root /var/www/amb/public;
+    index index.php;
+
+    charset utf-8;
+    client_max_body_size 8M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+
+        # a emissão das 49 folhas de frequência leva ~32s; o padrão de 60s
+        # ficaria apertado demais
+        fastcgi_read_timeout 120;
+    }
+
+    # arquivos compilados não mudam de nome sem mudar de conteúdo
+    location /build/ {
+        expires 1y;
+        add_header Cache-Control &quot;public, immutable&quot;;
+    }
+
+    # nunca servir .env, .git e afins -- MAS deixando passar /.well-known,
+    # que é por onde o Let's Encrypt verifica que o servidor é seu.
+    # Um &quot;deny all&quot; sem essa exceção faz a emissão do certificado falhar.
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    access_log /var/log/nginx/amb-access.log;
+    error_log  /var/log/nginx/amb-error.log;
+}
+CONF
+
+sudo ln -sf /etc/nginx/sites-available/amb /etc/nginx/sites-enabled/amb
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+</code></pre>
+<p>Abra <code>http://SEU_IP</code> no navegador. A tela de acesso deve aparecer.</p>
+<hr />
+<h2 id="etapa-12-ajustar-os-limites-do-php">ETAPA 12 — Ajustar os limites do PHP</h2>
+<blockquote class="armadilha"><p>⚠️ <strong>Sem este passo o sistema abre, mas a emissão de PDF falha.</strong> Os padrões do
+PHP são <code>memory_limit = 128M</code> e <code>max_execution_time = 30</code>. As 49 folhas de
+frequência pedem <strong>266 MB</strong> e levam <strong>32 segundos</strong>. Pela linha de comando
+funciona (o CLI não tem limite de tempo), então o erro só aparece no navegador
+— o que engana na hora de testar.</p>
+</blockquote>
+<pre><code class="language-bash">sudo tee -a /etc/php/8.4/fpm/php.ini &gt;/dev/null &lt;&lt;'INI'
+
+; Ajustes para a emissão dos PDFs da escala
+memory_limit = 512M
+max_execution_time = 300
+upload_max_filesize = 8M
+post_max_size = 12M
+date.timezone = America/Fortaleza
+INI
+
+sudo systemctl restart php8.4-fpm
+</code></pre>
+<hr />
+<hr />
+<h1 id="parte-3-endereco-e-cadeado">PARTE 3 — Endereço e cadeado</h1>
+<h2 id="etapa-13-endereco-gratuito-no-duckdns">ETAPA 13 — Endereço gratuito no DuckDNS</h2>
+<p>Um IP funciona, mas ninguém decora. Mais importante: <strong>certificado HTTPS gratuito
+não é emitido para número de IP</strong>, só para nome. O nome não é enfeite — é o que
+destrava o cadeado.</p>
+<p><strong>Link:</strong> <a href="https://www.duckdns.org">https://www.duckdns.org</a></p>
+<ol>
+<li>Entre com Google ou GitHub (não cria senha nova)</li>
+<li>Digite só o prefixo, sem <code>www</code> e sem <code>.duckdns.org</code> — ex.: <code>ambulancia</code></li>
+<li><strong>add domain</strong></li>
+<li>No campo <strong>current ip</strong>, apague o que estiver lá e cole o <strong>IP do servidor</strong></li>
+</ol>
+<blockquote>
+<p>O DuckDNS preenche sozinho com o IP do <strong>seu computador</strong>. Está errado — quem
+tem de responder é o servidor. Substitua.</p>
+</blockquote>
+<ol start="5">
+<li><strong>update ip</strong></li>
+</ol>
+<blockquote class="seguranca"><p>🔒 <strong>O <code>token</code> que aparece nessa página é uma senha.</strong> Quem o tiver consegue
+apontar seu domínio para outro servidor. Nunca compartilhe prints dessa tela.</p>
+</blockquote>
+<h3>Confirmar o endereço sozinho, para sempre</h3>
+<p>Isso mantém o domínio ativo (o DuckDNS remove os abandonados) e conserta o
+apontamento automaticamente se a Oracle trocar o IP da máquina:</p>
+<pre><code class="language-bash"># guarda o token onde só o root lê
+echo 'SEU-TOKEN-AQUI' | sudo tee /root/.token-duckdns &gt;/dev/null
+sudo chmod 600 /root/.token-duckdns
+
+sudo tee /usr/local/bin/atualizar-duckdns.sh &gt;/dev/null &lt;&lt;'SCRIPT'
+#!/bin/bash
+# Sem o parâmetro &quot;ip&quot;, o DuckDNS usa o IP de onde a requisição veio -- ou
+# seja, o próprio servidor. Assim o endereço se conserta sozinho.
+set -euo pipefail
+
+TOKEN=$(cat /root/.token-duckdns)
+LOG=/var/log/duckdns.log
+
+RESPOSTA=$(curl -s -m 30 &quot;https://www.duckdns.org/update?domains=SEU_SUBDOMINIO&amp;token=$TOKEN&amp;ip=&quot;)
+
+if [ &quot;$RESPOSTA&quot; = &quot;OK&quot; ]; then
+    [ -f &quot;$LOG&quot; ] &amp;&amp; [ &quot;$(date +%F)&quot; = &quot;$(date -r &quot;$LOG&quot; +%F)&quot; ] || \
+        echo &quot;$(date '+%Y-%m-%d %H:%M') ok&quot; &gt;&gt; &quot;$LOG&quot;
+else
+    echo &quot;$(date '+%Y-%m-%d %H:%M') FALHA: $RESPOSTA&quot; &gt;&gt; &quot;$LOG&quot;
+    exit 1
+fi
+SCRIPT
+
+sudo chmod 700 /usr/local/bin/atualizar-duckdns.sh
+echo '*/30 * * * * root /usr/local/bin/atualizar-duckdns.sh' | sudo tee /etc/cron.d/duckdns
+sudo chmod 644 /etc/cron.d/duckdns
+
+sudo /usr/local/bin/atualizar-duckdns.sh &amp;&amp; echo &quot;DuckDNS respondeu OK&quot;
+</code></pre>
+<p>Confira se o nome já resolve:</p>
+<pre><code class="language-bash">nslookup SEU_DOMINIO.duckdns.org 8.8.8.8
+</code></pre>
+<hr />
+<h2 id="etapa-14-certificado-https">ETAPA 14 — Certificado HTTPS</h2>
+<p>Sem HTTPS tudo trafega em texto puro, inclusive as senhas. Como o sistema guarda
+CPF, data de nascimento, telefone e endereço de servidores públicos, é
+obrigatório.</p>
+<p>Primeiro o Nginx precisa reconhecer o nome:</p>
+<pre><code class="language-bash">sudo sed -i 's/server_name _;/server_name SEU_DOMINIO.duckdns.org;/' \
+    /etc/nginx/sites-available/amb
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+</code></pre>
+<p>Depois o certificado:</p>
+<pre><code class="language-bash">sudo apt-get install -y certbot python3-certbot-nginx
+
+sudo certbot --nginx \
+  -d SEU_DOMINIO.duckdns.org \
+  --non-interactive --agree-tos --redirect --no-eff-email \
+  -m seu-email@exemplo.com
+</code></pre>
+<p>O <code>--redirect</code> faz quem chegar por <code>http://</code> ser levado para <code>https://</code>.</p>
+<p>Atualize o endereço no sistema, senão os links internos saem como <code>http://</code>:</p>
+<pre><code class="language-bash">cd /var/www/amb
+sed -i 's|^APP_URL=.*|APP_URL=https://SEU_DOMINIO.duckdns.org|' .env
+php artisan config:cache
+</code></pre>
+<h3>Testar a renovação</h3>
+<pre><code class="language-bash">sudo certbot renew --dry-run --no-random-sleep-on-renew
+</code></pre>
+<blockquote class="armadilha"><p>⚠️ <strong>O <code>--no-random-sleep-on-renew</code> importa.</strong> Sem ele o certbot dorme <strong>até 8
+minutos</strong> antes de agir, para que milhões de servidores no mundo não peçam
+renovação no mesmo instante. Parece travado, mas está só esperando — quase
+saímos caçando problema de rede por causa disso.</p>
+</blockquote>
+<p>A renovação automática já vem agendada pelo <code>certbot.timer</code> do sistema:</p>
+<pre><code class="language-bash">systemctl is-enabled certbot.timer
+</code></pre>
+<hr />
+<hr />
+<h1 id="parte-4-deixar-rodando-sozinho">PARTE 4 — Deixar rodando sozinho</h1>
+<h2 id="etapa-15-backup-diario-do-banco">ETAPA 15 — Backup diário do banco</h2>
+<pre><code class="language-bash"># arquivo de credencial, para a senha não passar pela linha de comando
+SENHA=$(sudo cat /root/.senha-bd-amb)
+sudo tee /root/.my-amb.cnf &gt;/dev/null &lt;&lt;CNF
+[client]
+user=amb
+password=$SENHA
+CNF
+sudo chmod 600 /root/.my-amb.cnf
+
+sudo tee /usr/local/bin/backup-amb.sh &gt;/dev/null &lt;&lt;'SCRIPT'
+#!/bin/bash
+# Backup diário do banco. Mantém os últimos 30 dias.
+set -euo pipefail
+
+DESTINO=/var/backups/amb
+ARQUIVO=&quot;$DESTINO/amb-$(date +%Y-%m-%d).sql.gz&quot;
+LOG=/var/log/backup-amb.log
+
+mkdir -p &quot;$DESTINO&quot;
+
+# --no-tablespaces: o usuário 'amb' não tem o privilégio PROCESS, e não
+# precisamos dos metadados de tablespace para restaurar.
+if mysqldump --defaults-file=/root/.my-amb.cnf \
+     --single-transaction --quick --routines --triggers --no-tablespaces \
+     amb 2&gt;&gt;&quot;$LOG&quot; | gzip &gt; &quot;$ARQUIVO&quot;
+then
+    find &quot;$DESTINO&quot; -name 'amb-*.sql.gz' -mtime +30 -delete
+    echo &quot;$(date '+%Y-%m-%d %H:%M') ok   $(basename &quot;$ARQUIVO&quot;) $(du -h &quot;$ARQUIVO&quot; | cut -f1)&quot; &gt;&gt; &quot;$LOG&quot;
+else
+    rm -f &quot;$ARQUIVO&quot;
+    echo &quot;$(date '+%Y-%m-%d %H:%M') FALHA ao gerar o backup&quot; &gt;&gt; &quot;$LOG&quot;
+    exit 1
+fi
+SCRIPT
+
+sudo chmod 700 /usr/local/bin/backup-amb.sh
+echo '0 2 * * * root /usr/local/bin/backup-amb.sh' | sudo tee /etc/cron.d/backup-amb
+sudo chmod 644 /etc/cron.d/backup-amb
+
+sudo /usr/local/bin/backup-amb.sh &amp;&amp; echo &quot;backup ok&quot;
+</code></pre>
+<blockquote class="armadilha"><p>⚠️ <strong>Sem <code>--no-tablespaces</code> o <code>mysqldump</code> reclama:</strong>
+<code>Access denied; you need (at least one of) the PROCESS privilege(s)</code>.
+Ele ainda gera o arquivo, mas polui o log e faz o cron mandar e-mail de erro
+toda noite. Os metadados de tablespace não são necessários para restaurar.</p>
+</blockquote>
+<h3>Teste a restauração — isto não é opcional</h3>
+<p>Backup que nunca foi restaurado não é backup, é esperança.</p>
+<pre><code class="language-bash">ARQ=$(sudo ls -t /var/backups/amb/*.sql.gz | head -1)
+sudo mysql -e &quot;DROP DATABASE IF EXISTS amb_restauracao_teste;
+               CREATE DATABASE amb_restauracao_teste CHARACTER SET utf8mb4;&quot;
+sudo bash -c &quot;zcat '$ARQ' | mysql amb_restauracao_teste&quot;
+
+# compare as contagens
+for t in motoristas unidades ambulancias escala_plantoes; do
+  o=$(sudo mysql -N -e &quot;SELECT COUNT(*) FROM amb.$t&quot;)
+  r=$(sudo mysql -N -e &quot;SELECT COUNT(*) FROM amb_restauracao_teste.$t&quot;)
+  printf &quot;%-18s produção=%-5s restaurado=%s\n&quot; &quot;$t&quot; &quot;$o&quot; &quot;$r&quot;
+done
+
+sudo mysql -e &quot;DROP DATABASE amb_restauracao_teste;&quot;
+</code></pre>
+<h3>Levar uma cópia para o seu computador</h3>
+<p>Backup que mora só no mesmo servidor não protege contra perder o servidor:</p>
+<pre><code class="language-powershell">scp -i $HOME\.ssh\amb_oracle ubuntu@SEU_IP:/var/backups/amb/amb-*.sql.gz .
+</code></pre>
+<h3>Restaurar de verdade, se precisar</h3>
+<pre><code class="language-bash">gunzip -c /var/backups/amb/amb-2026-08-05.sql.gz | sudo mysql amb
+</code></pre>
+<hr />
+<h2 id="etapa-16-deploy-automatico-a-cada-git-push">ETAPA 16 — Deploy automático a cada <code>git push</code></h2>
+<p>O objetivo: você trabalha na sua máquina, faz <code>git push</code>, e o site se atualiza
+sozinho — <strong>desde que os testes passem</strong>.</p>
+<pre><code>git push  →  testes no GitHub  →  passou?  →  deploy no servidor
+                                  falhou?  →  para aqui, produção intacta
+</code></pre>
+<h3>16.1 — O script de deploy</h3>
+<p>Já vem versionado no repositório como <code>deploy.sh</code>. Instale-o:</p>
+<pre><code class="language-bash">cd /var/www/amb
+sudo cp deploy.sh /usr/local/bin/ 2&gt;/dev/null || true
+chmod +x deploy.sh
+git config core.fileMode false   # Linux marca 755 no que veio do Windows
+</code></pre>
+<p>Ele faz, em oito passos: backup → manutenção → baixa → dependências →
+migrações → caches → compila → volta ao ar e confere. Se qualquer passo falhar,
+<strong>tira o site da manutenção sozinho</strong> e deixa a versão anterior no ar.</p>
+<blockquote class="armadilha"><p>⚠️ <strong>Duas armadilhas que o script já contorna, e valem entender:</strong></p>
+<p><strong>Ele se sobrescreve enquanto roda.</strong> O <code>git pull</code> troca o próprio <code>deploy.sh</code>
+no passo 3. Como o bash lê o arquivo aos poucos, conforme executa, ele passaria
+a executar bytes da versão antiga misturados com a nova. Por isso o script se
+copia para <code>/tmp</code> e roda de lá.</p>
+<p><strong>A verificação final precisa do <code>Host</code> certo.</strong> Depois que o Nginx ganha
+<code>server_name</code> próprio, <code>curl http://localhost</code> cai no servidor padrão e
+responde <strong>404</strong> mesmo com o site no ar.</p>
+</blockquote>
+<h3>16.2 — Chave dedicada para o GitHub</h3>
+<p><strong>Não use sua chave pessoal.</strong> Crie uma que só consiga rodar o deploy.</p>
+<p>No seu computador:</p>
+<pre><code class="language-powershell">ssh-keygen -t ed25519 -f $HOME\.ssh\amb_deploy_ci -N '&quot;&quot;' -C &quot;github-actions-deploy&quot;
+Get-Content $HOME\.ssh\amb_deploy_ci.pub
+</code></pre>
+<p>No servidor, instale-a com <strong>comando forçado</strong>:</p>
+<pre><code class="language-bash">CHAVE='cole-aqui-a-linha-da-chave-publica'
+
+LINHA=&quot;command=\&quot;/var/www/amb/deploy.sh\&quot;,no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding $CHAVE&quot;
+echo &quot;$LINHA&quot; &gt;&gt; ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+</code></pre>
+<p>O <code>command=</code> faz o SSH <strong>ignorar</strong> o que for pedido e rodar sempre o deploy. As
+restrições seguintes fecham túnel, encaminhamento e terminal.</p>
+<p><strong>Teste que a restrição funciona:</strong></p>
+<pre><code class="language-powershell">ssh -i $HOME\.ssh\amb_deploy_ci ubuntu@SEU_IP &quot;cat /var/www/amb/.env&quot;
+</code></pre>
+<p>Se aparecer o deploy rodando em vez do conteúdo do arquivo, está correto. Mesmo
+que esse segredo vaze do GitHub, o pior que alguém faz é disparar um deploy do
+seu próprio código.</p>
+<h3>16.3 — Os dois segredos no GitHub</h3>
+<p><strong>Link:</strong> <code>https://github.com/SEU_USUARIO/SEU_REPO/settings/secrets/actions</code></p>
+<table>
+<thead>
+<tr>
+<th>Segredo</th>
+<th>Conteúdo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SSH_CHAVE_DEPLOY</code></td>
+<td>o arquivo <code>amb_deploy_ci</code> inteiro (a chave <strong>privada</strong>)</td>
+</tr>
+<tr>
+<td><code>SSH_IMPRESSAO_DIGITAL</code></td>
+<td>a saída de <code>ssh-keyscan -t ed25519 SEU_IP</code></td>
+</tr>
+</tbody>
+</table>
+<p>Para copiar a chave privada sem erro de digitação:</p>
+<pre><code class="language-powershell">Get-Content $HOME\.ssh\amb_deploy_ci -Raw | Set-Clipboard
+</code></pre>
+<blockquote>
+<p>O segundo segredo é a identidade do servidor. Sem ele, o GitHub entregaria seu
+código a qualquer máquina que respondesse por aquele endereço.</p>
+</blockquote>
+<h3>16.4 — O fluxo de trabalho</h3>
+<p>Já vem versionado em <code>.github/workflows/deploy.yml</code>. Ele sobe Ubuntu, PHP 8.4 e
+MySQL 8 — as mesmas versões do servidor —, roda a suíte e só publica se passar.</p>
+<blockquote class="armadilha"><p>⚠️ <strong>Duas armadilhas encontradas na prática:</strong></p>
+<p><strong>O MySQL do container mente sobre estar pronto.</strong> O teste de saúde
+<code>mysqladmin ping</code> responde antes de a inicialização terminar; o banco e as
+permissões podem ainda não existir. O fluxo tem um passo que espera uma
+consulta real funcionar.</p>
+<p><strong><code>php artisan test | tail</code> esconde falhas.</strong> O código de saída observado passa
+a ser o do <code>tail</code>, que é sempre zero. Descobrimos assim um provedor de dados que
+passava três argumentos para um teste que recebia um — o PHPUnit trata como
+aviso e <strong>encerra com código 1</strong>, reprovando a suíte inteira com todos os
+testes verdes. Verifique sempre com <code>php artisan test &gt; /dev/null; echo $?</code>.</p>
+</blockquote>
+<h3>16.5 — Ler o erro quando o CI falha</h3>
+<p>O log do Actions só é legível por quem tem permissão de administrador no
+repositório. Por isso o fluxo publica o trecho da falha como <strong>comentário do
+commit</strong>, que é público:</p>
+<pre><code class="language-bash">curl -s &quot;https://api.github.com/repos/SEU_USUARIO/SEU_REPO/commits/SHA/comments&quot;
+</code></pre>
+<hr />
+<h2 id="etapa-17-agendador-de-tarefas">ETAPA 17 — Agendador de tarefas</h2>
+<p>Uma única linha de cron chama o agendador do Laravel; o que roda fica versionado
+em <code>routes/console.php</code>, e não espalhado em arquivos soltos do servidor.</p>
+<pre><code class="language-bash">echo '* * * * * ubuntu cd /var/www/amb &amp;&amp; php artisan schedule:run &gt;&gt; /dev/null 2&gt;&amp;1' \
+  | sudo tee /etc/cron.d/amb-agendador
+sudo chmod 644 /etc/cron.d/amb-agendador
+
+cd /var/www/amb &amp;&amp; php artisan schedule:list
+</code></pre>
+<p>Hoje ele descarta, de madrugada, o histórico de acessos com mais de 6 meses e as
+sessões vencidas.</p>
+<hr />
+<h2 id="etapa-18-cacador-de-capacidade-ampere-opcional">ETAPA 18 — Caçador de capacidade Ampere (opcional)</h2>
+<p>Só faz sentido se você ficou na <code>E2.1.Micro</code> de 1 GB e quer subir para a Ampere
+sem pagar nada.</p>
+<h3>Por que não existe botão de &quot;aumentar&quot;</h3>
+<p>A Oracle <strong>tem</strong> a opção <em>Edit shape</em>, e ela funciona dentro da mesma família.
+Mas AMD e Ampere são <strong>arquiteturas diferentes</strong> — <code>x86_64</code> e <code>aarch64</code>. É a
+mesma distância entre um programa de PC e um de celular: o sistema instalado no
+disco foi compilado para um conjunto de instruções e não roda no outro.</p>
+<p>Precisa ser uma máquina <strong>nova</strong>, com a imagem ARM. Com backup testado,
+<code>deploy.sh</code> e este roteiro, reconstruir é repetir os passos — e a máquina atual
+fica no ar o tempo todo, porque só se reaponta o DuckDNS no final.</p>
+<h3>Instalar a interface de linha de comando da Oracle</h3>
+<pre><code class="language-bash">sudo apt-get install -y python3-pip python3-venv
+python3 -m venv ~/.oci-cli-venv
+~/.oci-cli-venv/bin/pip install --quiet --upgrade pip oci-cli
+sudo ln -sf ~/.oci-cli-venv/bin/oci /usr/local/bin/oci
+oci --version
+</code></pre>
+<h3>Gerar a chave de API</h3>
+<pre><code class="language-bash">mkdir -p ~/.oci &amp;&amp; chmod 700 ~/.oci
+openssl genrsa -out ~/.oci/api_oracle.pem 2048
+chmod 600 ~/.oci/api_oracle.pem
+openssl rsa -pubout -in ~/.oci/api_oracle.pem -out ~/.oci/api_oracle_public.pem
+cat ~/.oci/api_oracle_public.pem
+</code></pre>
+<h3>Autorizar na Oracle</h3>
+<p><strong>Link:</strong> <a href="https://cloud.oracle.com/identity/domains/my-profile/api-keys">https://cloud.oracle.com/identity/domains/my-profile/api-keys</a>
+→ <strong>Add API key</strong></p>
+<blockquote class="armadilha"><p>⚠️ <strong>Não cole o texto.</strong> A colagem estraga as quebras de linha e a Oracle
+responde:</p>
+<pre><code>Erro de API
+A chave tem um tipo de chave pública inválido {0}
+</code></pre>
+<p>Use a opção <strong>&quot;Choose public key file&quot;</strong> e envie o arquivo. Para trazê-lo do
+servidor:</p>
+<pre><code class="language-powershell">scp -i $HOME\.ssh\amb_oracle ubuntu@SEU_IP:/home/ubuntu/.oci/api_oracle_public.pem $HOME\Desktop\
+</code></pre>
+</blockquote>
+<p>Ao final aparece a janela <strong>Configuration file preview</strong> com o bloco <code>[DEFAULT]</code>.
+Grave-o no servidor:</p>
+<pre><code class="language-bash">cat &gt; ~/.oci/config &lt;&lt;'CFG'
+[DEFAULT]
+user=ocid1.user.oc1..xxxxx
+fingerprint=xx:xx:xx:...
+tenancy=ocid1.tenancy.oc1..xxxxx
+region=sa-vinhedo-1
+key_file=/home/ubuntu/.oci/api_oracle.pem
+CFG
+chmod 600 ~/.oci/config
+
+# testando
+oci iam region-subscription list --output table
+</code></pre>
+<h3>Descobrir os identificadores</h3>
+<pre><code class="language-bash">export SUPPRESS_LABEL_WARNING=True
+TENANCY=$(grep '^tenancy=' ~/.oci/config | cut -d= -f2)
+
+# domínios de disponibilidade
+oci iam availability-domain list --compartment-id &quot;$TENANCY&quot; --query 'data[].name'
+
+# sub-rede da máquina atual
+INST=$(oci compute instance list --compartment-id &quot;$TENANCY&quot; \
+       --lifecycle-state RUNNING --query 'data[0].id' --raw-output)
+oci compute instance list-vnics --instance-id &quot;$INST&quot; --query 'data[0].&quot;subnet-id&quot;'
+
+# imagem Ubuntu 24.04 para ARM
+oci compute image list --compartment-id &quot;$TENANCY&quot; \
+  --operating-system &quot;Canonical Ubuntu&quot; --operating-system-version &quot;24.04&quot; \
+  --shape VM.Standard.A1.Flex \
+  --query 'data[0:3].{nome:&quot;display-name&quot;,id:id}' --output table
+</code></pre>
+<h3>Configurar e agendar</h3>
+<pre><code class="language-bash">cat &gt; ~/.oci/ampere.conf &lt;&lt;CFG
+COMPARTIMENTO=$TENANCY
+SUBREDE=ocid1.subnet.oc1...
+IMAGEM=ocid1.image.oc1...
+NOME=serv-ampere
+DISCO_GB=50
+DOMINIOS=&quot;LtOi:SA-VINHEDO-1-AD-1&quot;
+CONFIGURACOES=&quot;4:24 2:12 1:6&quot;
+CHAVE_SSH=&quot;$(grep -v 'command=' ~/.ssh/authorized_keys | head -1)&quot;
+CFG
+chmod 600 ~/.oci/ampere.conf
+
+sudo cp /var/www/amb/scripts/tentar-ampere.sh /usr/local/bin/
+sudo chmod 755 /usr/local/bin/tentar-ampere.sh
+/usr/local/bin/tentar-ampere.sh --testar
+
+# a cada 7 minutos; o flock impede que uma tentativa comece antes da anterior terminar
+sudo tee /etc/cron.d/tentar-ampere &gt;/dev/null &lt;&lt;'CRON'
+SUPPRESS_LABEL_WARNING=True
+*/7 * * * * ubuntu flock -n /tmp/ampere.lock /usr/local/bin/tentar-ampere.sh &gt;/dev/null 2&gt;&amp;1
+CRON
+sudo chmod 644 /etc/cron.d/tentar-ampere
+</code></pre>
+<p>O script pede 4 OCPUs e 24 GB primeiro e vai reduzindo para 2/12 e 1/6. Vale
+aceitar o que houver: <strong>1 OCPU e 6 GB já é seis vezes a memória da <code>E2.1.Micro</code></strong>,
+e ampliar depois é dentro da mesma família, onde o redimensionamento funciona.
+Ao conseguir, ele grava o endereço da nova máquina e <strong>se desagenda</strong>.</p>
+<p>Acompanhe com <code>tail -f ~/.oci/ampere.log</code>.</p>
+<hr />
+<hr />
+<h1 id="verificacao-final">Verificação final</h1>
+<p>Rode tudo isto. Cada linha deve responder o esperado:</p>
+<pre><code class="language-bash"># o site responde por HTTPS
+curl -s -o /dev/null -w &quot;site: %{http_code}\n&quot; https://SEU_DOMINIO.duckdns.org/entrar
+# esperado: 200
+
+# http redireciona para https
+curl -s -o /dev/null -w &quot;redirect: %{http_code}\n&quot; http://SEU_DOMINIO.duckdns.org/entrar
+# esperado: 301
+
+# o certificado renova
+sudo certbot renew --dry-run --no-random-sleep-on-renew
+# esperado: &quot;Congratulations, all simulated renewals succeeded&quot;
+
+# o backup roda e o arquivo tem conteúdo
+sudo /usr/local/bin/backup-amb.sh &amp;&amp; sudo ls -lh /var/backups/amb/
+
+# o firewall interno está na ordem certa
+sudo iptables -L INPUT --line-numbers -n | head -8
+# esperado: ACCEPT das portas 80 e 443 ANTES do REJECT
+
+# as tarefas automáticas estão agendadas
+ls /etc/cron.d/
+# esperado: amb-agendador, backup-amb, duckdns
+
+# a memória de troca está ativa
+free -h
+
+# o deploy funciona
+/var/www/amb/deploy.sh
+</code></pre>
+<p>E no navegador: entre no sistema e <strong>gere as três folhas de PDF</strong>. É o teste que
+mais exige do servidor — se as folhas de frequência saírem, o resto sai.</p>
+<hr />
+<h1 id="problemas-comuns">Problemas comuns</h1>
+<table>
+<thead>
+<tr>
+<th>Sintoma</th>
+<th>Causa provável</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interruptor de IPv4 público travado</td>
+<td>A sub-rede foi criada pelo formulário da instância, sem Internet Gateway. Refaça pela Etapa 3</td>
+</tr>
+<tr>
+<td>Lista de blocos CIDR vazia</td>
+<td>Está no botão <code>Criar VCN</code> em vez do assistente (armadilha nº 4)</td>
+</tr>
+<tr>
+<td><code>Capacidade insuficiente para a forma</code></td>
+<td>Falta de estoque de Ampere na região. Use a AMD e veja a Etapa 18</td>
+</tr>
+<tr>
+<td>Navegador não abre o site</td>
+<td>Portas 80/443 fechadas — confira <strong>os dois</strong> firewalls (Etapas 4 e 8)</td>
+</tr>
+<tr>
+<td>Site inacessível mesmo com as regras criadas</td>
+<td>O <code>ACCEPT</code> foi inserido <strong>depois</strong> do <code>REJECT</code> no iptables (Etapa 8)</td>
+</tr>
+<tr>
+<td><code>Connection refused</code> no SSH</td>
+<td>IP errado, ou instância ainda provisionando</td>
+</tr>
+<tr>
+<td><code>Permission denied (publickey)</code></td>
+<td>Chave pública não foi colada na criação da instância</td>
+</tr>
+<tr>
+<td>Erro 502 no navegador</td>
+<td>PHP-FPM parado — <code>sudo systemctl restart php8.4-fpm</code></td>
+</tr>
+<tr>
+<td>Erro 500 e tela branca</td>
+<td>Ver <code>tail -50 /var/www/amb/storage/logs/laravel.log</code></td>
+</tr>
+<tr>
+<td><code>lock file does not contain a compatible set of packages</code></td>
+<td>PHP do Ubuntu é 8.3; instale o 8.4 pelo PPA (Etapa 9). <strong>Não</strong> rode <code>composer update</code></td>
+</tr>
+<tr>
+<td>PDF falha só no navegador, funciona no terminal</td>
+<td>Limites do PHP-FPM (Etapa 12)</td>
+</tr>
+<tr>
+<td><code>certbot renew</code> parece travado</td>
+<td>Ele dorme até 8 min de propósito. Use <code>--no-random-sleep-on-renew</code></td>
+</tr>
+<tr>
+<td><code>mysqldump: PROCESS privilege</code></td>
+<td>Falta <code>--no-tablespaces</code> (Etapa 15)</td>
+</tr>
+<tr>
+<td><code>git pull</code> reclama de <code>package-lock.json</code></td>
+<td>Foi usado <code>npm install</code>; use <code>npm ci</code></td>
+</tr>
+<tr>
+<td>Deploy diz 404 mas o site está no ar</td>
+<td>A verificação usou <code>Host: localhost</code>, que não bate com o <code>server_name</code></td>
+</tr>
+<tr>
+<td>Site fora do ar sem motivo</td>
+<td>Instância recuperada por inatividade — ver abaixo</td>
+</tr>
+</tbody>
+</table>
+<h3>Sobre a recuperação por inatividade</h3>
+<p>A Oracle recolhe máquinas gratuitas <strong>ociosas</strong>. O critério é ficar 7 dias com
+CPU, rede <strong>e</strong> memória abaixo de 10% — e basta <strong>um</strong> dos três para escapar.</p>
+<p>Um servidor com MySQL rodando usa mais de 50% da memória de uma máquina de 1 GB,
+então nunca é considerado ocioso. Sem risco na prática, mas vale conferir:</p>
+<pre><code class="language-bash">free -m | awk 'NR==2{printf &quot;memória em uso: %.0f%%\n&quot;, $3/$2*100}'
+</code></pre>
+<hr />
+<h1 id="o-que-e-gratis-e-o-que-nao-e">O que é grátis e o que não é</h1>
+<table>
+<thead>
+<tr>
+<th>Recurso</th>
+<th>Always Free</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ampere <code>A1.Flex</code></td>
+<td>4 OCPUs e 24 GB no total, até 4 máquinas</td>
+</tr>
+<tr>
+<td>AMD <code>E2.1.Micro</code></td>
+<td>2 máquinas de 1 OCPU e 1 GB</td>
+</tr>
+<tr>
+<td>Armazenamento em bloco</td>
+<td>200 GB no total, incluindo os discos de boot</td>
+</tr>
+<tr>
+<td>Tráfego de saída</td>
+<td>10 TB por mês</td>
+</tr>
+<tr>
+<td>IP público</td>
+<td>2 endereços</td>
+</tr>
+<tr>
+<td>Banco autônomo</td>
+<td>2 instâncias de 20 GB</td>
+</tr>
+<tr>
+<td><strong>Qualquer AMD E3/E4/E5 ou Intel</strong></td>
+<td>❌ <strong>pago</strong></td>
+</tr>
+<tr>
+<td>Política de backup de volume</td>
+<td>❌ <strong>pago</strong></td>
+</tr>
+<tr>
+<td>Balanceador de carga (acima do mínimo)</td>
+<td>❌ <strong>pago</strong></td>
+</tr>
+</tbody>
+</table>
+<p>As duas famílias de máquina são <strong>cotas separadas</strong> — você pode ter as duas ao
+mesmo tempo.</p>
+<hr />
+<h1 id="vale-para-seus-outros-sistemas">Vale para seus outros sistemas</h1>
+<p>Esta mesma máquina comporta outros projetos, cada um em seu subdomínio,
+compartilhando Nginx e MySQL. Depois de configurada, acrescentar um site é
+questão de um arquivo em <code>/etc/nginx/sites-available/</code>, um banco novo e um
+subdomínio no DuckDNS.</p>
+<p>Para cada sistema novo, os passos que se repetem são: Etapa 10 (banco), Etapa 11
+(publicar), Etapa 13 (subdomínio) e Etapa 14 (certificado). O resto — servidor,
+firewall, swap, backup, agendador — já está pronto e é compartilhado.</p>
+<hr />
+<h1 id="versao-para-imprimir">Versão para imprimir</h1>
+<p>Existe uma versão em HTML deste guia, com sumário navegável e estilo próprio
+para impressão: <a href="hospedagem-oracle-cloud.html"><code>hospedagem-oracle-cloud.html</code></a>.</p>
+<p>Abra no navegador e faça <strong>Ctrl+P</strong> → <em>Salvar como PDF</em>. Marque a opção
+<strong>&quot;Gráficos de segundo plano&quot;</strong> para manter as cores dos títulos e das tabelas —
+sem ela o PDF sai em preto e branco puro.</p>
+<p>Cada PARTE começa em folha nova, e comandos, tabelas e avisos nunca são partidos
+ao meio entre páginas: um comando cortado na dobra é inútil para quem está
+copiando.</p>
+<p>Se você editar o Markdown, gere o HTML de novo com:</p>
+<pre><code class="language-bash">php scripts/gerar-html-do-guia.php
+</code></pre>
+<p>O script serve para qualquer documento da pasta <code>docs/</code>:</p>
+<pre><code class="language-bash">php scripts/gerar-html-do-guia.php docs/outro-documento.md
+</code></pre>
+<blockquote>
+<p><strong>Por que não gerar o PDF direto?</strong> O <code>dompdf</code>, que o sistema usa para os
+documentos da escala, ignora quebra de página condicional e boa parte do CSS
+moderno — foi o que nos obrigou a calibrar a paginação da planilha na mão. Para
+um texto longo com tabelas, o motor de impressão do navegador entrega resultado
+melhor e não custa nenhuma dependência nova.</p>
+</blockquote>
+
+
+</div>
+</body>
+</html>
