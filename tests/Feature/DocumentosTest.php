@@ -187,6 +187,19 @@ class DocumentosTest extends TestCase
         ];
     }
 
+    /**
+     * Só o nome do layout, para os testes que não dependem da capacidade da
+     * página. Derivado do provedor acima para os dois nunca saírem de sincronia.
+     *
+     * Passar argumentos a mais do que o teste recebe nao e apenas desleixo: o
+     * PHPUnit emite um aviso e encerra com codigo de erro, derrubando a
+     * verificacao automatica mesmo com todos os testes passando.
+     */
+    public static function apenasOsLayouts(): array
+    {
+        return array_map(fn (array $caso) => [$caso[0]], self::layoutsDaPlanilha());
+    }
+
     // -----------------------------------------------------------------
     // Página final: condutores fora de escala
     // -----------------------------------------------------------------
@@ -260,7 +273,7 @@ class DocumentosTest extends TestCase
 
     /** A página final entra por padrão e pode ser omitida. */
     #[Test]
-    #[DataProvider('layoutsDaPlanilha')]
+    #[DataProvider('apenasOsLayouts')]
     public function pagina_de_fora_de_escala_e_opcional(string $layout): void
     {
         $escala = $this->escalaCompleta();
