@@ -1,0 +1,106 @@
+name: Testar e publicar
+
+# Toda alteracao enviada para o main passa pelos testes; so se todos passarem
+# o servidor e atualizado. Assim um erro nao chega em producao.
+on:
+  push:
+    branches: [main]
+  # Permite disparar manualmente pela aba Actions, util para republicar sem
+  # precisar inventar um commit.
+  workflow_dispatch:
+
+# Se dois envios acontecerem em sequencia, o segundo espera o primeiro terminar.
+# Dois deploys simultaneos no mesmo servidor se atrapalhariam.
+concurrency:
+  group: publicar-producao
+  cancel-in-progress: false
+
+jobs:
+
+  testes:
+    name: Testes
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: amb_testes
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # A mesma versao que roda no servidor, para nao descobrir incompatibilidade
+      # so depois de publicar.
+      - name: Preparar o PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, gd, zip, bcmath, intl
+          coverage: none
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependencias PHP
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Preparar o ambiente
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Os testes renderizam telas, e o Blade exige o manifesto do Vite. Compilar
+      # aqui tambem confirma que o build funciona antes de chegar no servidor.
+      - name: Compilar CSS e JavaScript
+        run: |
+          npm ci
+          npm run build
+
+      - name: Rodar os testes
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: amb_testes
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+        run: php artisan test
+
+  publicar:
+    name: Publicar no servidor
+    needs: testes
+    runs-on: ubuntu-latest
+    # Publicacao manual pela aba Actions tambem passa pelos testes acima.
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Conectar e atualizar
+        env:
+          CHAVE: ${{ secrets.SSH_CHAVE_DEPLOY }}
+          SERVIDOR: 167.126.6.137
+          IMPRESSAO_DIGITAL: ${{ secrets.SSH_IMPRESSAO_DIGITAL }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+
+          # Fixar a identidade do servidor evita que o deploy fale com outra
+          # maquina caso alguem consiga desviar a conexao.
+          printf '%s\n' "$IMPRESSAO_DIGITAL" > ~/.ssh/known_hosts
+
+          # A chave tem comando forcado no servidor: qualquer conexao com ela
+          # executa o deploy.sh e nada mais. O "true" e so um marcador.
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ConnectTimeout=30 \
+              ubuntu@"$SERVIDOR" true
