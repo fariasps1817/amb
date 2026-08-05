@@ -104,4 +104,11 @@ echo " Pronto. No ar na versao $DEPOIS"
 echo "=================================================="
 echo ""
 echo "Conferindo se o site responde:"
-curl -s -o /dev/null -w "  HTTP %{http_code} em %{time_total}s\n" http://localhost/login
+CODIGO=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/entrar)
+if [ "$CODIGO" = "200" ]; then
+    echo "  tela de acesso respondeu HTTP 200 — tudo certo"
+else
+    echo "  ATENCAO: a tela de acesso respondeu HTTP $CODIGO (esperado 200)."
+    echo "  Veja o erro em: tail -30 $APP/storage/logs/laravel.log"
+    exit 1
+fi
