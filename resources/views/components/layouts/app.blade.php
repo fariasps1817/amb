@@ -10,6 +10,19 @@
 
     <link rel="icon" href="data:image/svg+xml,{{ rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#2b736e"/><path d="M16 7v18M7 16h18" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg>') }}">
 
+    {{-- A preferencia de barra lateral recolhida precisa valer ANTES da
+         primeira pintura. Lida depois, no app.js, a barra apareceria larga e
+         encolheria na frente do usuario a cada troca de pagina. --}}
+    <script>
+        try {
+            if (localStorage.getItem('menu-recolhido') === '1') {
+                document.documentElement.classList.add('menu-recolhido');
+            }
+        } catch (e) {
+            // Navegador com armazenamento bloqueado: segue com a barra inteira.
+        }
+    </script>
+
     {{-- Carrega a Instrument Sans a partir dos arquivos do proprio servidor.
          Sem esta linha o Vite gera as fontes, mas nada as referencia, e o
          sistema cai na fonte padrao do sistema operacional. --}}
@@ -35,16 +48,16 @@
     ></div>
 
     <aside
-        class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-marca-900 transition-transform duration-200 lg:translate-x-0 nao-imprimir"
+        class="barra-lateral fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-hidden bg-marca-900 transition-[transform,width] duration-200 lg:translate-x-0 nao-imprimir"
         :class="menuAberto ? 'translate-x-0' : '-translate-x-full'"
         aria-label="Menu principal"
     >
-        <div class="flex h-16 items-center justify-between gap-2 px-5">
-            <a href="{{ route('painel') }}" class="flex min-w-0 items-center gap-2.5">
+        <div class="menu-topo flex h-16 items-center justify-between gap-2 px-5">
+            <a href="{{ route('painel') }}" class="menu-marca flex min-w-0 items-center gap-2.5" title="Ir para o painel">
                 <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
                     <x-icone nome="ambulancias" class="size-5 text-white" />
                 </span>
-                <span class="min-w-0">
+                <span class="menu-texto min-w-0">
                     <span class="block truncate text-sm font-semibold text-white">Ambulâncias</span>
                     <span class="block truncate text-xs text-marca-200">Coordenação</span>
                 </span>
@@ -98,12 +111,12 @@
             </x-nav-grupo>
         </nav>
 
-        <div class="border-t border-white/10 p-3">
-            <div class="flex items-center gap-3 rounded-lg px-2 py-2">
+        <div class="menu-rodape border-t border-white/10 p-3">
+            <div class="menu-rodape-linha flex items-center gap-3 rounded-lg px-2 py-2">
                 <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white ring-1 ring-white/15">
                     {{ auth()->user()->iniciais() }}
                 </span>
-                <span class="min-w-0 flex-1">
+                <span class="menu-texto min-w-0 flex-1">
                     <span class="block truncate text-sm font-medium text-white">{{ auth()->user()->nome }}</span>
                     <span class="block truncate text-xs text-marca-200">{{ auth()->user()->perfilRotulo() }}</span>
                 </span>
@@ -126,7 +139,7 @@
          Conteúdo
          ---------------------------------------------------------------- --}}
 
-    <div class="lg:pl-72">
+    <div class="area-conteudo transition-[padding] duration-200 lg:pl-72">
         <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 nao-imprimir">
             <button
                 type="button"
@@ -135,6 +148,17 @@
             >
                 <x-icone nome="menu" class="size-6" />
                 <span class="sr-only">Abrir menu</span>
+            </button>
+
+            {{-- So no computador: no celular a barra ja e uma gaveta. --}}
+            <button
+                type="button"
+                data-recolher-menu
+                class="-ml-1 hidden rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 lg:inline-flex"
+                title="Recolher ou expandir o menu"
+            >
+                <x-icone nome="barra-lateral" class="size-6" />
+                <span class="sr-only">Recolher ou expandir o menu</span>
             </button>
 
             <div class="min-w-0 flex-1">

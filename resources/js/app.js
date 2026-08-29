@@ -103,3 +103,32 @@ const pontuarCamposExistentes = () => {
 
 document.addEventListener('DOMContentLoaded', pontuarCamposExistentes);
 document.addEventListener('livewire:navigated', pontuarCamposExistentes);
+
+// ---------------------------------------------------------------------------
+// Barra lateral recolhida
+// ---------------------------------------------------------------------------
+
+/*
+ * No computador a barra lateral pode ficar so com os icones, para sobrar
+ * largura ao conteudo -- util nas telas largas da escala. A escolha vale para
+ * todas as paginas e persiste entre visitas.
+ *
+ * Quem pinta a barra recolhida e o CSS, a partir da classe "menu-recolhido" no
+ * <html>; a classe e aplicada por um script no <head>, antes da primeira
+ * pintura, para a barra nao aparecer larga e encolher na frente do usuario.
+ */
+
+document.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('[data-recolher-menu]');
+
+    if (! botao) return;
+
+    const recolhido = document.documentElement.classList.toggle('menu-recolhido');
+
+    try {
+        localStorage.setItem('menu-recolhido', recolhido ? '1' : '0');
+    } catch {
+        // Navegador com armazenamento bloqueado: a preferencia vale so nesta
+        // pagina, o que e melhor do que quebrar o botao.
+    }
+});

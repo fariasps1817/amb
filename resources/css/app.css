@@ -78,6 +78,66 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Barra lateral recolhida
+   --------------------------------------------------------------------------- */
+
+/*
+   No computador a barra lateral pode ficar so com os icones, para sobrar
+   largura ao conteudo -- a planilha da escala e larga, e cada centimetro conta.
+
+   Quem liga e desliga e a classe "menu-recolhido" no <html>, aplicada por um
+   script no <head> antes da primeira pintura (senao a barra apareceria larga e
+   encolheria na frente do usuario) e alternada pelo botao do cabecalho.
+
+   Vale apenas do lg para cima: no celular a barra e uma gaveta, que sempre
+   abre inteira.
+
+   Estas regras ficam fora de @layer de proposito: estilo sem camada vence
+   qualquer camada, entao dispensam !important para passar na frente das
+   utilidades do Tailwind que estao no proprio elemento.
+*/
+
+@media (min-width: 64rem) {
+    .menu-recolhido .barra-lateral {
+        width: 5rem;
+    }
+
+    .menu-recolhido .area-conteudo {
+        padding-left: 5rem;
+    }
+
+    /* Todo texto sai de cena: rotulos do menu, nome do sistema e do usuario. */
+    .menu-recolhido .menu-texto {
+        display: none;
+    }
+
+    .menu-recolhido .menu-topo,
+    .menu-recolhido .menu-marca,
+    .menu-recolhido .menu-item,
+    .menu-recolhido .menu-rodape-linha {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    /* Sem os titulos dos grupos, um traco fino mantem a separacao visivel. */
+    .menu-recolhido .menu-grupo-titulo {
+        display: none;
+    }
+
+    .menu-recolhido .menu-grupo + .menu-grupo {
+        border-top: 1px solid rgb(255 255 255 / 0.1);
+        padding-top: 0.75rem;
+    }
+
+    /* Iniciais e o botao de sair nao cabem lado a lado em 5rem. */
+    .menu-recolhido .menu-rodape-linha {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* ---------------------------------------------------------------------------
    Impressao
    --------------------------------------------------------------------------- */
 
