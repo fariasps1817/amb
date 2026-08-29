@@ -59,10 +59,8 @@
                 <x-input
                     rotulo="CPF"
                     name="cpf"
-                    value="{{ old('cpf', $motorista->cpf) }}"
-                    inputmode="numeric"
-                    maxlength="14"
-                    placeholder="000.000.000-00"
+                    value="{{ old('cpf', $motorista->cpfFormatado()) }}"
+                    mascara="cpf"
                 />
 
                 <x-input
@@ -188,8 +186,7 @@
                     name="telefone_1"
                     tipo="tel"
                     value="{{ old('telefone_1', $motorista->telefoneFormatado()) }}"
-                    inputmode="tel"
-                    placeholder="(85) 98692-6853"
+                    mascara="telefone"
                 />
 
                 <x-input
@@ -197,7 +194,7 @@
                     name="telefone_2"
                     tipo="tel"
                     value="{{ old('telefone_2', $motorista->telefone2Formatado()) }}"
-                    inputmode="tel"
+                    mascara="telefone"
                 />
 
                 <div class="sm:col-span-2">

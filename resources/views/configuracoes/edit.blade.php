@@ -89,7 +89,7 @@
                         name="telefone_1"
                         tipo="tel"
                         value="{{ old('telefone_1', \App\Support\Telefone::formatar($configuracao->telefone_1)) }}"
-                        inputmode="tel"
+                        mascara="telefone"
                         ajuda="Aparece no topo da planilha."
                     />
                 </div>
@@ -99,7 +99,7 @@
                         name="telefone_2"
                         tipo="tel"
                         value="{{ old('telefone_2', \App\Support\Telefone::formatar($configuracao->telefone_2)) }}"
-                        inputmode="tel"
+                        mascara="telefone"
                     />
                 </div>
                 <div class="sm:col-span-2">

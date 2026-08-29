@@ -126,6 +126,37 @@ class CadastrosTest extends TestCase
         $this->assertSame('JOÃO B.', $motorista->fresh()->nome_curto);
     }
 
+    /**
+     * CPF e telefone so aceitam digitos, pontuados pelo navegador.
+     *
+     * O inputmode numerico e o que abre o teclado de numeros no celular; sem
+     * ele o campo volta ao teclado alfabetico e a digitacao no plantao fica
+     * penosa. O maxlength conta a pontuacao ja aplicada.
+     */
+    #[Test]
+    public function os_campos_de_cpf_e_telefone_saem_com_mascara(): void
+    {
+        $motorista = Motorista::factory()->create([
+            'cpf' => '12345678909',
+            'telefone_1' => '85986926853',
+        ]);
+
+        $html = $this->actingAs($this->operador)
+            ->get("/motoristas/{$motorista->id}/edit")
+            ->assertOk()
+            ->getContent();
+
+        // Valor ja pontuado ao abrir a tela, e nao os digitos crus do banco.
+        $this->assertStringContainsString('value="123.456.789-09"', $html);
+        $this->assertStringContainsString('value="(85) 98692-6853"', $html);
+
+        $this->assertStringContainsString('data-mascara="cpf"', $html);
+        $this->assertStringContainsString('data-mascara="telefone"', $html);
+        $this->assertStringContainsString('inputmode="numeric"', $html);
+        $this->assertStringContainsString('maxlength="14"', $html);
+        $this->assertStringContainsString('maxlength="15"', $html);
+    }
+
     /** Contrato temporario sem prazo impede o sistema de avisar o vencimento. */
     #[Test]
     public function contrato_temporario_exige_data_de_termino(): void

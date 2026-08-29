@@ -148,8 +148,8 @@
                 <div class="grid gap-4 sm:grid-cols-2">
                     <x-input rotulo="Responsável" name="responsavel" value="{{ old('responsavel', $unidade->responsavel) }}" maxlength="255" />
                     <x-input rotulo="Cargo" name="cargo_responsavel" value="{{ old('cargo_responsavel', $unidade->cargo_responsavel) }}" maxlength="255" />
-                    <x-input rotulo="Telefone" name="telefone_1" tipo="tel" value="{{ old('telefone_1', \App\Support\Telefone::formatar($unidade->telefone_1)) }}" inputmode="tel" />
-                    <x-input rotulo="Telefone alternativo" name="telefone_2" tipo="tel" value="{{ old('telefone_2', \App\Support\Telefone::formatar($unidade->telefone_2)) }}" inputmode="tel" />
+                    <x-input rotulo="Telefone" name="telefone_1" tipo="tel" value="{{ old('telefone_1', \App\Support\Telefone::formatar($unidade->telefone_1)) }}" mascara="telefone" />
+                    <x-input rotulo="Telefone alternativo" name="telefone_2" tipo="tel" value="{{ old('telefone_2', \App\Support\Telefone::formatar($unidade->telefone_2)) }}" mascara="telefone" />
 
                     <div class="sm:col-span-2">
                         <x-input rotulo="E-mail" name="email" tipo="email" value="{{ old('email', $unidade->email) }}" maxlength="255" />
