@@ -4,7 +4,6 @@ use App\Http\Controllers\AcessoController;
 use App\Http\Controllers\AmbulanciaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConfiguracaoController;
-use App\Http\Controllers\DocumentacaoController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\EscalaController;
 use App\Http\Controllers\MensagemController;
@@ -120,17 +119,6 @@ Route::middleware('auth')->group(function () {
     Route::get('acessos', AcessoController::class)
         ->middleware('admin')
         ->name('acessos.index');
-
-    // A documentacao mora em docs/, fora de public/, e por isso nao e alcancavel
-    // por URL direta. Servi-la daqui mantem o acesso atras do login.
-    Route::controller(DocumentacaoController::class)
-        ->middleware('admin')
-        ->prefix('documentacao')
-        ->name('documentacao.')
-        ->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('{documento}', 'mostrar')->name('mostrar');
-        });
 
     // Chamada pelo aviso de inatividade quando o usuario pede para continuar
     // conectado. Qualquer requisicao autenticada ja renova a sessao; esta
