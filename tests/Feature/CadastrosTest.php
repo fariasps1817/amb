@@ -157,6 +157,80 @@ class CadastrosTest extends TestCase
         $this->assertStringContainsString('maxlength="15"', $html);
     }
 
+    /**
+     * A relacao em PDF sai da mesma consulta da tela, com os filtros aplicados.
+     *
+     * O texto e conferido de dentro do PDF: afirmar so o content-type deixaria
+     * passar um documento gerado com a lista errada.
+     */
+    #[Test]
+    public function exporta_em_pdf_a_relacao_de_motoristas_filtrada(): void
+    {
+        Motorista::factory()->create(['nome_completo' => 'ANTONIO DA SILVA', 'nome_curto' => 'ANTONIO']);
+        Motorista::factory()->inativo()->create(['nome_completo' => 'BENEDITO SOUZA', 'nome_curto' => 'BENEDITO']);
+
+        $resposta = $this->actingAs($this->operador)->get('/motoristas/exportar');
+
+        $resposta->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $resposta->getContent());
+
+        $completa = $this->textoDoPdf($resposta->getContent());
+        $this->assertStringContainsString('ANTONIO', $completa);
+        $this->assertStringContainsString('BENEDITO', $completa);
+
+        // Com filtro, o inativo fica de fora — e o PDF diz por que.
+        $filtrada = $this->textoDoPdf(
+            $this->actingAs($this->operador)
+                ->get('/motoristas/exportar?status='.StatusMotorista::Ativo->value)
+                ->assertOk()
+                ->getContent()
+        );
+
+        $this->assertStringContainsString('ANTONIO', $filtrada);
+        $this->assertStringNotContainsString('BENEDITO', $filtrada);
+        $this->assertStringContainsString('Filtros aplicados', $filtrada);
+    }
+
+    /**
+     * A rota de exportacao e declarada antes do resource de proposito. Depois
+     * dele, "exportar" cairia em motoristas/{motorista} e viraria 404.
+     */
+    #[Test]
+    public function a_rota_de_exportacao_nao_e_confundida_com_um_motorista(): void
+    {
+        $this->actingAs($this->operador)
+            ->get('/motoristas/exportar')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    /**
+     * Texto legivel de dentro de um PDF do dompdf.
+     *
+     * O conteudo das paginas vem comprimido; depois de descomprimir, o texto
+     * esta nos operadores Tj e TJ, entre parenteses.
+     */
+    private function textoDoPdf(string $pdf): string
+    {
+        $conteudo = '';
+
+        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $blocos);
+
+        foreach ($blocos[1] as $bloco) {
+            $descomprimido = @gzuncompress($bloco);
+
+            if ($descomprimido !== false) {
+                $conteudo .= $descomprimido;
+            }
+        }
+
+        // O texto sai em blocos [( ... )] TJ. A fonte e escrita com dois bytes
+        // por caractere, entao cada letra vem precedida de um byte zero.
+        preg_match_all('/\[\((.*?)\)\]/s', $conteudo, $trechos);
+
+        return str_replace("\0", '', implode(' ', $trechos[1]));
+    }
+
     /** Contrato temporario sem prazo impede o sistema de avisar o vencimento. */
     #[Test]
     public function contrato_temporario_exige_data_de_termino(): void

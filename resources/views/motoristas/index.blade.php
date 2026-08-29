@@ -56,6 +56,23 @@
                         </x-botao>
                     @endif
                     <x-botao type="submit" variante="secundario" tamanho="pequeno" icone="busca">Filtrar</x-botao>
+
+                    {{--
+                        Leva os filtros da tela para o PDF. O "page" fica de
+                        fora: o documento traz a relação inteira, e não a página
+                        que estiver aberta.
+                    --}}
+                    <x-botao
+                        href="{{ route('motoristas.exportar', request()->except('page')) }}"
+                        variante="secundario"
+                        tamanho="pequeno"
+                        icone="documentos"
+                        target="_blank"
+                        rel="noopener"
+                        title="Abrir em PDF a relação com os filtros aplicados"
+                    >
+                        PDF
+                    </x-botao>
                 </div>
             </div>
         </form>

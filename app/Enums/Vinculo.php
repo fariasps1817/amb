@@ -18,6 +18,19 @@ enum Vinculo: string
         };
     }
 
+    /**
+     * Como o servidor e descrito na relacao do cadastro, onde a coluna e
+     * estreita e nao cabe a data de termino: fala da pessoa ("Contratado"), e
+     * nao do tipo de vinculo ("Contrato").
+     */
+    public function rotuloDoServidor(): string
+    {
+        return match ($this) {
+            self::Efetivo => 'Efetivo',
+            self::Contrato => 'Contratado',
+        };
+    }
+
     /** Texto usado nos documentos oficiais (coluna VINCULO da lista mensal). */
     public function rotuloDocumento(): string
     {

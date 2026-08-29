@@ -6,15 +6,59 @@ use App\Enums\StatusMotorista;
 use App\Enums\Vinculo;
 use App\Http\Requests\MotoristaRequest;
 use App\Models\Motorista;
+use App\Services\Documentos\GeradorDeDocumentos;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class MotoristaController extends Controller
 {
     public function index(Request $request): View
     {
-        $motoristas = Motorista::query()
+        $motoristas = $this->filtrados($request)
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('motoristas.index', [
+            'motoristas' => $motoristas,
+            'totais' => [
+                'ativos' => Motorista::query()->where('status', StatusMotorista::Ativo)->count(),
+                'inativos' => Motorista::query()->where('status', StatusMotorista::Inativo)->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Mesma lista da tela, em PDF.
+     *
+     * Exporta o recorte inteiro, e nao apenas a pagina aberta: quem filtra por
+     * "somente com pendencias" quer a relacao completa para cobrar, nao os
+     * primeiros vinte.
+     */
+    public function exportar(Request $request, GeradorDeDocumentos $gerador): Response
+    {
+        $pdf = $gerador->motoristas(
+            $this->filtrados($request)->get(),
+            $this->filtrosAplicados($request),
+        );
+
+        $nome = 'motoristas-'.now()->format('Y-m-d').'.pdf';
+
+        return $request->boolean('download')
+            ? $pdf->download($nome)
+            : $pdf->stream($nome);
+    }
+
+    /**
+     * Consulta com os filtros da tela, compartilhada pela listagem e pelo PDF.
+     * Manter as duas no mesmo lugar e o que garante que o documento traga
+     * exatamente o que estava sendo exibido.
+     */
+    private function filtrados(Request $request): Builder
+    {
+        return Motorista::query()
             ->busca($request->string('busca')->toString())
             ->when(
                 $request->filled('status'),
@@ -31,17 +75,38 @@ class MotoristaController extends Controller
                     ->orWhere(fn ($c) => $c->where('vinculo', Vinculo::Contrato)->whereDate('vinculo_fim', '<', now()))
                     ->orWhereNull('telefone_1'))
             )
-            ->ordenadoPorNome()
-            ->paginate(20)
-            ->withQueryString();
+            ->ordenadoPorNome();
+    }
 
-        return view('motoristas.index', [
-            'motoristas' => $motoristas,
-            'totais' => [
-                'ativos' => Motorista::query()->where('status', StatusMotorista::Ativo)->count(),
-                'inativos' => Motorista::query()->where('status', StatusMotorista::Inativo)->count(),
-            ],
-        ]);
+    /**
+     * Filtros em texto, impressos abaixo do titulo do PDF. Sem eles a folha
+     * impressa nao diz por que aqueles motoristas estao ali, e nao outros.
+     *
+     * @return list<string>
+     */
+    private function filtrosAplicados(Request $request): array
+    {
+        $filtros = [];
+
+        if (filled($busca = trim($request->string('busca')->toString()))) {
+            $filtros[] = "Busca: \"{$busca}\"";
+        }
+
+        if ($request->filled('status')) {
+            $status = StatusMotorista::tryFrom($request->string('status')->toString());
+            $filtros[] = 'Situação: '.($status?->rotulo() ?? '—');
+        }
+
+        if ($request->filled('vinculo')) {
+            $vinculo = Vinculo::tryFrom($request->string('vinculo')->toString());
+            $filtros[] = 'Vínculo: '.($vinculo?->rotulo() ?? '—');
+        }
+
+        if ($request->boolean('irregulares')) {
+            $filtros[] = 'Somente com pendências de CNH, contrato ou telefone';
+        }
+
+        return $filtros;
     }
 
     public function create(): View

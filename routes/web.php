@@ -44,6 +44,11 @@ Route::middleware('auth')->group(function () {
     // Cadastros
     // -----------------------------------------------------------------
 
+    // Antes do resource de proposito: declarada depois, "exportar" cairia em
+    // motoristas/{motorista} e o Laravel procuraria um motorista com esse id.
+    Route::get('motoristas/exportar', [MotoristaController::class, 'exportar'])
+        ->name('motoristas.exportar');
+
     Route::resource('motoristas', MotoristaController::class)
         ->parameters(['motoristas' => 'motorista']);
 

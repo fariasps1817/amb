@@ -97,6 +97,29 @@ class GeradorDeDocumentos
     }
 
     /**
+     * Relacao do cadastro de motoristas, no recorte que estiver na tela.
+     *
+     * Nao pertence a nenhuma escala: e o cadastro em si, emitido a partir da
+     * listagem com os filtros que o usuario aplicou.
+     *
+     * @param  Collection<int, Motorista>  $motoristas
+     * @param  list<string>  $filtros  Descricao dos filtros, impressa abaixo do
+     *                                 titulo para a folha se explicar sozinha.
+     */
+    public function motoristas(Collection $motoristas, array $filtros = []): DomPdf
+    {
+        $config = Configuracao::atual();
+
+        $pdf = $this->pdf('documentos.pdf.motoristas', [
+            'motoristas' => $motoristas,
+            'filtros' => $filtros,
+            'config' => $config,
+        ])->setPaper('a4', 'portrait');
+
+        return $this->aplicarRodape($pdf, $config, 'portrait');
+    }
+
+    /**
      * Folhas de frequencia de todos os motoristas escalados, uma por pagina.
      */
     public function frequencias(Escala $escala): DomPdf
