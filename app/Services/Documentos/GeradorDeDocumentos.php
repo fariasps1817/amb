@@ -102,21 +102,30 @@ class GeradorDeDocumentos
      * Nao pertence a nenhuma escala: e o cadastro em si, emitido a partir da
      * listagem com os filtros que o usuario aplicou.
      *
+     * As colunas vem da tela. A orientacao da folha nao: ela e decidida pelo
+     * proprio conjunto escolhido, porque so a soma das larguras diz se aquilo
+     * cabe em pe.
+     *
      * @param  Collection<int, Motorista>  $motoristas
      * @param  list<string>  $filtros  Descricao dos filtros, impressa abaixo do
      *                                 titulo para a folha se explicar sozinha.
      */
-    public function motoristas(Collection $motoristas, array $filtros = []): DomPdf
-    {
+    public function motoristas(
+        Collection $motoristas,
+        array $filtros = [],
+        ?ColunasDeMotoristas $colunas = null,
+    ): DomPdf {
         $config = Configuracao::atual();
+        $colunas ??= ColunasDeMotoristas::de(ColunasDeMotoristas::PADRAO);
 
         $pdf = $this->pdf('documentos.pdf.motoristas', [
             'motoristas' => $motoristas,
             'filtros' => $filtros,
+            'colunas' => $colunas,
             'config' => $config,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper('a4', $colunas->orientacao());
 
-        return $this->aplicarRodape($pdf, $config, 'portrait');
+        return $this->aplicarRodape($pdf, $config, $colunas->orientacao());
     }
 
     /**

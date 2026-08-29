@@ -9,8 +9,11 @@ use App\Models\Configuracao;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\Documentos\ColunasDeMotoristas;
 use App\Services\Escalas\MontadorDeEscala;
+use App\Support\Aniversario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -189,6 +192,161 @@ class CadastrosTest extends TestCase
         $this->assertStringContainsString('ANTONIO', $filtrada);
         $this->assertStringNotContainsString('BENEDITO', $filtrada);
         $this->assertStringContainsString('Filtros aplicados', $filtrada);
+    }
+
+    /**
+     * O filtro de aniversariantes muda tambem a ordem: uma relacao de
+     * aniversarios em ordem alfabetica nao responde a pergunta que se faz a
+     * ela, que e quem faz anos primeiro.
+     */
+    #[Test]
+    public function filtra_e_ordena_os_aniversariantes_do_mes(): void
+    {
+        $this->travelTo(Carbon::create(2026, 5, 10));
+
+        $dia20 = Motorista::factory()->create(['nome_completo' => 'ZULMIRA', 'data_nascimento' => '1980-05-20']);
+        $dia03 = Motorista::factory()->create(['nome_completo' => 'ADRIANO', 'data_nascimento' => '1975-05-03']);
+        $outroMes = Motorista::factory()->create(['nome_completo' => 'BRUNO', 'data_nascimento' => '1990-06-15']);
+        $semData = Motorista::factory()->create(['nome_completo' => 'CARLOS', 'data_nascimento' => null]);
+
+        $ids = $this->actingAs($this->operador)
+            ->get('/motoristas?aniversario='.Aniversario::MES_CORRENTE)
+            ->assertOk()
+            ->viewData('motoristas')
+            ->getCollection()
+            ->pluck('id')
+            ->all();
+
+        // Dia 3 antes do dia 20, embora ADRIANO venha depois de ZULMIRA no alfabeto.
+        $this->assertSame([$dia03->id, $dia20->id], $ids);
+
+        // Sem data de nascimento ninguem entra, nem como "sem data".
+        $this->assertNotContains($outroMes->id, $ids);
+        $this->assertNotContains($semData->id, $ids);
+    }
+
+    #[Test]
+    public function filtra_os_aniversariantes_do_dia(): void
+    {
+        $this->travelTo(Carbon::create(2026, 5, 10));
+
+        $hoje = Motorista::factory()->create(['data_nascimento' => '1980-05-10']);
+        Motorista::factory()->create(['data_nascimento' => '1980-05-11']);
+
+        $ids = $this->actingAs($this->operador)
+            ->get('/motoristas?aniversario='.Aniversario::HOJE)
+            ->assertOk()
+            ->viewData('motoristas')
+            ->getCollection()
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$hoje->id], $ids);
+    }
+
+    /**
+     * As colunas do PDF vem da tela. A do nome nao pode faltar: uma relacao sem
+     * nome nao serve para nada, entao ela e imposta mesmo sem ser pedida.
+     *
+     * As asserçoes evitam texto acentuado de proposito: o dompdf grava a fonte
+     * em dois bytes por caractere e os acentos nao voltam em UTF-8.
+     */
+    #[Test]
+    public function o_pdf_traz_apenas_as_colunas_escolhidas(): void
+    {
+        Motorista::factory()->create([
+            'nome_completo' => 'ANTONIO DA SILVA',
+            'cpf' => '12345678909',
+            'vinculo' => Vinculo::Efetivo,
+            'telefone_1' => '85986926853',
+        ]);
+
+        $texto = $this->textoDoPdf(
+            $this->actingAs($this->operador)
+                ->get('/motoristas/exportar?colunas[]=cpf')
+                ->assertOk()
+                ->getContent()
+        );
+
+        $this->assertStringContainsString('SERVIDOR', $texto, 'a coluna do nome e obrigatoria');
+        $this->assertStringContainsString('CPF', $texto);
+        $this->assertStringContainsString('123.456.789-09', $texto);
+
+        // Nao foram pedidas, mesmo sendo o padrao quando nada e escolhido.
+        $this->assertStringNotContainsString('TELEFONE', $texto);
+        $this->assertStringNotContainsString('Efetivo', $texto);
+    }
+
+    /** Sem escolha nenhuma, valem as colunas padrao. */
+    #[Test]
+    public function o_pdf_sem_escolha_traz_as_colunas_padrao(): void
+    {
+        Motorista::factory()->create(['vinculo' => Vinculo::Efetivo, 'telefone_1' => '85986926853']);
+
+        $texto = $this->textoDoPdf(
+            $this->actingAs($this->operador)->get('/motoristas/exportar')->assertOk()->getContent()
+        );
+
+        $this->assertStringContainsString('SERVIDOR', $texto);
+        $this->assertStringContainsString('TELEFONE', $texto);
+        $this->assertStringContainsString('Efetivo', $texto);
+
+        $this->assertStringNotContainsString('CPF', $texto);
+    }
+
+    /**
+     * Com muitas colunas nao ha largura em pe, e espremer o conteudo o faria
+     * quebrar linha. A folha vira sozinha.
+     */
+    #[Test]
+    public function a_folha_vira_para_paisagem_quando_as_colunas_nao_cabem(): void
+    {
+        $emPe = ColunasDeMotoristas::de(ColunasDeMotoristas::PADRAO);
+        $this->assertFalse($emPe->paisagem());
+        $this->assertSame('portrait', $emPe->orientacao());
+
+        $deitada = ColunasDeMotoristas::de(array_keys(ColunasDeMotoristas::opcoes()));
+        $this->assertTrue($deitada->paisagem());
+        $this->assertSame('landscape', $deitada->orientacao());
+
+        // As larguras precisam fechar a folha, sem sobra nem estouro.
+        foreach ([$emPe, $deitada] as $colunas) {
+            $this->assertEqualsWithDelta(100, array_sum($colunas->larguras()), 0.1);
+        }
+    }
+
+    /**
+     * Invariante do layout: combinacao nenhuma pode exigir mais largura do que
+     * a folha oferece. Quando exige, a celula quebra em duas linhas e a relacao
+     * inteira perde o alinhamento -- foi assim que a primeira calibragem
+     * falhou, com o tratamento em 24mm. Sao 256 combinacoes, e conferi-las
+     * todas nao custa nada porque nao gera PDF nenhum.
+     */
+    #[Test]
+    public function nenhuma_combinacao_de_colunas_estoura_a_largura_da_folha(): void
+    {
+        $opcionais = array_values(array_diff(
+            array_keys(ColunasDeMotoristas::opcoes()),
+            [ColunasDeMotoristas::OBRIGATORIA]
+        ));
+
+        for ($mascara = 0; $mascara < 2 ** count($opcionais); $mascara++) {
+            $escolha = [ColunasDeMotoristas::OBRIGATORIA];
+
+            foreach ($opcionais as $posicao => $chave) {
+                if ($mascara & (1 << $posicao)) {
+                    $escolha[] = $chave;
+                }
+            }
+
+            $colunas = ColunasDeMotoristas::de($escolha);
+
+            $this->assertLessThanOrEqual(
+                $colunas->larguraDaFolha(),
+                $colunas->larguraExigida(),
+                'Estourou a folha com: '.implode(', ', $escolha)
+            );
+        }
     }
 
     /**

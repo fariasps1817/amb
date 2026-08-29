@@ -12,7 +12,7 @@
 
         {{-- Filtros --}}
         <form method="GET" class="rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 sm:p-4">
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div class="lg:col-span-2">
                     <x-input
                         name="busca"
@@ -35,6 +35,13 @@
                     :selecionado="request('vinculo')"
                     vazio="Todos os vínculos"
                 />
+
+                <x-select
+                    name="aniversario"
+                    :opcoes="\App\Support\Aniversario::opcoes()"
+                    :selecionado="request('aniversario')"
+                    vazio="Qualquer aniversário"
+                />
             </div>
 
             <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -50,7 +57,7 @@
                 </label>
 
                 <div class="flex gap-2">
-                    @if (request()->hasAny(['busca', 'status', 'vinculo', 'irregulares']))
+                    @if (request()->hasAny(['busca', 'status', 'vinculo', 'irregulares', 'aniversario']))
                         <x-botao href="{{ route('motoristas.index') }}" variante="texto" tamanho="pequeno">
                             Limpar
                         </x-botao>
@@ -58,21 +65,76 @@
                     <x-botao type="submit" variante="secundario" tamanho="pequeno" icone="busca">Filtrar</x-botao>
 
                     {{--
-                        Leva os filtros da tela para o PDF. O "page" fica de
-                        fora: o documento traz a relação inteira, e não a página
-                        que estiver aberta.
+                        O PDF sai deste mesmo formulário, por formaction: assim
+                        os filtros que estão na tela viajam para o documento sem
+                        precisarmos remontá-los em JavaScript, e as colunas
+                        marcadas aqui voltam marcadas depois de filtrar.
                     --}}
-                    <x-botao
-                        href="{{ route('motoristas.exportar', request()->except('page')) }}"
-                        variante="secundario"
-                        tamanho="pequeno"
-                        icone="documentos"
-                        target="_blank"
-                        rel="noopener"
-                        title="Abrir em PDF a relação com os filtros aplicados"
-                    >
-                        PDF
-                    </x-botao>
+                    @php $colunasEscolhidas = \App\Services\Documentos\ColunasDeMotoristas::de(request('colunas')); @endphp
+
+                    <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
+                        <x-botao
+                            type="button"
+                            x-on:click="aberto = ! aberto"
+                            variante="secundario"
+                            tamanho="pequeno"
+                            icone="documentos"
+                            title="Gerar o PDF da relação, escolhendo as colunas"
+                        >
+                            PDF
+                            <x-icone nome="seta-baixo" class="size-3.5 shrink-0" />
+                        </x-botao>
+
+                        <div
+                            x-show="aberto"
+                            x-transition.opacity
+                            x-cloak
+                            class="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg"
+                        >
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Colunas do PDF
+                            </p>
+
+                            <div class="space-y-1.5">
+                                @foreach (\App\Services\Documentos\ColunasDeMotoristas::opcoes() as $chave => $rotulo)
+                                    @php $fixa = $chave === \App\Services\Documentos\ColunasDeMotoristas::OBRIGATORIA; @endphp
+
+                                    <label class="flex items-center gap-2 text-sm {{ $fixa ? 'text-slate-400' : 'text-slate-700' }}">
+                                        {{-- A coluna do nome não pode ser desmarcada: sem
+                                             ela a folha não serve para nada. Desabilitada,
+                                             ela não seria enviada, por isso o campo oculto. --}}
+                                        <input
+                                            type="checkbox"
+                                            @if ($fixa) disabled @else name="colunas[]" value="{{ $chave }}" @endif
+                                            @checked($colunasEscolhidas->tem($chave))
+                                            class="size-4 rounded border-slate-300 text-marca-600 focus:ring-marca-600 disabled:opacity-60"
+                                        >
+                                        {{ $rotulo }}
+                                        @if ($fixa)
+                                            <span class="text-xs">(fixa)</span>
+                                        @endif
+                                    </label>
+                                @endforeach
+                            </div>
+
+                            <input type="hidden" name="colunas[]" value="{{ \App\Services\Documentos\ColunasDeMotoristas::OBRIGATORIA }}">
+
+                            <p class="mt-2 text-xs text-slate-500">
+                                A folha vira para paisagem sozinha quando as colunas não cabem em pé.
+                            </p>
+
+                            <x-botao
+                                type="submit"
+                                formaction="{{ route('motoristas.exportar') }}"
+                                formtarget="_blank"
+                                tamanho="pequeno"
+                                icone="documentos"
+                                class="mt-3 w-full"
+                            >
+                                Gerar PDF
+                            </x-botao>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>

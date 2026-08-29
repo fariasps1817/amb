@@ -6,7 +6,9 @@ use App\Enums\StatusMotorista;
 use App\Enums\Vinculo;
 use App\Http\Requests\MotoristaRequest;
 use App\Models\Motorista;
+use App\Services\Documentos\ColunasDeMotoristas;
 use App\Services\Documentos\GeradorDeDocumentos;
+use App\Support\Aniversario;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,6 +44,7 @@ class MotoristaController extends Controller
         $pdf = $gerador->motoristas(
             $this->filtrados($request)->get(),
             $this->filtrosAplicados($request),
+            ColunasDeMotoristas::de($request->input('colunas')),
         );
 
         $nome = 'motoristas-'.now()->format('Y-m-d').'.pdf';
@@ -58,6 +61,8 @@ class MotoristaController extends Controller
      */
     private function filtrados(Request $request): Builder
     {
+        $aniversario = $this->aniversarioPedido($request);
+
         return Motorista::query()
             ->busca($request->string('busca')->toString())
             ->when(
@@ -75,7 +80,16 @@ class MotoristaController extends Controller
                     ->orWhere(fn ($c) => $c->where('vinculo', Vinculo::Contrato)->whereDate('vinculo_fim', '<', now()))
                     ->orWhereNull('telefone_1'))
             )
-            ->ordenadoPorNome();
+            ->when(
+                $aniversario !== null,
+                fn ($q) => Aniversario::aplicar($q, $aniversario)
+            )
+            // Filtrando aniversariantes, a ordem util e a do calendario.
+            ->when(
+                $aniversario !== null,
+                fn ($q) => $q->ordenadoPorAniversario(),
+                fn ($q) => $q->ordenadoPorNome()
+            );
     }
 
     /**
@@ -106,7 +120,19 @@ class MotoristaController extends Controller
             $filtros[] = 'Somente com pendências de CNH, contrato ou telefone';
         }
 
+        if (($aniversario = $this->aniversarioPedido($request)) !== null) {
+            $filtros[] = Aniversario::descricao($aniversario);
+        }
+
         return $filtros;
+    }
+
+    /** Valor do filtro de aniversariantes, ou null quando nao ha um valido. */
+    private function aniversarioPedido(Request $request): ?string
+    {
+        $valor = $request->string('aniversario')->toString();
+
+        return Aniversario::valido($valor) ? $valor : null;
     }
 
     public function create(): View

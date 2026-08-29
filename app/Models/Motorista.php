@@ -72,6 +72,23 @@ class Motorista extends Model
         $query->orderBy('nome_completo');
     }
 
+    /**
+     * Aniversariantes primeiro, do dia 1 ao 31.
+     *
+     * Uma relacao de aniversarios em ordem alfabetica nao serve para nada: o
+     * que se procura nela e quem faz anos primeiro. O nome so desempata.
+     *
+     * MONTH e DAY sao do MySQL, que e o banco em desenvolvimento, nos testes e
+     * em producao.
+     */
+    #[Scope]
+    protected function ordenadoPorAniversario(Builder $query): void
+    {
+        $query
+            ->orderByRaw('MONTH(data_nascimento), DAY(data_nascimento)')
+            ->orderBy('nome_completo');
+    }
+
     /** Busca por nome, apelido, CPF ou telefone. */
     #[Scope]
     protected function busca(Builder $query, ?string $termo): void
