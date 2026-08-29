@@ -25,8 +25,8 @@
         table.lista th,
         table.lista td {
             border: 0.5pt solid #444;
-            padding: 0.9mm 1.2mm;
-            font-size: 7pt;
+            padding: 1mm 1.2mm;
+            font-size: 8pt;
             vertical-align: middle;
         }
 
@@ -34,7 +34,7 @@
             background-color: #e8e8e8;
             font-weight: bold;
             text-align: center;
-            font-size: 6.5pt;
+            font-size: 7pt;
             text-transform: uppercase;
         }
 
@@ -47,11 +47,6 @@
         .c-telefone { text-align: center; }
         .c-vinculo  { text-align: center; }
         .c-cnh      { text-align: center; }
-
-        .nome-curto {
-            font-size: 6pt;
-            color: #555;
-        }
 
         /* Pendências saltam à vista na folha impressa, que é onde a cobrança
            acontece. Sem cor, porque a impressora do setor é monocromática. */
@@ -146,12 +141,7 @@
             <tr class="{{ $loop->index % 2 === 1 ? 'alternada' : '' }}">
                 <td class="c-numero">{{ $loop->iteration }}</td>
 
-                <td class="c-servidor">
-                    {{ $motorista->nomeDocumento() }}
-                    @if ($motorista->nome_curto && $motorista->nome_curto !== $motorista->nome_completo)
-                        <div class="nome-curto">{{ $motorista->nome_curto }}</div>
-                    @endif
-                </td>
+                <td class="c-servidor">{{ $motorista->nomeDocumento() }}</td>
 
                 <td class="c-telefone">
                     @if ($motorista->telefone_1)
