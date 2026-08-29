@@ -179,7 +179,21 @@
                             <thead>
                                 {{-- Dias da semana --}}
                                 <tr>
-                                    <th class="sticky left-0 z-10 border border-slate-300 bg-slate-100 px-2 py-1 text-left font-semibold text-slate-600" colspan="2">
+                                    {{--
+                                        A coluna do condutor acompanha a rolagem
+                                        horizontal. Sem isso, ao arrastar até o
+                                        dia 25 no celular a linha fica anônima —
+                                        e conferir a escala pelo telefone é
+                                        justamente o uso mais comum fora do
+                                        setor.
+
+                                        A posição do ciclo vem dentro desta mesma
+                                        célula, e não em coluna própria: com
+                                        colspan, o bloco fixo do cabeçalho teria
+                                        largura diferente da do corpo e um
+                                        cobriria o outro ao rolar.
+                                    --}}
+                                    <th class="sticky left-0 z-10 border border-slate-300 bg-slate-100 px-2 py-1 text-left font-semibold text-slate-600">
                                         Condutor
                                     </th>
                                     <th class="border border-slate-300 bg-slate-100 px-1 py-1 font-semibold text-slate-600">Fone</th>
@@ -195,7 +209,7 @@
                                 </tr>
                                 {{-- Números dos dias --}}
                                 <tr>
-                                    <th class="sticky left-0 z-10 border border-slate-300 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-700" colspan="2">
+                                    <th class="sticky left-0 z-10 border border-slate-300 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-700">
                                         {{ $escala->referencia() }}
                                     </th>
                                     <th class="border border-slate-300 bg-slate-50"></th>
@@ -220,7 +234,7 @@
                                     {{-- Faixa identificando a ambulância e a lotação --}}
                                     <tr>
                                         <td
-                                            colspan="{{ 3 + count($dias) }}"
+                                            colspan="{{ 2 + count($dias) }}"
                                             class="border border-slate-300 bg-marca-50 px-2 py-1 font-semibold text-marca-900"
                                         >
                                             <span class="tabular-nums">{{ $posto->rotuloPlaca() }}</span>
@@ -238,10 +252,8 @@
                                         @php $motorista = $lotacao->motorista; @endphp
 
                                         <tr class="hover:bg-slate-50">
-                                            <td class="sticky left-0 z-10 w-6 border border-slate-300 bg-white px-1 py-0.5 text-center text-[0.65rem] text-slate-400 tabular-nums">
-                                                {{ $lotacao->posicao }}
-                                            </td>
-                                            <td class="border border-slate-300 bg-white px-2 py-0.5 whitespace-nowrap">
+                                            <td class="sticky left-0 z-10 border border-slate-300 bg-white px-2 py-0.5 whitespace-nowrap">
+                                                <span class="mr-1.5 text-[0.65rem] text-slate-400 tabular-nums">{{ $lotacao->posicao }}</span>
                                                 <a href="{{ route('motoristas.show', $motorista) }}" class="text-slate-800 hover:text-marca-700">
                                                     {{ $motorista?->nomePlanilha() }}
                                                 </a>
@@ -280,10 +292,10 @@
                                     {{-- Vagas abertas aparecem para o operador ver a lacuna --}}
                                     @if ($posto->vagasLivres() > 0)
                                         <tr>
-                                            <td colspan="3" class="sticky left-0 z-10 border border-slate-300 bg-rose-50 px-2 py-0.5 text-rose-700">
+                                            <td class="sticky left-0 z-10 border border-slate-300 bg-rose-50 px-2 py-0.5 whitespace-nowrap text-rose-700">
                                                 {{ $posto->vagasLivres() }} vaga(s) aberta(s)
                                             </td>
-                                            <td colspan="{{ count($dias) }}" class="border border-slate-300 bg-rose-50"></td>
+                                            <td colspan="{{ 1 + count($dias) }}" class="border border-slate-300 bg-rose-50"></td>
                                         </tr>
                                     @endif
                                 @endforeach

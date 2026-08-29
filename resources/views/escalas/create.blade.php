@@ -14,7 +14,7 @@
         {{-- Dimensionamento antes de começar: evita montar o mês e só então
              descobrir que o efetivo não fecha. --}}
         <x-cartao titulo="Situação atual do setor">
-            <dl class="grid grid-cols-3 gap-4">
+            <dl class="grid grid-cols-3 gap-3 sm:gap-4">
                 <div>
                     <dt class="text-xs text-slate-500">Ambulâncias com lotação</dt>
                     <dd class="mt-0.5 text-2xl font-semibold text-slate-900 tabular-nums">{{ $frotaAtiva }}</dd>
