@@ -40,7 +40,7 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A mesma versao que roda no servidor, para nao descobrir incompatibilidade
       # so depois de publicar.
@@ -52,8 +52,11 @@ jobs:
           coverage: none
 
       - name: Preparar o Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
+          # Este e o Node que compila o nosso CSS e JavaScript, e nao o que
+          # executa a propria action -- sao coisas diferentes. O do runner
+          # subiu para 24 com a action; este segue o que roda no servidor.
           node-version: '20'
           cache: npm
 
