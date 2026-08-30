@@ -220,17 +220,28 @@
 
             {{-- Equipe: uma linha por posição do ciclo --}}
             <div class="divide-y divide-slate-100">
-                @for ($posicao = 1; $posicao <= $vagas; $posicao++)
+                @foreach ($this->ordensDeEntrada[$posto->id] ?? range(1, $vagas) as $indice => $posicao)
                     @php
                         $lotacao = $porPosicao->get($posicao);
                         $motorista = $lotacao?->motorista;
-                        // Dia do mês em que esta posição pega o primeiro plantão.
-                        $primeiroDia = $posto->inicioVigencia()->copy()->addDays($posicao - 1);
+
+                        // A equipe é listada na ordem em que entra no mês, e não
+                        // pela posição do ciclo: com a rotação contínua quem abre
+                        // o mês pode ser a posição 4. Por isso o dia do primeiro
+                        // plantão sai do índice desta ordem, e não da posição.
+                        $primeiroDia = $posto->inicioVigencia()->copy()->addDays($indice);
+
+                        // As setas trocam com o vizinho DA LISTA. Como a ordem é
+                        // a fila girada, o vizinho de cima da posição 1 é a
+                        // última posição — daí a direção sair da subtração.
+                        $ordem = $this->ordensDeEntrada[$posto->id] ?? range(1, $vagas);
+                        $acima = $ordem[$indice - 1] ?? null;
+                        $abaixo = $ordem[$indice + 1] ?? null;
                     @endphp
 
                     <div class="flex flex-wrap items-center gap-3 px-4 py-2.5" wire:key="pos-{{ $posto->id }}-{{ $posicao }}">
                         <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 tabular-nums">
-                            {{ $posicao }}
+                            {{ $indice + 1 }}
                         </span>
 
                         <div class="min-w-0 flex-1">
@@ -270,8 +281,8 @@
                         <div class="flex shrink-0 items-center gap-0.5">
                             <button
                                 type="button"
-                                wire:click="mover({{ $posto->id }}, {{ $posicao }}, -1)"
-                                @disabled($posicao === 1 || ! $motorista)
+                                wire:click="mover({{ $posto->id }}, {{ $posicao }}, {{ ($acima ?? $posicao) - $posicao }})"
+                                @disabled($acima === null || ! $motorista)
                                 class="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                                 title="Mover para a posição anterior"
                             >
@@ -280,8 +291,8 @@
                             </button>
                             <button
                                 type="button"
-                                wire:click="mover({{ $posto->id }}, {{ $posicao }}, 1)"
-                                @disabled($posicao === $vagas || ! $motorista)
+                                wire:click="mover({{ $posto->id }}, {{ $posicao }}, {{ ($abaixo ?? $posicao) - $posicao }})"
+                                @disabled($abaixo === null || ! $motorista)
                                 class="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                                 title="Mover para a posição seguinte"
                             >
@@ -294,7 +305,7 @@
                             1º plantão: {{ $primeiroDia->format('d/m') }}
                         </span>
                     </div>
-                @endfor
+                @endforeach
             </div>
 
             {{-- Painel expandido: lotação, período de operação e filtro --}}

@@ -105,6 +105,25 @@ class MontarEscala extends Component
         return Unidade::query()->ativas()->ordenada()->get();
     }
 
+    /**
+     * Ordem em que a equipe de cada posto entra no mes, por posto.
+     *
+     * A equipe e listada assim, e nao pela posicao do ciclo: com a rotacao
+     * continua quem abre o mes pode ser a posicao 4, e ve-la em quarto lugar
+     * na tela contradiz o "X" do dia 1o na planilha.
+     *
+     * @return array<int, list<int>>
+     */
+    #[Computed]
+    public function ordensDeEntrada(): array
+    {
+        $gerador = app(GeradorDeEscala::class);
+
+        return $this->postos()
+            ->mapWithKeys(fn (EscalaPosto $posto) => [$posto->id => $gerador->ordemDeEntrada($posto)])
+            ->all();
+    }
+
     /** Ambulancias ativas que ainda nao estao em nenhum posto deste mes. */
     #[Computed]
     public function ambulanciasLivres(): Collection

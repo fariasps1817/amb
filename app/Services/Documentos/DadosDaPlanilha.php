@@ -8,6 +8,7 @@ use App\Models\EscalaLotacao;
 use App\Models\EscalaPlantao;
 use App\Models\EscalaPosto;
 use App\Models\Motorista;
+use App\Services\Escalas\GeradorDeEscala;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -68,8 +69,12 @@ final class DadosDaPlanilha
                     fn (EscalaPlantao $p) => $p->data->toDateString()
                 ));
 
+            // Na ordem em que entram no mes, e nao pela posicao do ciclo: a
+            // primeira linha do bloco e sempre a de quem assume o dia 1o.
+            $ordem = array_flip(app(GeradorDeEscala::class)->ordemDeEntrada($posto));
+
             $linhas = $posto->lotacoes
-                ->sortBy('posicao')
+                ->sortBy(fn (EscalaLotacao $lotacao) => $ordem[$lotacao->posicao] ?? PHP_INT_MAX)
                 ->map(fn (EscalaLotacao $lotacao) => [
                     'motorista' => $lotacao->motorista,
                     'posicao' => (int) $lotacao->posicao,

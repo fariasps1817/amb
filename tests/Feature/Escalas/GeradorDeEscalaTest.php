@@ -12,6 +12,7 @@ use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Services\Escalas\GeradorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -387,6 +388,56 @@ class GeradorDeEscalaTest extends TestCase
     // -----------------------------------------------------------------
     // Apoio
     // -----------------------------------------------------------------
+
+    /**
+     * A equipe e listada na ordem em que entra no mes, e nao pela posicao do
+     * ciclo.
+     *
+     * Com a rotacao continua o dia 1o pode caber a posicao 4, e listar por
+     * posicao mostrava em quarto lugar quem assume o primeiro dia -- a tela de
+     * montagem contradizendo o "X" da planilha.
+     */
+    #[Test]
+    public function a_ordem_de_entrada_comeca_por_quem_assume_o_primeiro_dia(): void
+    {
+        $agosto = $this->criarPosto(2026, 8, descanso: 72);
+        $motoristas = $this->lotar($agosto, ['ANDRÉ', 'PAULO', 'RICARDO', 'LUIZ']);
+        app(GeradorDeEscala::class)->gerar($agosto->escala);
+
+        $setembro = $this->criarPosto(2026, 9, descanso: 72, ambulancia: $agosto->ambulancia, unidade: $agosto->unidade);
+        $this->lotarExistentes($setembro, $motoristas);
+        app(GeradorDeEscala::class)->gerar($setembro->escala);
+
+        $ordem = app(GeradorDeEscala::class)->ordemDeEntrada($setembro->fresh());
+
+        // A fila continua sendo 1..N, so que girada.
+        $this->assertCount(4, $ordem);
+        $this->assertSame([1, 2, 3, 4], collect($ordem)->sort()->values()->all());
+
+        // A n-esima da lista e quem trabalha no n-esimo dia do mes.
+        $porPosicao = $setembro->fresh()->lotacoes->keyBy('posicao');
+
+        foreach ($ordem as $indice => $posicao) {
+            $dia = Carbon::create(2026, 9, 1)->addDays($indice)->toDateString();
+
+            $this->assertSame(
+                $porPosicao[$posicao]->motorista->nome_curto,
+                $this->motoristaNoDia($setembro, $dia),
+                "A posicao {$posicao} deveria abrir o dia {$dia}."
+            );
+        }
+    }
+
+    /** Sem continuidade, a fila nao gira: a ordem e a propria posicao. */
+    #[Test]
+    public function a_ordem_de_entrada_e_a_propria_fila_quando_a_rotacao_reinicia(): void
+    {
+        $posto = $this->criarPosto(2026, 8, descanso: 72);
+        $posto->update(['continuar_rotacao' => false]);
+        $this->lotar($posto, ['ANDRÉ', 'PAULO', 'RICARDO', 'LUIZ']);
+
+        $this->assertSame([1, 2, 3, 4], app(GeradorDeEscala::class)->ordemDeEntrada($posto->fresh()));
+    }
 
     private function criarPosto(
         int $ano,

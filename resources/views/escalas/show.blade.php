@@ -229,7 +229,16 @@
 
                             <tbody>
                                 @foreach ($escala->postos as $posto)
-                                    @php $lotacoes = $posto->lotacoes->sortBy('posicao'); @endphp
+                                    @php
+                                        // Na ordem em que entram no mes: a primeira
+                                        // linha e a de quem assume o dia 1o, que com
+                                        // rotacao continua nem sempre e a posicao 1.
+                                        $ordem = array_flip($ordensDeEntrada[$posto->id] ?? []);
+
+                                        $lotacoes = $posto->lotacoes
+                                            ->sortBy(fn ($l) => $ordem[$l->posicao] ?? $l->posicao)
+                                            ->values();
+                                    @endphp
 
                                     {{-- Faixa identificando a ambulância e a lotação --}}
                                     <tr>
@@ -248,12 +257,12 @@
                                         </td>
                                     </tr>
 
-                                    @foreach ($lotacoes as $lotacao)
+                                    @foreach ($lotacoes as $indiceNaFila => $lotacao)
                                         @php $motorista = $lotacao->motorista; @endphp
 
                                         <tr class="hover:bg-slate-50">
                                             <td class="sticky left-0 z-10 border border-slate-300 bg-white px-2 py-0.5 whitespace-nowrap">
-                                                <span class="mr-1.5 text-[0.65rem] text-slate-400 tabular-nums">{{ $lotacao->posicao }}</span>
+                                                <span class="mr-1.5 text-[0.65rem] text-slate-400 tabular-nums">{{ $indiceNaFila + 1 }}</span>
                                                 <a href="{{ route('motoristas.show', $motorista) }}" class="text-slate-800 hover:text-marca-700">
                                                     {{ $motorista?->nomePlanilha() }}
                                                 </a>

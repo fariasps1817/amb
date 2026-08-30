@@ -212,6 +212,33 @@ class GeradorDeEscala
     }
 
     /**
+     * Posicoes do ciclo na ordem em que entram no mes.
+     *
+     * A fila e sempre 1..N, mas quem abre o mes nem sempre e a posicao 1: com a
+     * rotacao continua o offset desloca o inicio, e num 24/72 que retoma do mes
+     * anterior o dia 1o pode caber a posicao 4.
+     *
+     * Listar a equipe por posicao, nesse caso, mostra em quarto lugar quem
+     * assume o primeiro dia. Quem le a escala procura o dia, nao o numero do
+     * ciclo -- entao as telas e a planilha listam nesta ordem.
+     *
+     * A ordem e a mesma que gerarPosto() percorre, e sai da mesma conta: por
+     * isso a n-esima linha da lista e sempre quem trabalha no n-esimo dia.
+     *
+     * @return list<int>
+     */
+    public function ordemDeEntrada(EscalaPosto $posto): array
+    {
+        $vagas = $posto->vagas();
+        $offset = $this->offsetInicial($posto, $vagas);
+
+        return array_map(
+            fn (int $indice) => (($offset + $indice) % $vagas) + 1,
+            range(0, $vagas - 1)
+        );
+    }
+
+    /**
      * Ultimo plantao registrado antes do inicio de vigencia deste posto, no
      * posto equivalente do mes anterior.
      *

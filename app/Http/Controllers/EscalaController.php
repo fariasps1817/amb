@@ -102,6 +102,12 @@ class EscalaController extends Controller
             'podePublicar' => $validador->podePublicar(),
             'dias' => $escala->dias(),
             'grade' => $this->montarGrade($escala),
+
+            // A equipe de cada posto e listada na ordem em que entra no mes:
+            // com a rotacao continua, quem assume o dia 1o pode ser a posicao 4.
+            'ordensDeEntrada' => $escala->postos
+                ->mapWithKeys(fn ($posto) => [$posto->id => app(GeradorDeEscala::class)->ordemDeEntrada($posto)])
+                ->all(),
         ]);
     }
 
