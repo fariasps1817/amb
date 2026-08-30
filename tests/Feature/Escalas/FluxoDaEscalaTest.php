@@ -814,6 +814,65 @@ class FluxoDaEscalaTest extends TestCase
     // -----------------------------------------------------------------
 
     /** Escala de agosto/2026 com uma ambulancia 24/72 e nenhum motorista lotado. */
+    /**
+     * Remanejar alguem de uma ambulancia para outra, sem desmontar o mes.
+     *
+     * E o caso rotineiro: uma motorista entra de ferias, quem estava em outro
+     * posto assume a vaga dela e o apoio cobre a posicao que abriu. O seletor
+     * de cada posto precisa oferecer quem ja esta escalado alhures -- sem isso
+     * o coordenador so consegue mexer esvaziando a origem antes, e parece que
+     * a escala inteira teria de ser refeita.
+     */
+    #[Test]
+    public function remaneja_motorista_de_uma_ambulancia_para_outra(): void
+    {
+        $unidade = Unidade::factory()->regime2472()->create();
+        Ambulancia::factory()->count(2)->create(['unidade_id' => $unidade->id]);
+
+        $escala = app(MontadorDeEscala::class)->criar(2026, 8);
+        [$sede1, $sede2] = $escala->postos()->orderBy('id')->get()->all();
+
+        $motoristas = Motorista::factory()->count(8)->create()->values();
+        foreach ($motoristas as $i => $motorista) {
+            $posto = $i < 4 ? $sede1 : $sede2;
+            app(MontadorDeEscala::class)->lotarMotorista($posto, $motorista->id, ($i % 4) + 1);
+        }
+
+        $edson = $motoristas[0];   // SEDE 1, posicao 1
+        $divanir = $motoristas[6]; // SEDE 2, posicao 3
+
+        $componente = Livewire::test(MontarEscala::class, ['escala' => $escala->fresh()]);
+
+        // A tela precisa oferecer quem esta em outro posto; era isso que faltava.
+        $oferecidos = $componente->instance()->escaladosEmOutrosPostos()->pluck('motorista_id');
+        $this->assertTrue($oferecidos->contains($edson->id));
+
+        // Traz EDSON para a vaga de DIVANIR na outra ambulancia.
+        $componente->call('lotar', $sede2->id, 3, $edson->id);
+
+        $lotacaoEdson = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->where('motorista_id', $edson->id)
+            ->firstOrFail();
+
+        $this->assertSame($sede2->id, $lotacaoEdson->escala_posto_id);
+        $this->assertSame(3, $lotacaoEdson->posicao);
+
+        // Ele nao fica em dois lugares: a posicao de origem abriu.
+        $this->assertNull(
+            EscalaLotacao::query()->where('escala_posto_id', $sede1->id)->where('posicao', 1)->first()
+        );
+
+        // E DIVANIR ficou sem definicao, pronta para ir para ferias.
+        $lotacaoDivanir = EscalaLotacao::query()
+            ->where('escala_id', $escala->id)
+            ->where('motorista_id', $divanir->id)
+            ->firstOrFail();
+
+        $this->assertNull($lotacaoDivanir->escala_posto_id);
+        $this->assertNull($lotacaoDivanir->posicao);
+    }
+
     private function escalaVazia(): Escala
     {
         $unidade = Unidade::factory()->regime2472()->create();

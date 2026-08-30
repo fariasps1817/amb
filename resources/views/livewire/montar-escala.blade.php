@@ -271,9 +271,33 @@
                                     <option value="{{ $motorista->id }}" selected>{{ $motorista->nome_curto }}</option>
                                 @endif
 
-                                @foreach ($this->candidatos as $candidato)
-                                    <option value="{{ $candidato->id }}">{{ $candidato->nome_curto }}</option>
-                                @endforeach
+                                <optgroup label="Sem escala neste mês">
+                                    @foreach ($this->candidatos as $candidato)
+                                        <option value="{{ $candidato->id }}">{{ $candidato->nome_curto }}</option>
+                                    @endforeach
+                                </optgroup>
+
+                                {{--
+                                    Quem já está em outra ambulância também é
+                                    oferecido: remanejar no meio da montagem é
+                                    rotina — férias, licença, permuta. Escolher
+                                    move a pessoa para cá e deixa a posição de
+                                    origem aberta.
+                                --}}
+                                @php
+                                    $deOutrosPostos = $this->escaladosEmOutrosPostos
+                                        ->where('escala_posto_id', '!=', $posto->id);
+                                @endphp
+
+                                @if ($deOutrosPostos->isNotEmpty())
+                                    <optgroup label="Escalados em outra ambulância — traz para cá">
+                                        @foreach ($deOutrosPostos as $outra)
+                                            <option value="{{ $outra->motorista_id }}">
+                                                {{ $outra->motorista->nome_curto }} · {{ $outra->posto->rotuloLotacao() }} {{ $outra->posto->rotuloPlaca() }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             </select>
                         </div>
 

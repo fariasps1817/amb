@@ -99,6 +99,40 @@ class MontarEscala extends Component
         )->values();
     }
 
+    /**
+     * Quem ja esta escalado em algum posto do mes, com a lotacao de origem.
+     *
+     * O seletor de cada posto tambem oferece essas pessoas. Trocar alguem de
+     * ambulancia no meio da montagem -- ferias, licenca, permuta -- e rotina,
+     * e sem isso o coordenador precisa primeiro esvaziar a posicao de origem
+     * para so entao encontrar o motorista na lista, o que parece exigir
+     * refazer a escala.
+     *
+     * Escolher um deles move a lotacao e deixa a origem aberta; quem faz isso
+     * e MontadorDeEscala::lotarMotorista.
+     *
+     * @return Collection<int, EscalaLotacao>
+     */
+    #[Computed]
+    public function escaladosEmOutrosPostos(): Collection
+    {
+        $termo = mb_strtolower(trim($this->buscaMotorista));
+
+        return EscalaLotacao::query()
+            ->where('escala_id', $this->escala->id)
+            ->whereNotNull('escala_posto_id')
+            ->whereNotNull('motorista_id')
+            ->with(['motorista', 'posto.unidade', 'posto.ambulancia'])
+            ->get()
+            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null && $l->posto !== null)
+            ->when($termo !== '', fn (Collection $c) => $c->filter(
+                fn (EscalaLotacao $l) => str_contains(mb_strtolower($l->motorista->nome_completo), $termo)
+                    || str_contains(mb_strtolower($l->motorista->nome_curto), $termo)
+            ))
+            ->sortBy(fn (EscalaLotacao $l) => $l->motorista->nome_completo)
+            ->values();
+    }
+
     #[Computed]
     public function unidades(): Collection
     {
