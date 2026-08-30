@@ -59,11 +59,28 @@ return Application::configure(basePath: dirname(__DIR__))
                 ? '(vazio)'
                 : substr($valor, 0, 8).'…';
 
+            // Assinatura curta: permite comparar dois tokens por igualdade sem
+            // guardar nenhum deles por inteiro no log.
+            $assinatura = fn (?string $valor) => $valor === null || $valor === ''
+                ? '-'
+                : substr(md5($valor), 0, 8);
+
+            $recebido = $requisicao->input('_token');
+            $daSessao = $sessao?->token();
+
             Log::warning('CSRF recusado', [
                 'rota' => $requisicao->path(),
-                'token_recebido' => $inicio($requisicao->input('_token')),
+                'token_recebido' => $inicio($recebido),
+                'tam_recebido' => is_string($recebido) ? strlen($recebido) : '(nao e texto)',
+                'assinatura_recebido' => $assinatura(is_string($recebido) ? $recebido : null),
                 'token_no_cabecalho' => $inicio($requisicao->header('X-CSRF-TOKEN')),
-                'token_da_sessao' => $inicio($sessao?->token()),
+                'token_da_sessao' => $inicio($daSessao),
+                'tam_da_sessao' => is_string($daSessao) ? strlen($daSessao) : '(nao e texto)',
+                'assinatura_sessao' => $assinatura($daSessao),
+                // Se aqui bater, o token mudou entre a checagem e este ponto.
+                'batem_agora' => is_string($recebido) && is_string($daSessao)
+                    ? (hash_equals($daSessao, $recebido) ? 'sim' : 'nao')
+                    : 'indeterminado',
                 'sessao_id' => $inicio($sessao?->getId()),
                 'sessao_veio_no_cookie' => $requisicao->hasCookie(config('session.cookie')),
                 'sessao_recem_criada' => $sessao !== null && ! $sessao->has('_previous'),
