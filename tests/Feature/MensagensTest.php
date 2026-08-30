@@ -451,6 +451,71 @@ class MensagensTest extends TestCase
         }
     }
 
+    /**
+     * Trocar alguem de posto deixava a mensagem antiga para tras.
+     *
+     * Preparar de novo so percorre quem TEM plantao, entao a mensagem de quem
+     * saiu nunca era tocada: seguia na tela com as datas antigas, e abrir o
+     * WhatsApp por ela mandaria escala para quem nao esta mais escalado.
+     */
+    #[Test]
+    public function preparar_de_novo_descarta_a_mensagem_de_quem_saiu_da_escala(): void
+    {
+        $escala = $this->escalaCompleta();
+        $montador = app(MontadorDeMensagens::class);
+        $montador->prepararParaEscala($escala);
+
+        $lotacao = $escala->lotacoes()->whereNotNull('escala_posto_id')->firstOrFail();
+        $saiu = $lotacao->motorista_id;
+
+        $this->assertTrue(
+            EscalaMensagem::query()->where('escala_id', $escala->id)->where('motorista_id', $saiu)->exists()
+        );
+
+        // Sai do posto e vai para a reserva, como na troca real.
+        app(MontadorDeEscala::class)->definirDestino($escala, $saiu, TipoDestino::Reserva);
+
+        $montador->prepararParaEscala($escala->fresh());
+
+        $this->assertFalse(
+            EscalaMensagem::query()->where('escala_id', $escala->id)->where('motorista_id', $saiu)->exists(),
+            'A mensagem de quem saiu da escala deveria ter sido descartada.'
+        );
+    }
+
+    /**
+     * A mensagem ja enviada de quem saiu NAO e apagada.
+     *
+     * Ela e o registro do que o motorista recebeu, e apagar esconderia
+     * justamente o que o coordenador precisa saber: que alguem foi avisado de
+     * plantoes que nao vai mais cumprir.
+     */
+    #[Test]
+    public function mensagem_ja_enviada_de_quem_saiu_e_preservada_e_sinalizada(): void
+    {
+        $escala = $this->escalaCompleta();
+        $montador = app(MontadorDeMensagens::class);
+        $montador->prepararParaEscala($escala);
+
+        $lotacao = $escala->lotacoes()->whereNotNull('escala_posto_id')->firstOrFail();
+        $saiu = $lotacao->motorista_id;
+
+        EscalaMensagem::query()
+            ->where('escala_id', $escala->id)
+            ->where('motorista_id', $saiu)
+            ->update(['status' => EscalaMensagem::ENVIADA, 'enviada_em' => now()]);
+
+        app(MontadorDeEscala::class)->definirDestino($escala, $saiu, TipoDestino::Reserva);
+        $montador->prepararParaEscala($escala->fresh());
+
+        $this->assertTrue(
+            EscalaMensagem::query()->where('escala_id', $escala->id)->where('motorista_id', $saiu)->exists(),
+            'A mensagem enviada deveria ter sido preservada.'
+        );
+
+        $this->assertContains($saiu, $montador->avisadosQueSairam($escala->fresh()));
+    }
+
     private function escalaCompleta(int $descanso = 72): Escala
     {
         $unidade = Unidade::factory()->create([

@@ -107,6 +107,16 @@
                 class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200"
                 x-data="{ aberto: false, copiado: false }"
             >
+                @if (in_array($mensagem->motorista_id, $avisadosQueSairam, true))
+                    <p class="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                        <x-icone nome="alerta" class="mt-0.5 size-4 shrink-0" />
+                        <span>
+                            Este motorista <strong>recebeu a mensagem e depois saiu da escala</strong>.
+                            Avise que o plantão não é mais dele — o texto abaixo é o que ele recebeu.
+                        </span>
+                    </p>
+                @endif
+
                 <div class="flex flex-wrap items-center gap-3 px-4 py-3">
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">

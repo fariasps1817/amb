@@ -55,6 +55,8 @@ class MontadorDeMensagens
 
         $preparadas = 0;
 
+        $this->descartarOrfas($escala);
+
         foreach ($this->lotacoesComPlantao($escala) as $lotacao) {
             $mensagem = EscalaMensagem::query()
                 ->where('escala_id', $escala->id)
@@ -218,6 +220,50 @@ class MontadorDeMensagens
     private function diaDaSemana(EscalaPlantao $plantao): string
     {
         return mb_strtolower($plantao->data->translatedFormat('D'));
+    }
+
+    /**
+     * Apaga as mensagens de quem saiu da escala e ainda nao foi avisado.
+     *
+     * Trocar alguem de posto ou mandar para reserva deixa a mensagem antiga
+     * para tras: preparar de novo so percorre quem TEM plantao, entao a mensagem
+     * de quem saiu nunca era tocada. Ela seguia na tela, com as datas antigas, e
+     * clicar em "Abrir WhatsApp" mandaria escala para quem nao esta escalado.
+     *
+     * As ja enviadas ficam. Sao registro do que o motorista recebeu, e apagar
+     * esconderia justamente o que o coordenador precisa saber: que alguem foi
+     * avisado de plantoes que nao vai mais cumprir. A tela as destaca.
+     *
+     * @return int Quantidade descartada.
+     */
+    public function descartarOrfas(Escala $escala): int
+    {
+        $comPlantao = $this->lotacoesComPlantao($escala)->pluck('motorista_id')->all();
+
+        return EscalaMensagem::query()
+            ->where('escala_id', $escala->id)
+            ->when($comPlantao !== [], fn ($q) => $q->whereNotIn('motorista_id', $comPlantao))
+            ->where('status', '!=', EscalaMensagem::ENVIADA)
+            ->delete();
+    }
+
+    /**
+     * Motoristas que receberam mensagem e depois sairam da escala.
+     *
+     * O coordenador precisa avisa-los de que o plantao nao e mais deles.
+     *
+     * @return array<int, int> ids dos motoristas
+     */
+    public function avisadosQueSairam(Escala $escala): array
+    {
+        $comPlantao = $this->lotacoesComPlantao($escala)->pluck('motorista_id')->all();
+
+        return EscalaMensagem::query()
+            ->where('escala_id', $escala->id)
+            ->where('status', EscalaMensagem::ENVIADA)
+            ->when($comPlantao !== [], fn ($q) => $q->whereNotIn('motorista_id', $comPlantao))
+            ->pluck('motorista_id')
+            ->all();
     }
 
     /**

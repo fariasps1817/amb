@@ -41,6 +41,10 @@ class MensagemController extends Controller
                 'erros' => $mensagens->filter(fn ($m) => $m->comErro())->count(),
                 'escalados' => $escala->lotacoes->filter(fn ($l) => $l->escalado())->count(),
             ],
+
+            // Quem recebeu a mensagem e depois saiu da escala precisa ser
+            // avisado de que o plantao nao e mais dele.
+            'avisadosQueSairam' => $this->montador->avisadosQueSairam($escala),
         ]);
     }
 

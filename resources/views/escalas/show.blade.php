@@ -69,7 +69,26 @@
         @if (auth()->user()->podeEditar())
             <div class="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                 @if ($escala->editavel())
-                    <form method="POST" action="{{ route('escalas.gerar', $escala) }}">
+                    {{--
+                        A confirmação existe por causa da rotação contínua: o
+                        deslocamento do dia 1º é recalculado a partir do último
+                        plantão do mês anterior, a cada geração. Se aquele mês
+                        mudou, regerar move os dias de todo mundo — sem que se
+                        tenha tocado nesta escala. É o efeito que mais surpreende.
+                    --}}
+                    <form
+                        method="POST"
+                        action="{{ route('escalas.gerar', $escala) }}"
+                        onsubmit="return confirm('Regerar apaga e refaz todos os plantões do mês a partir da equipe montada agora.
+
+As trocas combinadas manualmente são preservadas.
+
+Atenção: a rotação é recalculada a partir da escala do mês anterior. Se ela mudou, os dias de todos podem mudar aqui.
+
+Depois de regerar, prepare as mensagens de novo e reemita os documentos.
+
+Continuar?')"
+                    >
                         @csrf
                         <x-botao type="submit" variante="secundario" tamanho="pequeno" icone="atualizar">
                             Regerar plantões

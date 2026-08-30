@@ -71,7 +71,12 @@
 
         <div class="ml-auto flex items-center gap-2">
             <span wire:loading class="text-xs text-slate-500">salvando…</span>
-            <x-botao wire:click="gerarPlantoes" icone="escalas" tamanho="pequeno">
+            <x-botao
+                wire:click="gerarPlantoes"
+                wire:confirm="Refaz todos os plantões do mês com a equipe montada acima. As trocas combinadas manualmente são preservadas.&#10;&#10;A rotação é recalculada a partir do mês anterior: se ele mudou, os dias podem mudar aqui.&#10;&#10;Continuar?"
+                icone="escalas"
+                tamanho="pequeno"
+            >
                 Gerar plantões
             </x-botao>
         </div>
