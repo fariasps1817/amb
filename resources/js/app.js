@@ -132,3 +132,53 @@ document.addEventListener('click', (evento) => {
         // pagina, o que e melhor do que quebrar o botao.
     }
 });
+
+// ---------------------------------------------------------------------------
+// Copiar para a area de transferencia
+// ---------------------------------------------------------------------------
+
+/*
+ * Usado pelo botao "Copiar" das mensagens de WhatsApp, para colar o texto
+ * inteiro em outro lugar sem precisar selecionar a mao.
+ *
+ * A API moderna so existe em contexto seguro: em producao, que e HTTPS, ela
+ * funciona; no desenvolvimento em http://amb.test, nao. Por isso a alternativa
+ * com textarea fora da tela, que vale em qualquer navegador.
+ *
+ * Devolve true quando conseguiu, para o botao poder confirmar na tela.
+ */
+window.copiarTexto = async (texto) => {
+    if (! texto) return false;
+
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(texto);
+
+            return true;
+        } catch {
+            // Permissao negada ou aba sem foco: cai na alternativa abaixo.
+        }
+    }
+
+    const area = document.createElement('textarea');
+    area.value = texto;
+    // Fora da tela, e nao "display: none": o navegador nao seleciona o que
+    // nao esta renderizado.
+    area.setAttribute('aria-hidden', 'true');
+    area.style.position = 'fixed';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    area.select();
+
+    let copiou = false;
+
+    try {
+        copiou = document.execCommand('copy');
+    } catch {
+        copiou = false;
+    }
+
+    area.remove();
+
+    return copiou;
+};

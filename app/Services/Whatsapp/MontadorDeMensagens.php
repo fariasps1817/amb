@@ -110,7 +110,7 @@ class MontadorDeMensagens
         $linhas[] = '';
 
         // Saudacao e lotacao
-        $linhas[] = 'Olá, '.$this->primeiroNome($motorista).'!';
+        $linhas[] = 'Olá, '.$this->tratamento($motorista).'!';
 
         $posto = $lotacao->posto;
 
@@ -215,12 +215,15 @@ class MontadorDeMensagens
     }
 
     /**
-     * Primeiro nome para a saudacao, evitando tratar a pessoa pelo nome completo.
+     * Como o motorista e chamado na saudacao.
+     *
+     * E o nome curto do cadastro, inteiro: e justamente o campo em que o setor
+     * registra por qual nome cada um e conhecido. Cortar so a primeira palavra
+     * dele desfazia essa escolha e confundia quem divide o primeiro nome com
+     * outro motorista -- e ha varios Franciscos e Carlos na equipe.
      */
-    private function primeiroNome(Motorista $motorista): string
+    private function tratamento(Motorista $motorista): string
     {
-        $partes = preg_split('/\s+/', trim($motorista->nome_curto ?: $motorista->nome_completo)) ?: [];
-
-        return $partes[0] ?? $motorista->nome_curto;
+        return trim($motorista->nome_curto ?: $motorista->nome_completo);
     }
 }

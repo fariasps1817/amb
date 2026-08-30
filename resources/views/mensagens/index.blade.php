@@ -105,7 +105,7 @@
         @forelse ($mensagens as $mensagem)
             <div
                 class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200"
-                x-data="{ aberto: false }"
+                x-data="{ aberto: false, copiado: false }"
             >
                 <div class="flex flex-wrap items-center gap-3 px-4 py-3">
                     <div class="min-w-0 flex-1">
@@ -130,6 +130,18 @@
                     <div class="flex shrink-0 flex-wrap items-center gap-2">
                         <x-botao x-on:click="aberto = ! aberto" variante="texto" tamanho="pequeno" icone="olho">
                             <span x-text="aberto ? 'Ocultar' : 'Ver texto'">Ver texto</span>
+                        </x-botao>
+
+                        {{-- Copia da própria prévia, que já traz o texto exato
+                             que o motorista recebe. --}}
+                        <x-botao
+                            x-on:click="copiarTexto($refs.texto.textContent).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            variante="texto"
+                            tamanho="pequeno"
+                            icone="copiar"
+                            title="Copiar a mensagem inteira"
+                        >
+                            <span x-text="copiado ? 'Copiado!' : 'Copiar'">Copiar</span>
                         </x-botao>
 
                         @if (auth()->user()->podeEditar())
@@ -176,7 +188,7 @@
 
                 {{-- Prévia do texto exatamente como o motorista vai receber --}}
                 <div x-show="aberto" x-collapse class="border-t border-slate-200 bg-slate-50 px-4 py-3" style="display: none">
-                    <pre class="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-700">{{ $mensagem->texto }}</pre>
+                    <pre x-ref="texto" class="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-700">{{ $mensagem->texto }}</pre>
                 </div>
             </div>
         @empty

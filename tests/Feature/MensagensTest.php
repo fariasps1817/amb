@@ -73,8 +73,13 @@ class MensagensTest extends TestCase
         $this->assertStringContainsString('AGOSTO/2026', $texto);
         $this->assertStringContainsString('Coordenação de Ambulâncias', $texto);
 
-        // Saudação pelo primeiro nome.
-        $this->assertStringContainsString('Olá,', $texto);
+        // Saudação pelo tratamento inteiro do cadastro, e não só a primeira
+        // palavra dele: há vários Franciscos e Carlos na equipe, e o nome curto
+        // é justamente onde o setor registra por qual nome cada um é conhecido.
+        // Guarda contra o teste virar vazio: com um tratamento de uma palavra
+        // so, a asserção passaria mesmo se voltassemos a cortar o nome.
+        $this->assertStringContainsString(' ', $motorista->nome_curto);
+        $this->assertStringContainsString('Olá, '.$motorista->nome_curto.'!', $texto);
 
         // Unidade, ambulância e regime.
         $this->assertStringContainsString('UPA CENTRO', $texto);
