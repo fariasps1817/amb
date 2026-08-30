@@ -416,6 +416,41 @@ class MensagensTest extends TestCase
     // Apoio
     // -----------------------------------------------------------------
 
+    /**
+     * A mensagem diz de quem se recebe a ambulancia e para quem se entrega.
+     *
+     * A fila e circular: a posicao 1 recebe da ultima, e a ultima entrega para
+     * a 1. E dai que sai, de graca, a resposta certa na virada do mes.
+     */
+    #[Test]
+    public function a_mensagem_diz_o_revezamento_da_ambulancia(): void
+    {
+        $escala = $this->escalaCompleta();
+        $posto = $escala->postos()->first();
+        $vagas = $posto->vagas();
+
+        $porPosicao = $posto->lotacoes()->with('motorista')->get()->keyBy('posicao');
+
+        app(MontadorDeMensagens::class)->prepararParaEscala($escala);
+
+        foreach ($porPosicao as $posicao => $lotacao) {
+            $texto = EscalaMensagem::query()
+                ->where('escala_id', $escala->id)
+                ->where('motorista_id', $lotacao->motorista_id)
+                ->firstOrFail()
+                ->texto;
+
+            $anterior = $porPosicao[(($posicao - 2 + $vagas) % $vagas) + 1]->motorista;
+            $seguinte = $porPosicao[($posicao % $vagas) + 1]->motorista;
+
+            $this->assertStringContainsString('Recebe de: '.$anterior->nome_curto, $texto);
+            $this->assertStringContainsString('Entrega p/: '.$seguinte->nome_curto, $texto);
+
+            // Ninguem recebe nem entrega para si mesmo.
+            $this->assertStringNotContainsString('Recebe de: '.$lotacao->motorista->nome_curto, $texto);
+        }
+    }
+
     private function escalaCompleta(int $descanso = 72): Escala
     {
         $unidade = Unidade::factory()->create([

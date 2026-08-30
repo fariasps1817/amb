@@ -30,6 +30,8 @@ use Illuminate\Support\Collection;
  *   ...
  *
  *   Entrada às 07:00, saída às 07:00 do dia seguinte.
+ *   Recebe de: PAULO SERGIO
+ *   Entrega p/: RICARDO ALVES
  *   Em caso de impedimento, avise a coordenação com antecedência.
  */
 class MontadorDeMensagens
@@ -150,6 +152,10 @@ class MontadorDeMensagens
             $primeiro = $plantoes->first();
             $linhas[] = 'Entrada às '.$primeiro->horaEntradaTexto()
                 .', saída às '.$primeiro->horaSaidaTexto().' do dia seguinte.';
+
+            foreach ($this->revezamento($lotacao) as $linha) {
+                $linhas[] = $linha;
+            }
         }
 
         // Contato da coordenacao
@@ -212,6 +218,45 @@ class MontadorDeMensagens
     private function diaDaSemana(EscalaPlantao $plantao): string
     {
         return mb_strtolower($plantao->data->translatedFormat('D'));
+    }
+
+    /**
+     * De quem recebe a ambulancia e para quem entrega.
+     *
+     * Sai da fila montada, e nao de uma busca dia a dia: num ciclo a pessoa
+     * sempre recebe de quem esta na posicao anterior e entrega para quem esta
+     * na seguinte, e a fila e circular -- a posicao 1 recebe da ultima.
+     *
+     * Ler da fila, e nao dos plantoes, resolve de graca a virada do mes: a
+     * posicao anterior e justamente quem trabalhou no ultimo dia do mes
+     * passado, e a seguinte quem pega o primeiro dia do mes que vem, mesmo
+     * que essa escala ainda nem exista.
+     *
+     * Texto curto de proposito: a mensagem e lida no celular, e linha longa
+     * quebra feio.
+     *
+     * @return list<string> Vazio quando nao ha o que dizer.
+     */
+    private function revezamento(EscalaLotacao $lotacao): array
+    {
+        $posto = $lotacao->posto;
+        $vagas = $posto?->vagas() ?? 0;
+        $posicao = $lotacao->posicao;
+
+        // Com uma vaga so a pessoa receberia de si mesma.
+        if ($posto === null || $posicao === null || $vagas < 2) {
+            return [];
+        }
+
+        $porPosicao = $posto->lotacoes->keyBy('posicao');
+
+        $anterior = $porPosicao->get((($posicao - 2 + $vagas) % $vagas) + 1)?->motorista;
+        $seguinte = $porPosicao->get(($posicao % $vagas) + 1)?->motorista;
+
+        return [
+            'Recebe de: '.($anterior ? $this->tratamento($anterior) : 'vaga em aberto'),
+            'Entrega p/: '.($seguinte ? $this->tratamento($seguinte) : 'vaga em aberto'),
+        ];
     }
 
     /**
