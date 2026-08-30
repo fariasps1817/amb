@@ -251,14 +251,15 @@ class MontarEscala extends Component
      * Se o novo regime exigir menos motoristas, as posicoes que passaram do
      * limite sao liberadas — do contrario ficariam ocupadas sem gerar plantao.
      */
-    public function alterarUnidadeDoPosto(int $postoId, ?int $unidadeId): void
+    public function alterarUnidadeDoPosto(int $postoId, ?string $unidadeId): void
     {
         if (blank($unidadeId)) {
             return;
         }
 
         $posto = $this->posto($postoId);
-        $unidade = Unidade::query()->findOrFail($unidadeId);
+        // Texto, pelo mesmo motivo de lotar(): o valor vem de um <select>.
+        $unidade = Unidade::query()->findOrFail((int) $unidadeId);
 
         $posto->update([
             'unidade_id' => $unidade->id,
@@ -363,7 +364,17 @@ class MontarEscala extends Component
         $this->buscaMotorista = '';
     }
 
-    public function lotar(int $postoId, int $posicao, ?int $motoristaId, MontadorDeEscala $montador): void
+    /**
+     * O valor vem do <select>, e por isso chega sempre como texto: o id como
+     * "17" e a opcao "vaga aberta" como string vazia.
+     *
+     * O parametro precisa ser ?string. Declarado ?int, o PHP recusava a
+     * chamada antes do corpo rodar -- que ja tratava o caso vazio --, e o
+     * Livewire converte TypeError em abort(419) quando APP_DEBUG esta
+     * desligado. Em producao isso aparecia como "This page has expired", e
+     * passava a impressao de que a sessao havia caido.
+     */
+    public function lotar(int $postoId, int $posicao, ?string $motoristaId, MontadorDeEscala $montador): void
     {
         if (blank($motoristaId)) {
             $this->liberarPosicao($postoId, $posicao);
@@ -372,7 +383,7 @@ class MontarEscala extends Component
         }
 
         try {
-            $montador->lotarMotorista($this->posto($postoId), $motoristaId, $posicao);
+            $montador->lotarMotorista($this->posto($postoId), (int) $motoristaId, $posicao);
         } catch (RuntimeException $e) {
             $this->dispatch('aviso', tipo: 'erro', texto: $e->getMessage());
 

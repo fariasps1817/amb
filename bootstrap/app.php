@@ -29,24 +29,24 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         /*
-         * O "419 - Page Expired" aparece de forma intermitente na montagem da
-         * escala, em cerca de uma a cada dez chamadas do Livewire, sem que a
-         * sessao tenha expirado. O Laravel nao registra essa excecao, entao a
-         * falha nao deixava rastro nenhum para investigar.
+         * O "419 - Page Expired" nem sempre significa pagina expirada.
          *
-         * Dois detalhes atrapalham quem tenta anotar isso:
+         * Quando APP_DEBUG esta desligado, o Livewire captura qualquer
+         * TypeError vindo de um metodo de componente e responde abort(419)
+         * -- ver HandleRequests::handleUpdate(). O usuario le "sua sessao
+         * expirou" e o erro de verdade nao deixa rastro nenhum.
          *
-         *   - TokenMismatchException esta numa lista interna de excecoes que o
-         *     Laravel nunca reporta, entao um report() jamais seria chamado;
-         *   - prepareException() ja a converteu em HttpException(419) antes de
-         *     consultar os ganchos de renderizacao.
+         * Foi assim que um parametro tipado como ?int, recebendo a string
+         * vazia de um <select>, passou por falha de sessao durante dias.
          *
-         * Por isso o gancho e de renderizacao e recebe HttpException.
+         * Este gancho separa os dois casos: se o token confere, a sessao esta
+         * boa e o 419 esconde um erro de codigo. Do token so guardamos uma
+         * assinatura curta -- token e credencial, e log nao e lugar de
+         * guardar credencial.
          *
-         * Aqui anotamos o suficiente para comparar o token recebido com o da
-         * sessao. Sao gravados apenas os primeiros caracteres de cada um: o
-         * token e credencial, e o log nao e lugar para guardar credencial
-         * inteira.
+         * Precisa ser gancho de renderizacao e receber HttpException: o
+         * Laravel nunca reporta TokenMismatchException, e prepareException()
+         * ja a converteu em HttpException(419) antes de consultar os ganchos.
          */
         $exceptions->render(function (HttpException $e, Request $requisicao) {
             if ($e->getStatusCode() !== 419) {
@@ -54,43 +54,27 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             $sessao = $requisicao->hasSession() ? $requisicao->session() : null;
-
-            $inicio = fn (?string $valor) => $valor === null || $valor === ''
-                ? '(vazio)'
-                : substr($valor, 0, 8).'…';
-
-            // Assinatura curta: permite comparar dois tokens por igualdade sem
-            // guardar nenhum deles por inteiro no log.
-            $assinatura = fn (?string $valor) => $valor === null || $valor === ''
-                ? '-'
-                : substr(md5($valor), 0, 8);
-
-            $recebido = $requisicao->input('_token');
+            $recebido = $requisicao->input('_token') ?: $requisicao->header('X-CSRF-TOKEN');
             $daSessao = $sessao?->token();
 
-            Log::warning('CSRF recusado', [
-                'rota' => $requisicao->path(),
-                'token_recebido' => $inicio($recebido),
-                'tam_recebido' => is_string($recebido) ? strlen($recebido) : '(nao e texto)',
-                'assinatura_recebido' => $assinatura(is_string($recebido) ? $recebido : null),
-                'token_no_cabecalho' => $inicio($requisicao->header('X-CSRF-TOKEN')),
-                'token_da_sessao' => $inicio($daSessao),
-                'tam_da_sessao' => is_string($daSessao) ? strlen($daSessao) : '(nao e texto)',
-                'assinatura_sessao' => $assinatura($daSessao),
-                // Se aqui bater, o token mudou entre a checagem e este ponto.
-                'batem_agora' => is_string($recebido) && is_string($daSessao)
-                    ? (hash_equals($daSessao, $recebido) ? 'sim' : 'nao')
-                    : 'indeterminado',
-                'sessao_id' => $inicio($sessao?->getId()),
-                'sessao_veio_no_cookie' => $requisicao->hasCookie(config('session.cookie')),
-                'sessao_recem_criada' => $sessao !== null && ! $sessao->has('_previous'),
-                'autenticado' => auth()->id() ?? '(nao)',
-                'corpo_recebido' => strlen((string) $requisicao->getContent()),
-                'content_type' => $requisicao->header('Content-Type'),
-            ]);
+            $tokenConfere = is_string($recebido)
+                && is_string($daSessao)
+                && hash_equals($daSessao, $recebido);
 
-            // Devolver null deixa o Laravel seguir com a resposta 419 de
-            // sempre: aqui so queremos anotar, nao mudar o comportamento.
+            Log::warning($tokenConfere
+                ? '419 com token valido: erro de componente mascarado pelo Livewire'
+                : '419 por token de sessao invalido', [
+                    'rota' => $requisicao->path(),
+                    'token_confere' => $tokenConfere ? 'sim' : 'nao',
+                    'assinatura_recebido' => is_string($recebido) ? substr(md5($recebido), 0, 8) : '(vazio)',
+                    'assinatura_sessao' => is_string($daSessao) ? substr(md5($daSessao), 0, 8) : '(vazio)',
+                    'sessao_veio_no_cookie' => $requisicao->hasCookie(config('session.cookie')),
+                    'autenticado' => auth()->id() ?? '(nao)',
+                ]);
+
+            // Null deixa o Laravel seguir com a resposta 419 de sempre: aqui
+            // so anotamos, sem mudar o comportamento.
             return null;
         });
+
     })->create();

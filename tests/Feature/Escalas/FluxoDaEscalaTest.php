@@ -815,6 +815,51 @@ class FluxoDaEscalaTest extends TestCase
 
     /** Escala de agosto/2026 com uma ambulancia 24/72 e nenhum motorista lotado. */
     /**
+     * Escolher "vaga aberta" no seletor precisa liberar a posicao.
+     *
+     * O <select> manda texto, sempre: a opcao vazia chega como string vazia.
+     * Com o parametro declarado ?int, o PHP recusava a chamada antes do corpo
+     * rodar -- e o Livewire converte TypeError em abort(419) quando o
+     * APP_DEBUG esta desligado. Em producao o coordenador via "This page has
+     * expired" e concluia que a sessao tinha caido.
+     */
+    #[Test]
+    public function liberar_a_posicao_pelo_seletor_funciona_com_valor_vazio(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+
+        $this->assertNotNull(
+            EscalaLotacao::query()->where('escala_posto_id', $posto->id)->where('posicao', 1)->first()
+        );
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('lotar', $posto->id, 1, '');
+
+        $this->assertNull(
+            EscalaLotacao::query()->where('escala_posto_id', $posto->id)->where('posicao', 1)->first(),
+            'A posicao deveria ter ficado aberta.'
+        );
+    }
+
+    /** O seletor tambem manda o id como texto ao lotar alguem. */
+    #[Test]
+    public function lotar_pelo_seletor_funciona_com_id_em_texto(): void
+    {
+        $escala = $this->escalaMontada();
+        $posto = $escala->postos()->first();
+        $novo = Motorista::factory()->create();
+
+        Livewire::test(MontarEscala::class, ['escala' => $escala])
+            ->call('lotar', $posto->id, 1, (string) $novo->id);
+
+        $this->assertSame(
+            $novo->id,
+            EscalaLotacao::query()->where('escala_posto_id', $posto->id)->where('posicao', 1)->first()?->motorista_id
+        );
+    }
+
+    /**
      * Remanejar alguem de uma ambulancia para outra, sem desmontar o mes.
      *
      * E o caso rotineiro: uma motorista entra de ferias, quem estava em outro
