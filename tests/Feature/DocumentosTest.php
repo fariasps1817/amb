@@ -14,6 +14,7 @@ use App\Services\Documentos\GeradorDeDocumentos;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -391,6 +392,97 @@ class DocumentosTest extends TestCase
      *
      * @return array<int, float>|null
      */
+    /**
+     * A folha sai sem a hora de entrada e de saida.
+     *
+     * O RH pediu assim: o motorista preenche a mao no momento da assinatura.
+     * As colunas continuam la, vazias, porque e nelas que ele escreve -- e o
+     * calculo do horario tambem continua, so nao vai para o papel.
+     */
+    #[Test]
+    public function a_folha_de_frequencia_sai_sem_horario_por_padrao(): void
+    {
+        // O rodape imprime a hora da geracao: sem fixar o relogio, um teste
+        // rodando as 07:00 encontraria "07:00" na folha e falharia sozinho.
+        $this->travelTo(Carbon::create(2026, 8, 15, 15, 30));
+
+        $escala = $this->escalaCompleta();
+        $motorista = $escala->lotacoes->firstWhere(fn ($l) => $l->escalado())->motorista;
+
+        $semHoras = $this->textoDoPdf(
+            app(GeradorDeDocumentos::class)->frequencia($escala, $motorista)->output()
+        );
+
+        $this->assertStringNotContainsString('07:00', $semHoras);
+
+        // As colunas continuam la, vazias, e as datas tambem: some o horario,
+        // nao a estrutura da folha.
+        $this->assertStringContainsString('ENTRADA', $semHoras);
+        $this->assertStringContainsString('01/08', $semHoras);
+    }
+
+    /** A versao anterior continua disponivel, para quando voltarem a precisar. */
+    #[Test]
+    public function a_folha_de_frequencia_pode_sair_com_o_horario_preenchido(): void
+    {
+        $this->travelTo(Carbon::create(2026, 8, 15, 15, 30));
+
+        $escala = $this->escalaCompleta();
+        $motorista = $escala->lotacoes->firstWhere(fn ($l) => $l->escalado())->motorista;
+
+        $comHoras = $this->textoDoPdf(
+            app(GeradorDeDocumentos::class)->frequencia($escala, $motorista, comHoras: true)->output()
+        );
+
+        $this->assertStringContainsString('07:00', $comHoras);
+    }
+
+    /** A escolha chega pela URL, que e como a tela oferece as duas versoes. */
+    #[Test]
+    public function a_rota_da_folha_de_frequencia_aceita_o_parametro_de_horario(): void
+    {
+        $this->travelTo(Carbon::create(2026, 8, 15, 15, 30));
+
+        $escala = $this->escalaCompleta();
+
+        $semHoras = $this->get(route('documentos.frequencias', $escala))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->getContent();
+
+        $comHoras = $this->get(route('documentos.frequencias', [$escala, 'horas' => 1]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('07:00', $this->textoDoPdf($semHoras));
+        $this->assertStringContainsString('07:00', $this->textoDoPdf($comHoras));
+    }
+
+    /**
+     * Texto legivel de dentro de um PDF do dompdf.
+     *
+     * O conteudo das paginas vem comprimido; depois de descomprimir, o texto
+     * sai em blocos [( ... )] TJ, com dois bytes por caractere.
+     */
+    private function textoDoPdf(string $pdf): string
+    {
+        $conteudo = '';
+
+        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $blocos);
+
+        foreach ($blocos[1] as $bloco) {
+            $descomprimido = @gzuncompress($bloco);
+
+            if ($descomprimido !== false) {
+                $conteudo .= $descomprimido;
+            }
+        }
+
+        preg_match_all('/\[\((.*?)\)\]/s', $conteudo, $trechos);
+
+        return str_replace("\0", '', implode(' ', $trechos[1]));
+    }
+
     private function largurasDoCabecalho(string $pdf, int $qtdColunas): ?array
     {
         $conteudo = '';

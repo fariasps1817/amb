@@ -103,7 +103,7 @@
 
         <x-documento-cartao
             titulo="Folhas de frequência"
-            descricao="Uma folha por motorista, com todos os dias do mês e espaço para assinatura nos dias de plantão. Os dias de descanso saem marcados como folga."
+            descricao="Uma folha por motorista, com todos os dias do mês e espaço para assinatura nos dias de plantão. As horas de entrada e saída saem em branco, para o motorista preencher ao assinar. Os dias de descanso saem marcados como folga."
             icone="impressora"
             :detalhes="[
                 $comFolhaDeFrequencia->count().' folha(s)',
@@ -113,6 +113,17 @@
             :ver="route('documentos.frequencias', $escala)"
             :baixar="route('documentos.frequencias', [$escala, 'download' => 1])"
         >
+            {{-- A versão com as horas preenchidas continua disponível: o RH
+                 pediu sem, mas a coordenação pode voltar a precisar. --}}
+            <div class="mt-3 border-t border-slate-100 pt-3">
+                <p class="text-xs text-slate-600">
+                    Precisa com o <strong>horário já preenchido</strong>?
+                    <a href="{{ route('documentos.frequencias', [$escala, 'horas' => 1]) }}" target="_blank" rel="noopener" class="font-medium text-marca-700 hover:underline">Ver</a>
+                    ·
+                    <a href="{{ route('documentos.frequencias', [$escala, 'horas' => 1, 'download' => 1]) }}" class="font-medium text-marca-700 hover:underline">Baixar</a>
+                </p>
+            </div>
+
             @if ($emSobreaviso > 0)
                 <div class="mt-3 border-t border-slate-100 pt-3">
                     <p class="text-xs text-slate-600">
@@ -129,11 +140,23 @@
             <x-cartao
                 titulo="Folha de frequência individual"
                 descricao="Reemitir a folha de um motorista específico"
+                x-data="{ comHoras: false }"
             >
+                <x-slot:acoes>
+                    <label class="flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                            type="checkbox"
+                            x-model="comHoras"
+                            class="size-4 rounded border-slate-300 text-marca-600 focus:ring-marca-600"
+                        >
+                        Com horário preenchido
+                    </label>
+                </x-slot:acoes>
+
                 <div class="grid gap-2 sm:grid-cols-2">
                     @foreach ($comFolhaDeFrequencia as $lotacao)
                         <a
-                            href="{{ route('documentos.frequencia', [$escala, $lotacao->motorista]) }}"
+                            :href="'{{ route('documentos.frequencia', [$escala, $lotacao->motorista]) }}' + (comHoras ? '?horas=1' : '')"
                             target="_blank"
                             class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition {{
                                 $lotacao->escalado() ? 'bg-slate-50 hover:bg-slate-100' : 'bg-sky-50 hover:bg-sky-100'

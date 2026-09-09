@@ -82,23 +82,36 @@ class DocumentoController extends Controller
         );
     }
 
-    /** Folhas de frequencia de todos os motoristas escalados, uma por pagina. */
+    /**
+     * Folhas de frequencia de todos os motoristas escalados, uma por pagina.
+     *
+     * Saem sem a hora de entrada e de saida: o RH preenche a mao no momento da
+     * assinatura. Com ?horas=1 vem preenchidas, como era antes.
+     */
     public function frequencias(Request $request, Escala $escala): Response
     {
+        $comHoras = $request->boolean('horas');
+
         return $this->responder(
             $request,
-            $this->gerador->frequencias($escala),
-            $this->gerador->nomeArquivo($escala, 'frequencias'),
+            $this->gerador->frequencias($escala, $comHoras),
+            $this->gerador->nomeArquivo($escala, 'frequencias', $comHoras ? 'com-horas' : null),
         );
     }
 
     /** Folha de frequencia de um motorista. */
     public function frequencia(Request $request, Escala $escala, Motorista $motorista): Response
     {
+        $comHoras = $request->boolean('horas');
+
+        // O sufixo separa as duas versoes na pasta de downloads, senao a
+        // segunda emissao sobrescreve a primeira sem aviso.
+        $sufixo = Str::slug($motorista->nome_curto).($comHoras ? '-com-horas' : '');
+
         return $this->responder(
             $request,
-            $this->gerador->frequencia($escala, $motorista),
-            $this->gerador->nomeArquivo($escala, 'frequencia', Str::slug($motorista->nome_curto)),
+            $this->gerador->frequencia($escala, $motorista, $comHoras),
+            $this->gerador->nomeArquivo($escala, 'frequencia', $sufixo),
         );
     }
 

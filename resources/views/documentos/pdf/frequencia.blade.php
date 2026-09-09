@@ -247,10 +247,19 @@
                 @php $emBranco = $folha['todos_os_dias_em_branco'] || $linha['plantao']; @endphp
 
                 <tr class="{{ $emBranco ? '' : 'linha-folga' }}">
+                    {{--
+                        A hora so vai para o papel quando pedida. O RH usa a
+                        folha sem ela, para o motorista preencher a mao junto
+                        com a assinatura; a coluna fica, vazia, porque e nela
+                        que ele escreve.
+
+                        O valor continua sendo calculado em folhasDeFrequencia:
+                        a escolha e de impressao, nao de dado.
+                    --}}
                     <td class="f-data">{{ $linha['entrada_data'] }}</td>
-                    <td class="f-hora">{{ $linha['entrada_hora'] }}</td>
+                    <td class="f-hora">{{ $comHoras ? $linha['entrada_hora'] : '' }}</td>
                     <td class="f-data">{{ $linha['saida_data'] }}</td>
-                    <td class="f-hora">{{ $linha['saida_hora'] }}</td>
+                    <td class="f-hora">{{ $comHoras ? $linha['saida_hora'] : '' }}</td>
 
                     <td class="f-assinatura">
                         @unless ($emBranco)

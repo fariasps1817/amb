@@ -131,18 +131,25 @@ class GeradorDeDocumentos
     /**
      * Folhas de frequencia de todos os motoristas escalados, uma por pagina.
      */
-    public function frequencias(Escala $escala): DomPdf
+    /**
+     * @param  bool  $comHoras  Imprime a hora de entrada e de saida. O RH pediu
+     *                          a folha sem elas, para serem preenchidas a mao
+     *                          na assinatura, e esse virou o padrao. As horas
+     *                          continuam sendo calculadas em folhasDeFrequencia:
+     *                          aqui so se decide se vao para o papel.
+     */
+    public function frequencias(Escala $escala, bool $comHoras = false): DomPdf
     {
-        return $this->montarFrequencia($escala, $this->folhasDeFrequencia($escala));
+        return $this->montarFrequencia($escala, $this->folhasDeFrequencia($escala), $comHoras);
     }
 
     /** Folha de frequencia de um unico motorista. */
-    public function frequencia(Escala $escala, Motorista $motorista): DomPdf
+    public function frequencia(Escala $escala, Motorista $motorista, bool $comHoras = false): DomPdf
     {
-        return $this->montarFrequencia($escala, $this->folhasDeFrequencia($escala, $motorista));
+        return $this->montarFrequencia($escala, $this->folhasDeFrequencia($escala, $motorista), $comHoras);
     }
 
-    private function montarFrequencia(Escala $escala, Collection $folhas): DomPdf
+    private function montarFrequencia(Escala $escala, Collection $folhas, bool $comHoras): DomPdf
     {
         $config = Configuracao::atual();
 
@@ -150,6 +157,7 @@ class GeradorDeDocumentos
             'escala' => $escala,
             'folhas' => $folhas,
             'config' => $config,
+            'comHoras' => $comHoras,
         ])->setPaper('a4', 'portrait');
 
         return $this->aplicarRodape($pdf, $config, 'portrait');
