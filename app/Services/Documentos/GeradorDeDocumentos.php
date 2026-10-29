@@ -9,6 +9,7 @@ use App\Models\EscalaLotacao;
 use App\Models\Motorista;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdf;
+use Dompdf\Canvas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -74,9 +75,43 @@ class GeradorDeDocumentos
             'paginas' => $paginas,
             'config' => $config,
             'incluirForaDeEscala' => $incluirForaDeEscala,
+            'marcaDeProposta' => self::marcaDeProposta($escala),
         ])->setPaper('a4', 'landscape');
 
         return $this->aplicarRodape($pdf, $config, 'landscape');
+    }
+
+    /**
+     * Aviso impresso no cabecalho de toda pagina de uma escala que nao e a
+     * oficial do mes. Nulo na publicada e na arquivada, que saem como sempre.
+     *
+     * Existe porque o papel circula sozinho: a proposta impressa para levar a
+     * Secretaria de Saude nao pode ser confundida, numa unidade ou no RH, com
+     * a escala que vale -- e a descartada menos ainda.
+     */
+    public static function marcaDeProposta(Escala $escala): ?string
+    {
+        if ($escala->oficial()) {
+            return null;
+        }
+
+        // O nome vai inteiro, mas limitado: e o cabecalho que tem de caber na
+        // folha, e nao o contrario.
+        $nome = filled($escala->nome) ? mb_strtoupper(Str::limit(trim($escala->nome), 30)) : null;
+
+        if ($escala->descartada()) {
+            return 'PROPOSTA DESCARTADA'.($nome !== null ? ' — '.$nome : '');
+        }
+
+        // "Proposta B" ja diz o que e; um nome livre ("Com as 2 contratacoes")
+        // precisa da palavra na frente.
+        $identificacao = match (true) {
+            $nome === null => 'PROPOSTA',
+            str_starts_with($nome, 'PROPOSTA') => $nome,
+            default => 'PROPOSTA '.$nome,
+        };
+
+        return $identificacao.' — SUJEITA A APROVAÇÃO';
     }
 
     /**
@@ -87,13 +122,18 @@ class GeradorDeDocumentos
     {
         $config = Configuracao::atual();
 
+        $marca = self::marcaDeProposta($escala);
+
         $pdf = $this->pdf('documentos.pdf.ocorrencias', [
             'escala' => $escala,
             'linhas' => $this->linhasDeOcorrencias($escala),
             'config' => $config,
+            'marcaDeProposta' => $marca,
         ])->setPaper('a4', 'portrait');
 
-        return $this->aplicarRodape($pdf, $config, 'portrait');
+        $pdf = $this->aplicarRodape($pdf, $config, 'portrait');
+
+        return $marca === null ? $pdf : $this->marcarContinuacoes($pdf, $marca);
     }
 
     /**
@@ -158,6 +198,7 @@ class GeradorDeDocumentos
             'folhas' => $folhas,
             'config' => $config,
             'comHoras' => $comHoras,
+            'marcaDeProposta' => self::marcaDeProposta($escala),
         ])->setPaper('a4', 'portrait');
 
         return $this->aplicarRodape($pdf, $config, 'portrait');
@@ -363,6 +404,36 @@ class GeradorDeDocumentos
             $fonte,
             $tamanho,
             $cor
+        );
+
+        return $pdf;
+    }
+
+    /**
+     * Repete a marca de proposta no alto das paginas sem cabecalho.
+     *
+     * A lista de ocorrencias corre de uma folha para a outra e so a primeira
+     * tem o cabecalho institucional, onde a marca vai. Com efetivo grande a
+     * segunda folha sairia sem nada dizendo que e proposta -- e, separada da
+     * primeira, passaria pela oficial.
+     *
+     * Vai no canvas, como o rodape, para nao mexer no fluxo da lista. A margem
+     * superior do documento (10mm) comporta a linha longe da borda que a
+     * impressora nao alcanca.
+     */
+    private function marcarContinuacoes(DomPdf $pdf, string $marca): DomPdf
+    {
+        $dompdf = $pdf->getDomPDF();
+        $fonte = $dompdf->getFontMetrics()->getFont('DejaVu Sans', 'bold');
+        $tamanho = 7.5;
+        $largura = $dompdf->getFontMetrics()->getTextWidth($marca, $fonte, $tamanho);
+
+        $dompdf->getCanvas()->page_script(
+            function (int $pagina, int $total, Canvas $canvas) use ($marca, $fonte, $tamanho, $largura) {
+                if ($pagina > 1) {
+                    $canvas->text((595.28 - $largura) / 2, 14, $marca, $fonte, $tamanho, [0.6, 0.1, 0.1]);
+                }
+            }
         );
 
         return $pdf;

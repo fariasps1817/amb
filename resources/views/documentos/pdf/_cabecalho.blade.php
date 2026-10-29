@@ -9,6 +9,9 @@
       $titulo    Titulo do documento
       $subtitulo Linha opcional abaixo do titulo
       $telefones Mostra a caixa de telefones a esquerda (planilha)
+      $marcaDeProposta  Aviso de escala nao oficial (GeradorDeDocumentos::
+                        marcaDeProposta), herdado da view que inclui. Nulo na
+                        escala publicada, que sai como sempre.
 --}}
 
 @php
@@ -17,6 +20,7 @@
     $brasao = $config->imagemBase64('brasao');
     $ambulancia = $config->imagemBase64('imagem_ambulancia');
     $telefones = $telefones ?? false;
+    $marcaDeProposta = $marcaDeProposta ?? null;
 @endphp
 
 <table class="cabecalho">
@@ -64,9 +68,22 @@
             @endisset
         </td>
 
-        {{-- Imagem decorativa da ambulância, à direita --}}
+        {{--
+            À direita, a imagem decorativa da ambulância -- ou, na escala que
+            não é a oficial, a marca de proposta no lugar dela.
+
+            A marca não vai sob o título porque ali somaria altura ao
+            cabeçalho: a planilha e a folha de frequência estão calibradas no
+            limite da página, e uma linha a mais quebra uma ambulância ao meio
+            ou joga o fim da folha para outra página. Nesta coluna, sem a
+            imagem, ela cabe dentro da altura que o centro já ocupa. Ao lado
+            dos telefones não caberia: com um nome de proposta longo, os dois
+            juntos passam do centro quando não há logos cadastradas.
+        --}}
         <td class="cabecalho-lateral cabecalho-direita">
-            @if ($ambulancia)
+            @if ($marcaDeProposta)
+                <div class="marca-proposta">{{ $marcaDeProposta }}</div>
+            @elseif ($ambulancia)
                 <img src="{{ $ambulancia }}" alt="" class="imagem-ambulancia">
             @endif
         </td>

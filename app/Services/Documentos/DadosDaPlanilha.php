@@ -22,14 +22,25 @@ use Illuminate\Support\Str;
  */
 final class DadosDaPlanilha
 {
+    /** Placa impressa, na proposta, no posto que ainda nao tem ambulancia. */
+    public const AMBULANCIA_A_DEFINIR = 'AMBULÂNCIA A DEFINIR';
+
     /** @var Collection<int, array> */
     public Collection $blocos;
 
     /** @var array<int, Carbon> */
     public array $dias;
 
+    /**
+     * Rascunho ou descartada: uma alternativa levada a aprovacao, e nao a
+     * escala que vale. Muda o que o papel diz das lacunas -- ver placa() e a
+     * linha de vaga aberta nas views da planilha.
+     */
+    public bool $proposta;
+
     private function __construct(public Escala $escala)
     {
+        $this->proposta = ! $escala->oficial();
         $this->dias = $escala->dias();
         $this->blocos = $this->montarBlocos();
     }
@@ -85,7 +96,7 @@ final class DadosDaPlanilha
 
             return [
                 'posto' => $posto,
-                'placa' => $posto->rotuloPlaca(),
+                'placa' => $this->placa($posto),
                 'lotacao' => $posto->rotuloLotacao(),
                 'regime' => $posto->regimeNotacao(),
                 'unidade' => $posto->unidade?->nome ?? '',
@@ -93,6 +104,21 @@ final class DadosDaPlanilha
                 'vagas_livres' => $posto->vagasLivres(),
             ];
         });
+    }
+
+    /**
+     * Na escala oficial, posto sem ambulancia sai com "—", como sempre saiu.
+     * Na proposta essa falta costuma ser o proprio pedido -- uma ambulancia a
+     * mais, ainda sem veiculo -- e quem le precisa entender que e algo a
+     * providenciar, e nao um campo esquecido.
+     */
+    private function placa(EscalaPosto $posto): string
+    {
+        if ($this->proposta && $posto->ambulancia === null) {
+            return self::AMBULANCIA_A_DEFINIR;
+        }
+
+        return $posto->rotuloPlaca();
     }
 
     /** Total de linhas de motorista impressas, para numeracao sequencial. */

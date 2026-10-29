@@ -246,12 +246,18 @@
                     </tr>
                 @endforeach
 
+                {{-- Na proposta a vaga aberta é o que se pede à Secretaria:
+                     contratar. A faixa acima já identifica a ambulância. --}}
                 @if ($bloco['vagas_livres'] > 0)
                     <tr class="vaga-aberta">
                         <td class="numero"></td>
                         <td colspan="{{ 2 + $qtdDias }}">
-                            {{ $bloco['vagas_livres'] }} vaga(s) sem motorista designado —
-                            cobertura pelo plantão de sobreaviso.
+                            @if ($dados->proposta)
+                                <strong>A CONTRATAR:</strong> {{ $bloco['vagas_livres'] }} vaga(s) sem motorista nesta ambulância.
+                            @else
+                                {{ $bloco['vagas_livres'] }} vaga(s) sem motorista designado —
+                                cobertura pelo plantão de sobreaviso.
+                            @endif
                         </td>
                     </tr>
                 @endif

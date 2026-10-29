@@ -264,13 +264,23 @@
                 @endforeach
 
                 {{-- Vaga não preenchida: registrada no documento para a unidade
-                     saber que aquele dia depende de reserva --}}
+                     saber que aquele dia depende de reserva.
+
+                     Na proposta a vaga é o que se pede à Secretaria: contratar.
+                     A linha leva a lotação e a placa porque, sem nenhum motorista,
+                     o bloco não imprime as colunas P e LOT (o rowspan começa na
+                     primeira linha de motorista) e a ambulância nova sumiria. --}}
                 @if ($bloco['vagas_livres'] > 0)
                     <tr class="vaga-aberta">
                         <td class="numero"></td>
                         <td colspan="{{ 4 + $qtdDias }}">
-                            {{ $bloco['vagas_livres'] }} vaga(s) sem motorista designado —
-                            cobertura pelo plantão de sobreaviso.
+                            @if ($dados->proposta)
+                                <strong>A CONTRATAR:</strong> {{ $bloco['vagas_livres'] }} vaga(s) sem motorista
+                                — {{ $bloco['lotacao'] }} · {{ $bloco['placa'] }} · {{ $bloco['regime'] }}
+                            @else
+                                {{ $bloco['vagas_livres'] }} vaga(s) sem motorista designado —
+                                cobertura pelo plantão de sobreaviso.
+                            @endif
                         </td>
                     </tr>
                 @endif

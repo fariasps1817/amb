@@ -97,6 +97,18 @@
         margin-top: 0.5mm;
     }
 
+    /* Escala que ainda não é a oficial: rascunho ou proposta descartada.
+       Ocupa o lugar da imagem da ambulância (ver _cabecalho). */
+    .marca-proposta {
+        border: 0.8pt solid #9b1c1c;
+        color: #9b1c1c;
+        font-size: 7pt;
+        font-weight: bold;
+        line-height: 1.2;
+        padding: 0.5mm 1mm;
+        text-align: center;
+    }
+
     /* ----------------------------------------------------------------
        Tabelas de dados
        ---------------------------------------------------------------- */
