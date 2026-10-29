@@ -44,7 +44,7 @@ class DefinirDestinos extends Component
 
     public function mount(Escala $escala): void
     {
-        abort_unless($escala->editavel(), 403);
+        abort_unless(auth()->user()->podeEditar() && $escala->editavel(), 403);
 
         $this->escala = $escala;
 

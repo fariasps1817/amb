@@ -4,7 +4,7 @@
 >
     <x-slot:acoes>
         <x-botao href="{{ route('escalas.show', $escala) }}" variante="secundario" tamanho="pequeno" icone="olho">
-            <span class="hidden sm:inline">Ver planilha</span>
+            Ver planilha
         </x-botao>
     </x-slot:acoes>
 

@@ -114,8 +114,9 @@ class EscalaController extends Controller
     /**
      * Tela de montagem: postos do mes e equipe de cada ambulancia.
      */
-    public function montar(Escala $escala): View
+    public function montar(Request $request, Escala $escala): View
     {
+        abort_unless($request->user()->podeEditar(), 403);
         abort_unless($escala->editavel(), 403, 'Escala arquivada não pode ser alterada.');
 
         $escala->load([
@@ -141,8 +142,10 @@ class EscalaController extends Controller
      * Tela de destinos: fechamento do mes, em que todo motorista ativo recebe
      * uma situacao (escalado, reserva, ferias, licenca...).
      */
-    public function destinos(Escala $escala): View
+    public function destinos(Request $request, Escala $escala): View
     {
+        // Antes de tudo: sincronizarEfetivo() abaixo ja grava no banco.
+        abort_unless($request->user()->podeEditar(), 403);
         abort_unless($escala->editavel(), 403, 'Escala arquivada não pode ser alterada.');
 
         $this->montador->sincronizarEfetivo($escala);

@@ -14,6 +14,7 @@ use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use RuntimeException;
 
@@ -44,9 +45,18 @@ class MontarEscala extends Component
 
     public function mount(Escala $escala): void
     {
-        abort_unless($escala->editavel(), 403);
+        // O perfil de consulta so visualiza. Sem esta checagem, bastava digitar
+        // o endereco /montar para alterar a escala.
+        abort_unless(auth()->user()->podeEditar() && $escala->editavel(), 403);
 
         $this->escala = $escala;
+    }
+
+    /** A ordem mudou no painel "Ordem das ambulancias". */
+    #[On('postos-reordenados')]
+    public function postosReordenados(): void
+    {
+        $this->limparCache();
     }
 
     // -----------------------------------------------------------------

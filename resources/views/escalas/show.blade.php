@@ -13,12 +13,12 @@
 
         @if ($escala->editavel() && auth()->user()->podeEditar())
             <x-botao href="{{ route('escalas.montar', $escala) }}" variante="secundario" tamanho="pequeno" icone="grade">
-                <span class="hidden sm:inline">Montar</span>
+                Montar
             </x-botao>
         @endif
 
         <x-botao href="{{ route('documentos.index', $escala) }}" tamanho="pequeno" icone="documentos">
-            <span class="hidden sm:inline">Documentos</span>
+            Documentos
         </x-botao>
     </x-slot:acoes>
 
@@ -28,15 +28,15 @@
              Resumo
              ------------------------------------------------------------ --}}
 
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5">
             <x-indicador rotulo="Ambulâncias" :valor="$resumo['postos']" icone="ambulancias" />
             <x-indicador
                 rotulo="Vagas preenchidas"
                 :valor="$resumo['vagas_ocupadas'].'/'.$resumo['vagas_necessarias']"
                 icone="grade"
             />
-            <x-indicador rotulo="Plantões" :valor="$resumo['plantoes']" icone="escalas" />
-            <x-indicador rotulo="Reserva / apoio" :valor="$resumo['disponiveis']" icone="usuarios" />
+            <x-indicador rotulo="Plantões" :valor="$resumo['plantoes']" icone="escalas" class="hidden lg:block" />
+            <x-indicador rotulo="Reserva / apoio" :valor="$resumo['disponiveis']" icone="usuarios" class="hidden lg:block" />
             <x-indicador rotulo="Sem definição" :valor="$resumo['sem_definicao']" icone="alerta" />
         </div>
 
@@ -142,6 +142,12 @@ Continuar?')"
                     Mensagens
                 </x-botao>
 
+                @if ($escala->editavel() && $escala->postos->count() > 1)
+                    <x-botao x-data x-on:click="$dispatch('abrir-ordenacao')" variante="secundario" tamanho="pequeno" icone="ordenar">
+                        Ordenar ambulâncias
+                    </x-botao>
+                @endif
+
                 @if ($escala->ehRascunho())
                     <form
                         method="POST"
@@ -155,6 +161,10 @@ Continuar?')"
                     </form>
                 @endif
             </div>
+
+            @if ($escala->editavel())
+                <livewire:ordenar-postos :escala="$escala" :recarregar="route('escalas.show', $escala)" />
+            @endif
         @endif
 
         {{-- ------------------------------------------------------------
@@ -215,7 +225,9 @@ Continuar?')"
                                     <th class="sticky left-0 z-10 border border-slate-300 bg-slate-100 px-2 py-1 text-left font-semibold text-slate-600">
                                         Condutor
                                     </th>
-                                    <th class="border border-slate-300 bg-slate-100 px-1 py-1 font-semibold text-slate-600">Fone</th>
+                                    {{-- O telefone some no celular: ocupava a largura de
+                                         seis dias, e o número está no cadastro e no painel. --}}
+                                    <th class="hidden border border-slate-300 bg-slate-100 px-1 py-1 font-semibold text-slate-600 sm:table-cell">Fone</th>
                                     @foreach ($dias as $dia)
                                         <th
                                             class="w-7 border border-slate-300 px-0.5 py-1 text-center text-[0.6rem] font-medium {{
@@ -231,7 +243,7 @@ Continuar?')"
                                     <th class="sticky left-0 z-10 border border-slate-300 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-700">
                                         {{ $escala->referencia() }}
                                     </th>
-                                    <th class="border border-slate-300 bg-slate-50"></th>
+                                    <th class="hidden border border-slate-300 bg-slate-50 sm:table-cell"></th>
                                     @foreach ($dias as $dia)
                                         <th
                                             class="w-7 border border-slate-300 px-0.5 py-1 text-center text-[0.65rem] font-bold tabular-nums {{
@@ -265,13 +277,17 @@ Continuar?')"
                                             colspan="{{ 2 + count($dias) }}"
                                             class="border border-slate-300 bg-marca-50 px-2 py-1 font-semibold text-marca-900"
                                         >
-                                            <span class="tabular-nums">{{ $posto->rotuloPlaca() }}</span>
-                                            <span class="mx-1 text-marca-400">·</span>
-                                            {{ $posto->rotuloLotacao() }}
-                                            <span class="mx-1 text-marca-400">·</span>
-                                            <span class="font-normal">{{ $posto->regimeNotacao() }}</span>
-                                            <span class="ml-1 font-normal text-marca-600">
-                                                ({{ $posto->unidade?->nome }})
+                                            {{-- Fixa à esquerda como a coluna do condutor: ao arrastar
+                                                 até o fim do mês a faixa continua dizendo qual é a ambulância. --}}
+                                            <span class="sticky left-2 inline-block whitespace-nowrap">
+                                                <span class="tabular-nums">{{ $posto->rotuloPlaca() }}</span>
+                                                <span class="mx-1 text-marca-400">·</span>
+                                                {{ $posto->rotuloLotacao() }}
+                                                <span class="mx-1 text-marca-400">·</span>
+                                                <span class="font-normal">{{ $posto->regimeNotacao() }}</span>
+                                                <span class="ml-1 hidden font-normal text-marca-600 sm:inline">
+                                                    ({{ $posto->unidade?->nome }})
+                                                </span>
                                             </span>
                                         </td>
                                     </tr>
@@ -286,7 +302,7 @@ Continuar?')"
                                                     {{ $motorista?->nomePlanilha() }}
                                                 </a>
                                             </td>
-                                            <td class="border border-slate-300 bg-white px-1.5 py-0.5 whitespace-nowrap text-slate-500 tabular-nums">
+                                            <td class="hidden border border-slate-300 bg-white px-1.5 py-0.5 whitespace-nowrap text-slate-500 tabular-nums sm:table-cell">
                                                 {{ $motorista?->telefoneFormatado() }}
                                             </td>
 
@@ -356,7 +372,7 @@ Continuar?')"
         @php
             $comDestino = $escala->lotacoes->filter(fn ($l) => ! $l->escalado() && $l->tipo_destino !== null)
                 ->sortBy(fn ($l) => $l->motorista?->nome_completo);
-            $semDefinicao = $escala->lotacoes->filter(fn ($l) => ! $l->definido())
+            $semDefinicao = $escala->lotacoes->filter(fn ($l) => ! $l->definido() && ! $l->foraDoEfetivo())
                 ->sortBy(fn ($l) => $l->motorista?->nome_completo);
         @endphp
 

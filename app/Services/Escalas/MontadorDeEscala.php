@@ -213,9 +213,9 @@ class MontadorDeEscala
             }
         }
 
-        $proximaOrdem = (int) EscalaPosto::query()->where('escala_id', $escala->id)->max('ordem') + 10;
+        $existentes = $escala->postos()->get(['id', 'unidade_id']);
 
-        return EscalaPosto::query()->create([
+        $posto = EscalaPosto::query()->create([
             'escala_id' => $escala->id,
             'unidade_id' => $unidade->id,
             'ambulancia_id' => $ambulanciaId,
@@ -223,8 +223,62 @@ class MontadorDeEscala
             'horas_descanso' => $unidade->horas_descanso,
             'rotulo' => $rotulo ?: ($ambulancia?->identificacao ?: $unidade->sigla),
             'continuar_rotacao' => true,
-            'ordem' => $proximaOrdem,
+            'ordem' => 0,
         ]);
+
+        // Entra logo depois da ultima ambulancia da mesma unidade: a SEDE 4
+        // vai para depois da SEDE 3, e nao para o fim da planilha. Unidade
+        // ainda sem ambulancia no mes vai para o fim.
+        $ids = $existentes->pluck('id')->all();
+        $ultimaDaUnidade = $existentes->where('unidade_id', $unidade->id)->last();
+        $lugar = $ultimaDaUnidade ? array_search($ultimaDaUnidade->id, $ids, true) + 1 : count($ids);
+
+        array_splice($ids, $lugar, 0, [$posto->id]);
+        $this->renumerarPostos($ids);
+
+        return $posto->refresh();
+    }
+
+    /**
+     * Sobe (-1) ou desce (+1) o posto uma casa na sequencia do mes. E a ordem
+     * dos blocos na montagem, na planilha impressa e na lista de quem esta de
+     * plantao, e e copiada quando o mes seguinte repete a estrutura.
+     */
+    public function moverPosto(EscalaPosto $posto, int $direcao): void
+    {
+        $ids = EscalaPosto::query()
+            ->where('escala_id', $posto->escala_id)
+            ->orderBy('ordem')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $atual = array_search($posto->id, $ids, true);
+        $destino = $atual + ($direcao < 0 ? -1 : 1);
+
+        if ($atual === false || ! isset($ids[$destino])) {
+            return;
+        }
+
+        [$ids[$atual], $ids[$destino]] = [$ids[$destino], $ids[$atual]];
+
+        $this->renumerarPostos($ids);
+    }
+
+    /**
+     * Grava a sequencia de 10 em 10. Renumerar tudo, em vez de trocar dois
+     * valores, desfaz empates antigos -- postos com a mesma ordem ficariam
+     * sem posicao definida entre si.
+     *
+     * @param  list<int>  $ids
+     */
+    private function renumerarPostos(array $ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            foreach (array_values($ids) as $indice => $id) {
+                EscalaPosto::query()->whereKey($id)->update(['ordem' => ($indice + 1) * 10]);
+            }
+        });
     }
 
     /**
