@@ -10,7 +10,7 @@
     <x-slot:acoes>
         <x-badge :cor="$escala->status->corBadge()">{{ $escala->status->rotulo() }}</x-badge>
         <x-botao href="{{ route('escalas.show', $escala) }}" variante="secundario" tamanho="pequeno" icone="seta-esquerda">
-            <span class="hidden sm:inline">Voltar</span>
+            Voltar
         </x-botao>
     </x-slot:acoes>
 

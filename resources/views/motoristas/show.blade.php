@@ -1,11 +1,11 @@
 <x-layouts.app :titulo="$motorista->nome_curto" :subtitulo="$motorista->nome_completo">
     <x-slot:acoes>
         <x-botao href="{{ route('motoristas.index') }}" variante="secundario" tamanho="pequeno" icone="seta-esquerda">
-            <span class="hidden sm:inline">Voltar</span>
+            Voltar
         </x-botao>
         @if (auth()->user()->podeEditar())
             <x-botao href="{{ route('motoristas.edit', $motorista) }}" tamanho="pequeno" icone="lapis">
-                <span class="hidden sm:inline">Editar</span>
+                Editar
             </x-botao>
         @endif
     </x-slot:acoes>

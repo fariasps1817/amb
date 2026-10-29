@@ -13,7 +13,7 @@
 >
     <x-slot:acoes>
         <x-botao href="{{ route('documentos.index', $escala) }}" variante="secundario" tamanho="pequeno" icone="seta-esquerda">
-            <span class="hidden sm:inline">Documentos</span>
+            Documentos
         </x-botao>
     </x-slot:acoes>
 
@@ -137,7 +137,9 @@
                         @endif
                     </div>
 
-                    <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    {{-- w-full no celular: com shrink-0 o grupo passava da largura
+                         do cartao e o "Confirmar envio" ficava cortado, sem como tocar. --}}
+                    <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                         <x-botao x-on:click="aberto = ! aberto" variante="texto" tamanho="pequeno" icone="olho">
                             <span x-text="aberto ? 'Ocultar' : 'Ver texto'">Ver texto</span>
                         </x-botao>

@@ -3,11 +3,11 @@
 <x-layouts.app :titulo="$unidade->sigla" :subtitulo="$unidade->nome">
     <x-slot:acoes>
         <x-botao href="{{ route('unidades.index') }}" variante="secundario" tamanho="pequeno" icone="seta-esquerda">
-            <span class="hidden sm:inline">Voltar</span>
+            Voltar
         </x-botao>
         @if (auth()->user()->podeEditar())
             <x-botao href="{{ route('unidades.edit', $unidade) }}" tamanho="pequeno" icone="lapis">
-                <span class="hidden sm:inline">Editar</span>
+                Editar
             </x-botao>
         @endif
     </x-slot:acoes>

@@ -1,8 +1,7 @@
 <x-layouts.app titulo="Usuários" subtitulo="Quem tem acesso ao sistema">
     <x-slot:acoes>
         <x-botao href="{{ route('usuarios.create') }}" icone="mais" tamanho="pequeno">
-            <span class="hidden sm:inline">Novo usuário</span>
-            <span class="sm:hidden">Novo</span>
+            Novo usuário
         </x-botao>
     </x-slot:acoes>
 

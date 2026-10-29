@@ -78,7 +78,7 @@
             </x-cartao>
         </form>
 
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-col-reverse gap-8 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div>
                 @if (! $novo && ! $usuario->is(auth()->user()))
                     <form
@@ -93,7 +93,7 @@
                 @endif
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row">
                 <x-botao href="{{ route('usuarios.index') }}" variante="secundario">Cancelar</x-botao>
                 <x-botao type="submit" form="form-usuario" icone="check">
                     {{ $novo ? 'Cadastrar usuário' : 'Salvar alterações' }}

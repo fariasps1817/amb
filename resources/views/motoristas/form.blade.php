@@ -208,7 +208,7 @@
              Ações
              ------------------------------------------------------------ --}}
 
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-col-reverse gap-8 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div>
                 @if (! $novo && auth()->user()->podeEditar())
                     <form
@@ -223,7 +223,7 @@
                 @endif
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row">
                 <x-botao href="{{ route('motoristas.index') }}" variante="secundario">Cancelar</x-botao>
                 <x-botao type="submit" form="form-motorista" icone="check">
                     {{ $novo ? 'Cadastrar motorista' : 'Salvar alterações' }}

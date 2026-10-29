@@ -26,8 +26,8 @@
          Resumo do fechamento
          ------------------------------------------------------------ --}}
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <x-indicador rotulo="Motoristas ativos" :valor="$this->resumo['ativos']" icone="motoristas" />
+    <div class="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-4">
+        <x-indicador rotulo="Motoristas ativos" :valor="$this->resumo['ativos']" icone="motoristas" class="hidden lg:block" />
         <x-indicador rotulo="Escalados" :valor="$this->resumo['vagas_ocupadas']" icone="grade" />
         <x-indicador rotulo="Reserva / apoio" :valor="$this->resumo['disponiveis']" icone="usuarios" />
         <x-indicador
@@ -63,7 +63,7 @@
                     <button
                         type="button"
                         wire:click="filtrar('{{ $chave }}')"
-                        class="rounded-md px-2.5 py-1 text-xs font-medium transition {{
+                        class="rounded-md px-3 py-2 text-xs font-medium transition sm:px-2.5 sm:py-1 {{
                             $filtro === $chave
                                 ? 'bg-white text-slate-900 shadow-sm'
                                 : 'text-slate-600 hover:text-slate-900'
@@ -81,7 +81,7 @@
                     wire:model.live.debounce.300ms="busca"
                     placeholder="Buscar motorista"
                     aria-label="Buscar motorista"
-                    class="block w-full rounded-lg border-0 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-marca-600"
+                    class="block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-marca-600 sm:py-1.5"
                 >
             </div>
 

@@ -2,8 +2,7 @@
     <x-slot:acoes>
         @if (auth()->user()->podeEditar())
             <x-botao href="{{ route('unidades.create') }}" icone="mais" tamanho="pequeno">
-                <span class="hidden sm:inline">Nova unidade</span>
-                <span class="sm:hidden">Nova</span>
+                Nova unidade
             </x-botao>
         @endif
     </x-slot:acoes>

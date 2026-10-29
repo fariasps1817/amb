@@ -2,8 +2,7 @@
     <x-slot:acoes>
         @if (auth()->user()->podeEditar())
             <x-botao href="{{ route('motoristas.create') }}" icone="mais" tamanho="pequeno">
-                <span class="hidden sm:inline">Novo motorista</span>
-                <span class="sm:hidden">Novo</span>
+                Novo motorista
             </x-botao>
         @endif
     </x-slot:acoes>

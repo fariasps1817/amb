@@ -90,7 +90,7 @@
                             <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                                 <th class="py-2 pr-3 font-medium">Quando</th>
                                 <th class="py-2 pr-3 font-medium">Usuário tentado</th>
-                                <th class="py-2 pr-3 font-medium">Origem</th>
+                                <th class="hidden py-2 pr-3 font-medium sm:table-cell">Origem</th>
                                 <th class="py-2 font-medium">Resultado</th>
                             </tr>
                         </thead>
@@ -101,7 +101,7 @@
                                         {{ $tentativa->created_at?->format('d/m/Y H:i:s') }}
                                     </td>
                                     <td class="py-2 pr-3 font-medium text-slate-900">{{ $tentativa->usuario }}</td>
-                                    <td class="py-2 pr-3 font-mono text-xs text-slate-600">
+                                    <td class="hidden py-2 pr-3 font-mono text-xs text-slate-600 sm:table-cell">
                                         {{ $tentativa->ip }}
                                         @if ($tentativa->ip === $meuIp)
                                             <span class="font-sans text-slate-400">(você)</span>

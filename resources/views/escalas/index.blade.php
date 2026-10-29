@@ -2,8 +2,7 @@
     <x-slot:acoes>
         @if (auth()->user()->podeEditar())
             <x-botao href="{{ route('escalas.create') }}" icone="mais" tamanho="pequeno">
-                <span class="hidden sm:inline">Nova escala</span>
-                <span class="sm:hidden">Nova</span>
+                Nova escala
             </x-botao>
         @endif
     </x-slot:acoes>
@@ -40,17 +39,19 @@
                             </p>
                         </div>
 
-                        <div class="flex shrink-0 flex-wrap items-center gap-2">
+                        {{-- No celular os botoes descem para uma linha propria, com
+                             o nome escrito, em vez de espremer o titulo do mes. --}}
+                        <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+                            <x-botao href="{{ route('escalas.show', $escala) }}" variante="suave" icone="olho" class="flex-auto sm:flex-none">
+                                Abrir
+                            </x-botao>
                             @if ($escala->editavel() && auth()->user()->podeEditar())
-                                <x-botao href="{{ route('escalas.montar', $escala) }}" variante="secundario" tamanho="pequeno" icone="grade">
-                                    <span class="hidden sm:inline">Montar</span>
+                                <x-botao href="{{ route('escalas.montar', $escala) }}" variante="secundario" icone="grade" class="flex-auto sm:flex-none">
+                                    Montar
                                 </x-botao>
                             @endif
-                            <x-botao href="{{ route('documentos.index', $escala) }}" variante="secundario" tamanho="pequeno" icone="documentos">
-                                <span class="hidden sm:inline">Documentos</span>
-                            </x-botao>
-                            <x-botao href="{{ route('escalas.show', $escala) }}" variante="texto" tamanho="pequeno" icone="seta-direita">
-                                <span class="sr-only">Abrir escala de {{ $escala->referenciaLonga() }}</span>
+                            <x-botao href="{{ route('documentos.index', $escala) }}" variante="secundario" icone="documentos" class="flex-auto sm:flex-none">
+                                Documentos
                             </x-botao>
                         </div>
                     </li>
