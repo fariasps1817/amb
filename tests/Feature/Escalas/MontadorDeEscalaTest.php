@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Escalas;
 
+use App\Enums\StatusEscala;
 use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Escala;
@@ -234,12 +235,13 @@ class MontadorDeEscalaTest extends TestCase
 
     /** Nao se cria duas escalas para o mesmo mes. */
     #[Test]
-    public function recusa_escala_duplicada_no_mesmo_mes(): void
+    public function recusa_proposta_nova_em_mes_ja_publicado(): void
     {
-        app(MontadorDeEscala::class)->criar(2026, 8);
+        $escala = app(MontadorDeEscala::class)->criar(2026, 8);
+        $escala->update(['status' => StatusEscala::Publicada]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Já existe uma escala');
+        $this->expectExceptionMessage('já está publicada');
 
         app(MontadorDeEscala::class)->criar(2026, 8);
     }

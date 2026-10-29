@@ -5,7 +5,7 @@
 @endphp
 
 <x-layouts.app
-    :titulo="'Escala de '.$escala->referenciaLonga()"
+    :titulo="'Escala de '.$escala->titulo()"
     :subtitulo="$resumo['postos'].' ambulância(s) · '.$resumo['plantoes'].' plantões'"
 >
     <x-slot:acoes>
@@ -23,6 +23,8 @@
     </x-slot:acoes>
 
     <div class="space-y-5">
+
+        @include('escalas._propostas')
 
         {{-- ------------------------------------------------------------
              Resumo
@@ -66,7 +68,11 @@
             </x-cartao>
         @endif
 
-        @if (auth()->user()->podeEditar())
+        @if (auth()->user()->podeEditar() && ! $escala->descartada())
+            <div
+                class="space-y-3"
+                x-data="{ publicando: {{ $errors->hasAny(['aprovada_por', 'aprovada_em', 'outras']) ? 'true' : 'false' }} }"
+            >
             <div class="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                 @if ($escala->editavel())
                     {{--
@@ -97,14 +103,12 @@ Continuar?')"
                 @endif
 
                 @if ($escala->ehRascunho())
-                    <form method="POST" action="{{ route('escalas.publicar', $escala) }}">
-                        @csrf
-                        {{-- Diretivas como @disabled não funcionam dentro de tags
-                             de componente; o atributo vai como bind normal. --}}
-                        <x-botao type="submit" tamanho="pequeno" icone="check" :disabled="! $podePublicar">
-                            Publicar escala
-                        </x-botao>
-                    </form>
+                    {{-- Abre a confirmação abaixo. Diretivas como @disabled não
+                         funcionam dentro de tags de componente; o atributo vai
+                         como bind normal. --}}
+                    <x-botao x-on:click="publicando = true" tamanho="pequeno" icone="check" :disabled="! $podePublicar">
+                        {{ $outrasPropostas->isNotEmpty() ? 'Publicar esta proposta' : 'Publicar escala' }}
+                    </x-botao>
 
                     @unless ($podePublicar)
                         <span class="text-xs text-slate-500">
@@ -138,14 +142,26 @@ Continuar?')"
                     </form>
                 @endif
 
-                <x-botao href="{{ route('mensagens.index', $escala) }}" variante="secundario" tamanho="pequeno" icone="whatsapp">
-                    Mensagens
-                </x-botao>
+                {{-- Mensagem ao motorista só sai de escala publicada. --}}
+                @if ($escala->publicada())
+                    <x-botao href="{{ route('mensagens.index', $escala) }}" variante="secundario" tamanho="pequeno" icone="whatsapp">
+                        Mensagens
+                    </x-botao>
+                @endif
 
                 @if ($escala->editavel() && $escala->postos->count() > 1)
-                    <x-botao x-data x-on:click="$dispatch('abrir-ordenacao')" variante="secundario" tamanho="pequeno" icone="ordenar">
+                    <x-botao x-on:click="$dispatch('abrir-ordenacao')" variante="secundario" tamanho="pequeno" icone="ordenar">
                         Ordenar ambulâncias
                     </x-botao>
+                @endif
+
+                @if ($escala->ehRascunho() && ! $mesTemOficial)
+                    <form method="POST" action="{{ route('escalas.duplicar', $escala) }}">
+                        @csrf
+                        <x-botao type="submit" variante="secundario" tamanho="pequeno" icone="copiar">
+                            Criar outra proposta a partir desta
+                        </x-botao>
+                    </form>
                 @endif
 
                 @if ($escala->ehRascunho())
@@ -153,13 +169,78 @@ Continuar?')"
                         method="POST"
                         action="{{ route('escalas.destroy', $escala) }}"
                         class="ml-auto"
-                        onsubmit="return confirm('Excluir a escala de {{ $escala->referenciaLonga() }}? Todos os postos e plantões do mês serão apagados.')"
+                        onsubmit="return confirm('Excluir a escala de {{ $escala->titulo() }}? Todos os postos e plantões dela serão apagados.')"
                     >
                         @csrf
                         @method('DELETE')
                         <x-botao type="submit" variante="perigo" tamanho="pequeno" icone="lixeira">Excluir</x-botao>
                     </form>
                 @endif
+            </div>
+
+            {{-- ------------------------------------------------------------
+                 Confirmação da publicação: o que fazer com as outras
+                 propostas do mês e quem aprovou
+                 ------------------------------------------------------------ --}}
+            @if ($escala->ehRascunho() && $podePublicar)
+                <form
+                    method="POST"
+                    action="{{ route('escalas.publicar', $escala) }}"
+                    x-show="publicando"
+                    x-cloak
+                    x-init="$watch('publicando', aberto => aberto && $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' })))"
+                    class="rounded-xl bg-white p-4 shadow-sm ring-2 ring-marca-300 sm:p-5"
+                >
+                    @csrf
+                    <h2 class="text-sm font-semibold text-slate-900">
+                        Publicar {{ $escala->nome ? 'a '.$escala->nome : 'a escala' }} de {{ mb_strtolower($escala->referenciaLonga()) }}
+                    </h2>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Depois de publicada ela passa a valer: aparece no painel e no plantão do dia, e as mensagens aos motoristas são liberadas.
+                    </p>
+
+                    @if ($outrasPropostas->isNotEmpty())
+                        <fieldset class="mt-4">
+                            <legend class="text-sm font-medium text-slate-800">
+                                E {{ $outrasPropostas->count() === 1 ? 'a outra proposta' : 'as outras propostas' }} do mês
+                                ({{ $outrasPropostas->pluck('nome')->filter()->implode(', ') }})?
+                            </legend>
+                            <div class="mt-2 space-y-2">
+                                <label class="flex cursor-pointer items-start gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">
+                                    <input type="radio" name="outras" value="excluir" checked class="mt-0.5 size-4 text-marca-600 focus:ring-marca-600">
+                                    <span><strong>Excluir</strong> — some de vez, com as ambulâncias, equipes e plantões.</span>
+                                </label>
+                                <label class="flex cursor-pointer items-start gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">
+                                    <input type="radio" name="outras" value="descartar" class="mt-0.5 size-4 text-marca-600 focus:ring-marca-600">
+                                    <span><strong>Guardar como descartada</strong> — fica só para consulta, sem aparecer no painel, no plantão do dia nem nas mensagens.</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    @endif
+
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <x-input
+                            nome="aprovada_por"
+                            rotulo="Aprovada por (opcional)"
+                            :value="old('aprovada_por')"
+                            placeholder="Ex.: Secretária Municipal de Saúde"
+                            maxlength="120"
+                        />
+                        <x-input
+                            nome="aprovada_em"
+                            tipo="date"
+                            rotulo="Data da aprovação (opcional)"
+                            :value="old('aprovada_em')"
+                            :max="today()->toDateString()"
+                        />
+                    </div>
+
+                    <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <x-botao x-on:click="publicando = false" variante="secundario">Cancelar</x-botao>
+                        <x-botao type="submit" icone="check">Confirmar publicação</x-botao>
+                    </div>
+                </form>
+            @endif
             </div>
 
             @if ($escala->editavel())

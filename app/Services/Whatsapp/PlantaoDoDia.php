@@ -29,7 +29,16 @@ class PlantaoDoDia
      */
     public function plantoes(Carbon $dia): Collection
     {
+        // So a escala que vale para o mes. Com duas propostas sem decisao nao
+        // ha lista: mandar a de uma delas as unidades seria escolher sozinho.
+        $escala = $this->escala($dia);
+
+        if ($escala === null) {
+            return collect();
+        }
+
         return EscalaPlantao::query()
+            ->where('escala_id', $escala->id)
             ->whereDate('data', $dia->toDateString())
             ->with(['motorista', 'posto.unidade', 'posto.ambulancia'])
             ->get()
@@ -38,10 +47,21 @@ class PlantaoDoDia
             ->values();
     }
 
-    /** Escala do mes do dia, para a tela avisar quando ainda e rascunho. */
+    /** Escala que vale para o mes do dia, para a tela avisar quando ainda e rascunho. */
     public function escala(Carbon $dia): ?Escala
     {
-        return Escala::query()->doMes($dia->year, $dia->month)->first();
+        return Escala::vigenteDoMes($dia->year, $dia->month);
+    }
+
+    /**
+     * Propostas do mes ainda sem decisao: quando ha mais de uma, a tela mostra
+     * so o aviso, sem lista e sem botao de envio.
+     *
+     * @return Collection<int, Escala>
+     */
+    public function propostasSemDecisao(Carbon $dia): Collection
+    {
+        return Escala::propostasSemDecisao($dia->year, $dia->month);
     }
 
     /**

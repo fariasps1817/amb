@@ -22,6 +22,7 @@ class PlantaoController extends Controller
         return view('plantao.index', [
             'dia' => $dia,
             'escala' => $plantao->escala($dia),
+            'propostas' => $plantao->propostasSemDecisao($dia),
             'plantoes' => $plantao->plantoes($dia),
             'semPlantonista' => $plantao->semPlantonista($dia),
             'sobreaviso' => $plantao->sobreaviso($dia),

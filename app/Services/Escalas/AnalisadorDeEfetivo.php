@@ -172,9 +172,9 @@ class AnalisadorDeEfetivo
                 $alertas[] = Alerta::erro(
                     'posto_incompleto',
                     sprintf(
-                        '%s (%s): faltam %d de %d motoristas.',
+                        // descricao() ja traz o regime ("SEDE 1 · THQ4H34 · 24/72").
+                        '%s: faltam %d de %d motoristas.',
                         $posto->descricao(),
-                        $posto->regimeNotacao(),
                         $posto->vagasLivres(),
                         $posto->vagas(),
                     ),

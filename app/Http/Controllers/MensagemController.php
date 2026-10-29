@@ -55,6 +55,10 @@ class MensagemController extends Controller
     {
         abort_unless($request->user()->podeEditar(), 403);
 
+        if ($bloqueio = $this->exigirPublicada($escala)) {
+            return $bloqueio;
+        }
+
         if ($escala->plantoes()->doesntExist()) {
             return back()->with('erro', 'Gere os plantões da escala antes de preparar as mensagens.');
         }
@@ -76,6 +80,10 @@ class MensagemController extends Controller
         abort_unless($request->user()->podeEditar(), 403);
         abort_unless($mensagem->escala_id === $escala->id, 404);
 
+        if ($bloqueio = $this->exigirPublicada($escala)) {
+            return $bloqueio;
+        }
+
         $this->enviador->marcarComoEnviada($mensagem);
 
         return back()->with('sucesso', "Envio registrado para {$mensagem->motorista?->nome_curto}.");
@@ -88,6 +96,10 @@ class MensagemController extends Controller
     {
         abort_unless($request->user()->podeEditar(), 403);
         abort_unless($mensagem->escala_id === $escala->id, 404);
+
+        if ($bloqueio = $this->exigirPublicada($escala)) {
+            return $bloqueio;
+        }
 
         $resultado = $this->enviador->enviar($mensagem);
 
@@ -109,6 +121,10 @@ class MensagemController extends Controller
     public function enviarTodas(Request $request, Escala $escala): RedirectResponse
     {
         abort_unless($request->user()->podeEditar(), 403);
+
+        if ($bloqueio = $this->exigirPublicada($escala)) {
+            return $bloqueio;
+        }
 
         $driver = $this->enviador->driver();
 
@@ -134,5 +150,19 @@ class MensagemController extends Controller
             "{$resultado['enviadas']} enviada(s) e {$resultado['falhas']} com falha. "
                 .implode(' · ', array_slice($resultado['mensagens'], 0, 3))
         );
+    }
+
+    /**
+     * A mensagem ao motorista e o aviso oficial do plantao dele. Sai so de
+     * escala publicada: de um rascunho -- talvez uma de duas propostas ainda
+     * em aprovacao -- o motorista receberia dias que podem nao acontecer.
+     */
+    private function exigirPublicada(Escala $escala): ?RedirectResponse
+    {
+        if ($escala->publicada()) {
+            return null;
+        }
+
+        return back()->with('erro', 'As mensagens aos motoristas só podem ser preparadas e enviadas depois que a escala for publicada.');
     }
 }

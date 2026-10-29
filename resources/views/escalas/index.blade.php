@@ -24,8 +24,16 @@
                                 <a href="{{ route('escalas.show', $escala) }}" class="font-medium text-slate-900 hover:text-marca-700">
                                     {{ $escala->referenciaLonga() }}
                                 </a>
+                                @if ($escala->nome)
+                                    <span class="text-sm font-medium text-marca-700">{{ $escala->nome }}</span>
+                                @endif
                                 <x-badge :cor="$escala->status->corBadge()">{{ $escala->status->rotulo() }}</x-badge>
                             </div>
+                            @if (($porMes[$escala->ano * 100 + $escala->mes] ?? 1) > 1 && $escala->ehRascunho())
+                                <a href="{{ route('escalas.comparar', $escala) }}" class="mt-0.5 inline-block text-xs font-medium text-amber-700 hover:underline">
+                                    {{ $porMes[$escala->ano * 100 + $escala->mes] }} propostas para este mês — comparar
+                                </a>
+                            @endif
                             <p class="mt-0.5 text-xs text-slate-500">
                                 {{ $escala->postos_count }} ambulância(s) ·
                                 {{ $escala->plantoes_count }} plantão(ões)

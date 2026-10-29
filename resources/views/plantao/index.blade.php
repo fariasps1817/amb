@@ -71,7 +71,9 @@
              Avisos sobre a escala do mês
              ------------------------------------------------------------ --}}
 
-        @if ($escala === null)
+        @if ($propostas->isNotEmpty())
+            <x-aviso-propostas :propostas="$propostas" />
+        @elseif ($escala === null)
             <div class="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
                 <x-icone nome="alerta" class="mt-0.5 size-4 shrink-0" />
                 <p>Ainda não existe escala para {{ $dia->translatedFormat('F \d\e Y') }}.</p>
@@ -96,18 +98,20 @@
              Quem está de plantão
              ------------------------------------------------------------ --}}
 
-        <x-cartao
-            :titulo="$plantoes->count().' '.($plantoes->count() === 1 ? 'ambulância' : 'ambulâncias').' de plantão'"
-            :descricao="$plantoes->isNotEmpty() ? 'Das '.$plantoes->first()->horaEntradaTexto().' de '.$dia->format('d/m').' às '.$plantoes->first()->horaSaidaTexto().' de '.$dia->copy()->addDay()->format('d/m') : null"
-        >
-            @forelse ($plantoes as $plantao)
-                <div class="border-b border-slate-100 last:border-0">
-                    <x-plantonista :plantao="$plantao" />
-                </div>
-            @empty
-                <p class="py-6 text-center text-sm text-slate-500">Nenhum plantão registrado para este dia.</p>
-            @endforelse
-        </x-cartao>
+        @if ($propostas->isEmpty())
+            <x-cartao
+                :titulo="$plantoes->count().' '.($plantoes->count() === 1 ? 'ambulância' : 'ambulâncias').' de plantão'"
+                :descricao="$plantoes->isNotEmpty() ? 'Das '.$plantoes->first()->horaEntradaTexto().' de '.$dia->format('d/m').' às '.$plantoes->first()->horaSaidaTexto().' de '.$dia->copy()->addDay()->format('d/m') : null"
+            >
+                @forelse ($plantoes as $plantao)
+                    <div class="border-b border-slate-100 last:border-0">
+                        <x-plantonista :plantao="$plantao" />
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-slate-500">Nenhum plantão registrado para este dia.</p>
+                @endforelse
+            </x-cartao>
+        @endif
 
         {{-- ------------------------------------------------------------
              Mensagem para as unidades

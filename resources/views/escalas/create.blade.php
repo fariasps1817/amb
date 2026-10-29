@@ -77,6 +77,12 @@
                 />
             </div>
 
+            <p class="mt-3 text-xs text-slate-500">
+                Se o mês já tiver uma escala em rascunho, esta entra como mais uma <strong>proposta</strong> (Proposta B, C…),
+                para os superiores escolherem. Para partir de uma proposta já montada, abra-a e use
+                <strong>Criar outra proposta a partir desta</strong>.
+            </p>
+
             @if ($ultimaEscala)
                 <div class="mt-4 rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200">
                     <label class="flex items-start gap-2.5 text-sm text-slate-700">

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\StatusEscala;
 use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Configuracao;
@@ -399,8 +400,10 @@ class MensagensTest extends TestCase
         $unidade = Unidade::factory()->regime2472()->create();
         Ambulancia::factory()->create(['unidade_id' => $unidade->id]);
         $escala = app(MontadorDeEscala::class)->criar(2026, 8);
+        $escala->update(['status' => StatusEscala::Publicada]);
 
-        $this->post(route('mensagens.preparar', $escala))->assertSessionHas('erro');
+        $this->post(route('mensagens.preparar', $escala))
+            ->assertSessionHas('erro', fn ($texto) => str_contains($texto, 'Gere os plantões'));
     }
 
     #[Test]
@@ -541,6 +544,9 @@ class MensagensTest extends TestCase
         }
 
         app(GeradorDeEscala::class)->gerar($escala->fresh());
+
+        // Mensagem ao motorista só sai de escala publicada.
+        $escala->update(['status' => StatusEscala::Publicada, 'publicada_em' => now()]);
 
         return $escala->fresh()->load(['lotacoes.motorista', 'lotacoes.posto.unidade', 'lotacoes.posto.ambulancia']);
     }

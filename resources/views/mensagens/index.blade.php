@@ -5,6 +5,9 @@
         'evolution' => 'Evolution API',
     ];
     $nomeDriver = $nomesDrivers[$driver->nome()] ?? $driver->nome();
+
+    // Mensagem ao motorista so sai de escala publicada.
+    $podeEnviar = auth()->user()->podeEditar() && $escala->publicada();
 @endphp
 
 <x-layouts.app
@@ -18,6 +21,20 @@
     </x-slot:acoes>
 
     <div class="mx-auto max-w-4xl space-y-5">
+
+        @unless ($escala->publicada())
+            <div class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <x-icone nome="alerta" class="mt-0.5 size-5 shrink-0 text-amber-600" />
+                <div>
+                    <p class="font-semibold">Esta escala ainda não foi publicada.</p>
+                    <p class="mt-0.5 text-amber-800">
+                        As mensagens aos motoristas só são preparadas e enviadas depois da publicação — assim ninguém
+                        recebe dias de plantão de uma proposta que ainda pode mudar.
+                    </p>
+                    <a href="{{ route('escalas.show', $escala) }}" class="mt-1.5 inline-block font-medium text-amber-900 underline">Abrir a escala para publicar</a>
+                </div>
+            </div>
+        @endunless
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <x-indicador rotulo="Mensagens" :valor="$totais['total']" icone="whatsapp" :rodape="$totais['escalados'].' escalados'" />
@@ -45,7 +62,7 @@
             @endif
 
             <div class="flex flex-wrap items-center gap-2">
-                @if (auth()->user()->podeEditar())
+                @if ($podeEnviar)
                     <form method="POST" action="{{ route('mensagens.preparar', $escala) }}">
                         @csrf
                         <x-botao type="submit" tamanho="pequeno" icone="atualizar">
@@ -156,7 +173,7 @@
                             <span x-text="copiado ? 'Copiado!' : 'Copiar'">Copiar</span>
                         </x-botao>
 
-                        @if (auth()->user()->podeEditar())
+                        @if ($podeEnviar)
                             @if ($driverManual)
                                 @if ($link = $mensagem->link())
                                     <x-botao

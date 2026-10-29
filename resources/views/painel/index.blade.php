@@ -31,7 +31,9 @@
                     ? $hoje->format('d/m').' · das '.$plantoes->first()->horaEntradaTexto().' às '.$plantoes->first()->horaSaidaTexto().' do dia seguinte'
                     : $hoje->format('d/m/Y')"
             >
-                @if ($plantoes->isEmpty())
+                @if ($propostasDeHoje->isNotEmpty())
+                    <x-aviso-propostas :propostas="$propostasDeHoje" />
+                @elseif ($plantoes->isEmpty())
                     <p class="py-6 text-center text-sm text-slate-500">Nenhum plantão registrado para hoje.</p>
                 @else
                     <div class="-mt-2.5 divide-y divide-slate-100">
@@ -117,13 +119,17 @@
             <x-cartao titulo="Escalas">
                 <div class="-my-1 divide-y divide-slate-100">
                     @foreach ([
-                        ['escala' => $escalaAtual, 'erros' => $errosDaEscalaAtual, 'referencia' => $hoje],
-                        ['escala' => $proximaEscala, 'erros' => $errosDaProximaEscala, 'referencia' => $proximoMes],
+                        ['escala' => $escalaAtual, 'erros' => $errosDaEscalaAtual, 'referencia' => $hoje, 'propostas' => $propostasDeHoje],
+                        ['escala' => $proximaEscala, 'erros' => $errosDaProximaEscala, 'referencia' => $proximoMes, 'propostas' => $propostasDoProximoMes],
                     ] as $item)
                         <div class="flex items-center gap-3 py-2.5">
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-medium text-slate-900">{{ ucfirst($item['referencia']->translatedFormat('F \d\e Y')) }}</p>
-                                @if ($item['escala'])
+                                @if ($item['propostas']->isNotEmpty())
+                                    <p class="text-xs text-amber-700">
+                                        {{ $item['propostas']->count() }} propostas aguardando decisão
+                                    </p>
+                                @elseif ($item['escala'])
                                     <p class="text-xs {{ $item['erros'] > 0 ? 'text-rose-600' : 'text-slate-500' }}">
                                         {{ $item['escala']->status->rotulo() }}
                                         @if ($item['erros'] > 0)
@@ -135,7 +141,11 @@
                                 @endif
                             </div>
 
-                            @if ($item['escala'])
+                            @if ($item['propostas']->isNotEmpty())
+                                <x-botao href="{{ route('escalas.comparar', $item['propostas']->first()) }}" variante="secundario" tamanho="pequeno">
+                                    Comparar
+                                </x-botao>
+                            @elseif ($item['escala'])
                                 <x-botao href="{{ route('escalas.show', $item['escala']) }}" variante="secundario" tamanho="pequeno">
                                     Abrir
                                 </x-botao>

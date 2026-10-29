@@ -140,6 +140,21 @@ cabeçalho e no rodapé de todos os PDFs.
 
 Trocas pontuais feitas à mão são marcadas como ajuste manual e **sobrevivem** a uma nova geração.
 
+**Propostas alternativas.** Quando a escala depende de aprovação dos superiores ou de contratações
+ainda incertas, o mês pode ter várias propostas em rascunho: *Criar outra proposta a partir desta*
+copia a escala inteira (ambulâncias, equipes, destinos, plantões e trocas) para ajustar só o que muda.
+Cada proposta tem nome e descrição, e *Comparar propostas* mostra lado a lado números, pendências e
+diferenças. Ao publicar a escolhida, as outras são excluídas ou guardadas como descartadas, e dá para
+registrar quem aprovou e quando. Regras que protegem o dia a dia:
+
+- só uma escala oficial por mês, garantido no próprio banco;
+- enquanto houver mais de uma proposta sem publicação, nenhuma aparece no painel, no plantão do dia ou
+  no cadastro do motorista, e o painel só avisa que o mês aguarda decisão;
+- a rotação do mês seguinte continua da escala publicada, nunca de uma proposta descartada, e não se
+  gera o mês seguinte enquanto o anterior estiver indefinido;
+- mensagens aos motoristas só saem de escala publicada;
+- os documentos de uma proposta saem marcados como *PROPOSTA — SUJEITA A APROVAÇÃO*.
+
 **Ordem das ambulâncias.** A sequência dos blocos na montagem, na planilha e na lista de quem está de
 plantão se ajusta pelo botão *Ordenar ambulâncias*, na montagem ou na escala pronta. Uma ambulância
 nova entra logo depois das outras da mesma unidade (a SEDE 4 depois da SEDE 3), e a ordem segue para

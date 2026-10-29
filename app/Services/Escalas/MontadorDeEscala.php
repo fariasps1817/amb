@@ -8,6 +8,7 @@ use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Escala;
 use App\Models\EscalaLotacao;
+use App\Models\EscalaPlantao;
 use App\Models\EscalaPosto;
 use App\Models\Motorista;
 use App\Models\Unidade;
@@ -35,10 +36,19 @@ class MontadorDeEscala
             throw new RuntimeException('Mês inválido.');
         }
 
-        if (Escala::query()->doMes($ano, $mes)->exists()) {
-            throw new RuntimeException(
-                'Já existe uma escala para '.Carbon::create($ano, $mes, 1)->translatedFormat('F \d\e Y').'.'
-            );
+        $this->garantirMesSemOficial($ano, $mes);
+
+        $anteriorRef = Carbon::create($ano, $mes, 1)->subMonth();
+        $semDecisao = Escala::propostasSemDecisao($anteriorRef->year, $anteriorRef->month);
+
+        // Copiar de um mes ainda indefinido seria escolher uma das propostas
+        // por conta propria -- e e dela que a rotacao continuaria.
+        if ($copiarMesAnterior && $semDecisao->isNotEmpty()) {
+            throw new RuntimeException(sprintf(
+                '%s tem %d propostas e nenhuma foi publicada. Publique a escolhida antes de copiar a estrutura, ou duplique uma das propostas.',
+                ucfirst($anteriorRef->translatedFormat('F \d\e Y')),
+                $semDecisao->count(),
+            ));
         }
 
         return DB::transaction(function () use ($ano, $mes, $copiarMesAnterior) {
@@ -46,6 +56,7 @@ class MontadorDeEscala
                 'ano' => $ano,
                 'mes' => $mes,
                 'status' => StatusEscala::Rascunho,
+                'nome' => $this->nomearNovaProposta($ano, $mes),
                 'criada_por' => auth()->id(),
             ]);
 
@@ -59,6 +70,186 @@ class MontadorDeEscala
 
             return $escala;
         });
+    }
+
+    // -----------------------------------------------------------------
+    // Propostas alternativas do mes
+    // -----------------------------------------------------------------
+
+    /**
+     * Copia uma proposta inteira -- ambulancias, ordem, equipes, destinos,
+     * ocorrencias e os plantoes ja gerados, com as trocas manuais -- para o
+     * coordenador montar a alternativa mudando so o que difere.
+     */
+    public function duplicar(Escala $origem, ?string $nome = null): Escala
+    {
+        if ($origem->oficial()) {
+            throw new RuntimeException('A escala de '.$origem->referenciaLonga().' já está publicada. Para ajustá-la, use "Reabrir para ajustes".');
+        }
+
+        $this->garantirMesSemOficial($origem->ano, $origem->mes);
+
+        return DB::transaction(function () use ($origem, $nome) {
+            $origem->load(['postos', 'lotacoes', 'plantoes']);
+
+            $nova = Escala::query()->create([
+                'ano' => $origem->ano,
+                'mes' => $origem->mes,
+                'status' => StatusEscala::Rascunho,
+                'nome' => filled($nome) ? trim($nome) : $this->nomearNovaProposta($origem->ano, $origem->mes),
+                'origem_id' => $origem->id,
+                'observacao' => $origem->observacao,
+                'gerada_em' => $origem->gerada_em,
+                'criada_por' => auth()->id(),
+            ]);
+
+            $postos = [];
+
+            foreach ($origem->postos as $posto) {
+                $postos[$posto->id] = EscalaPosto::query()->create(
+                    ['escala_id' => $nova->id] + $posto->only([
+                        'unidade_id', 'ambulancia_id', 'horas_trabalho', 'horas_descanso', 'rotulo',
+                        'data_inicio', 'data_fim', 'continuar_rotacao', 'ordem', 'observacao',
+                    ])
+                )->id;
+            }
+
+            foreach ($origem->lotacoes as $lotacao) {
+                EscalaLotacao::query()->create(
+                    [
+                        'escala_id' => $nova->id,
+                        'escala_posto_id' => $lotacao->escala_posto_id ? $postos[$lotacao->escala_posto_id] : null,
+                    ] + $lotacao->only([
+                        'motorista_id', 'posicao', 'tipo_destino', 'unidade_apoio_id', 'periodo_inicio',
+                        'periodo_fim', 'plantoes_previstos', 'plantoes_ajustados', 'observacao',
+                    ])
+                );
+            }
+
+            $agora = now();
+
+            foreach ($origem->plantoes->chunk(500) as $lote) {
+                EscalaPlantao::query()->insert($lote->map(fn (EscalaPlantao $p) => [
+                    'escala_id' => $nova->id,
+                    'escala_posto_id' => $postos[$p->escala_posto_id],
+                    'motorista_id' => $p->motorista_id,
+                    'data' => $p->data->toDateString(),
+                    'posicao' => $p->posicao,
+                    'hora_entrada' => $p->getRawOriginal('hora_entrada'),
+                    'hora_saida' => $p->getRawOriginal('hora_saida'),
+                    'ajuste_manual' => $p->ajuste_manual,
+                    'observacao' => $p->observacao,
+                    'created_at' => $agora,
+                    'updated_at' => $agora,
+                ])->all());
+            }
+
+            return $nova;
+        });
+    }
+
+    /**
+     * Publica a proposta escolhida. As outras do mes saem do caminho na mesma
+     * transacao: excluidas, ou guardadas como descartadas para consulta.
+     *
+     * @return int Quantas outras propostas foram excluidas ou descartadas.
+     */
+    public function publicar(
+        Escala $escala,
+        bool $excluirOutras = true,
+        ?string $aprovadaPor = null,
+        ?Carbon $aprovadaEm = null,
+    ): int {
+        return DB::transaction(function () use ($escala, $excluirOutras, $aprovadaPor, $aprovadaEm) {
+            // Trava as escalas do mes ate o fim da transacao: duas publicacoes
+            // simultaneas esperam uma pela outra em vez de se atropelarem.
+            $outras = Escala::query()
+                ->doMes($escala->ano, $escala->mes)
+                ->whereKeyNot($escala->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($outras->contains(fn (Escala $e) => $e->oficial())) {
+                throw new RuntimeException('Já existe uma escala publicada para '.$escala->referenciaLonga().'.');
+            }
+
+            $propostas = $outras->filter(fn (Escala $e) => $e->ehRascunho());
+
+            foreach ($propostas as $proposta) {
+                $excluirOutras
+                    ? $proposta->delete()
+                    : $proposta->update(['status' => StatusEscala::Descartada]);
+            }
+
+            $escala->update([
+                'status' => StatusEscala::Publicada,
+                'publicada_em' => now(),
+                'publicada_por' => auth()->id(),
+                'aprovada_por' => filled($aprovadaPor) ? trim($aprovadaPor) : null,
+                'aprovada_em' => $aprovadaEm?->toDateString(),
+            ]);
+
+            return $propostas->count();
+        });
+    }
+
+    /**
+     * Devolve uma proposta descartada para rascunho -- enquanto o mes ainda
+     * nao tem escala publicada.
+     */
+    public function restaurar(Escala $escala): void
+    {
+        $this->garantirMesSemOficial($escala->ano, $escala->mes);
+
+        $escala->update(['status' => StatusEscala::Rascunho]);
+    }
+
+    /**
+     * Mes com escala publicada nao recebe propostas novas: o ajuste se faz
+     * reabrindo a publicada, que e a que as unidades ja receberam.
+     */
+    private function garantirMesSemOficial(int $ano, int $mes): void
+    {
+        $oficial = Escala::query()->doMes($ano, $mes)->get()->first(fn (Escala $e) => $e->oficial());
+
+        if ($oficial !== null) {
+            throw new RuntimeException(
+                'A escala de '.$oficial->referenciaLonga().' já está '.mb_strtolower($oficial->status->rotulo())
+                .'. Para ajustá-la, abra a escala e use "Reabrir para ajustes".'
+            );
+        }
+    }
+
+    /**
+     * Nome da proxima proposta do mes: vazio quando sera a unica e "Proposta B",
+     * "C"... quando ja ha outras -- e a primeira, ainda sem nome, vira a "A".
+     */
+    private function nomearNovaProposta(int $ano, int $mes): ?string
+    {
+        $existentes = Escala::query()->doMes($ano, $mes)->orderBy('id')->get();
+
+        if ($existentes->isEmpty()) {
+            return null;
+        }
+
+        foreach ($existentes->whereNull('nome') as $semNome) {
+            $semNome->update(['nome' => $this->primeiraLetraLivre($existentes->pluck('nome')->all())]);
+            $existentes = Escala::query()->doMes($ano, $mes)->orderBy('id')->get();
+        }
+
+        return $this->primeiraLetraLivre($existentes->pluck('nome')->all());
+    }
+
+    /** @param  array<int, string|null>  $usados */
+    private function primeiraLetraLivre(array $usados): string
+    {
+        foreach (range('A', 'Z') as $letra) {
+            if (! in_array("Proposta {$letra}", $usados, true)) {
+                return "Proposta {$letra}";
+            }
+        }
+
+        return 'Proposta '.(count($usados) + 1);
     }
 
     /**

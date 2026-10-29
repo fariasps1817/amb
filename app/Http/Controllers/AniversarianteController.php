@@ -55,7 +55,7 @@ class AniversarianteController extends Controller
             ->values();
 
         // Lotacao no mes corrente, para identificar de qual ambulancia e a pessoa.
-        $escala = Escala::query()->doMes(today()->year, today()->month)->with('lotacoes.posto.unidade')->first();
+        $escala = Escala::vigenteDoMes(today()->year, today()->month)?->load('lotacoes.posto.unidade');
 
         return view('aniversariantes.index', [
             'aniversariantes' => $aniversariantes,

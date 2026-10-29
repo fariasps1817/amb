@@ -4,6 +4,7 @@ use App\Http\Controllers\AcessoController;
 use App\Http\Controllers\AmbulanciaController;
 use App\Http\Controllers\AniversarianteController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ComparacaoDePropostasController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\EscalaController;
@@ -83,7 +84,14 @@ Route::middleware('auth')->group(function () {
         Route::post('{escala}/publicar', 'publicar')->name('publicar');
         Route::post('{escala}/reabrir', 'reabrir')->name('reabrir');
         Route::post('{escala}/arquivar', 'arquivar')->name('arquivar');
+
+        // Propostas alternativas do mes, enquanto aguardam aprovacao
+        Route::post('{escala}/duplicar', 'duplicar')->name('duplicar');
+        Route::put('{escala}/proposta', 'renomear')->name('renomear');
+        Route::post('{escala}/restaurar', 'restaurar')->name('restaurar');
     });
+
+    Route::get('escalas/{escala}/comparar', [ComparacaoDePropostasController::class, '__invoke'])->name('escalas.comparar');
 
     // -----------------------------------------------------------------
     // Documentos em PDF

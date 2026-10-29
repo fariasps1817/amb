@@ -23,9 +23,9 @@ class PainelController extends Controller
     {
         $hoje = today();
 
-        $escalaAtual = Escala::query()->doMes($hoje->year, $hoje->month)->first();
+        $escalaAtual = Escala::vigenteDoMes($hoje->year, $hoje->month);
         $proxima = $hoje->copy()->addMonthNoOverflow();
-        $proximaEscala = Escala::query()->doMes($proxima->year, $proxima->month)->first();
+        $proximaEscala = Escala::vigenteDoMes($proxima->year, $proxima->month);
 
         $plantoes = $plantao->plantoes($hoje);
         $texto = $plantao->texto($hoje);
@@ -33,6 +33,8 @@ class PainelController extends Controller
         return view('painel.index', [
             'hoje' => $hoje,
             'plantoes' => $plantoes,
+            'propostasDeHoje' => $plantao->propostasSemDecisao($hoje),
+            'propostasDoProximoMes' => Escala::propostasSemDecisao($proxima->year, $proxima->month),
             'semPlantonista' => $plantao->semPlantonista($hoje),
             'textoDoPlantao' => $texto,
             'linkDoPlantao' => $plantao->linkWhatsapp($texto),

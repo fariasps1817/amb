@@ -96,15 +96,20 @@ class FluxoDaEscalaTest extends TestCase
     }
 
     #[Test]
-    public function nao_cria_duas_escalas_para_o_mesmo_mes(): void
+    public function a_segunda_escala_do_mes_vira_proposta_ate_uma_ser_publicada(): void
     {
         Unidade::factory()->create();
 
         $this->post(route('escalas.store'), ['ano' => 2026, 'mes' => 8]);
+        $this->post(route('escalas.store'), ['ano' => 2026, 'mes' => 8])->assertSessionHas('sucesso');
 
-        $this->post(route('escalas.store'), ['ano' => 2026, 'mes' => 8])
-            ->assertSessionHas('erro');
+        $this->assertSame(['Proposta A', 'Proposta B'], Escala::query()->orderBy('id')->pluck('nome')->all());
 
+        // Publicada uma, o mês não recebe outra: o ajuste é reabrindo a publicada.
+        Escala::query()->where('nome', 'Proposta B')->delete();
+        Escala::query()->first()->update(['status' => StatusEscala::Publicada]);
+
+        $this->post(route('escalas.store'), ['ano' => 2026, 'mes' => 8])->assertSessionHas('erro');
         $this->assertSame(1, Escala::query()->count());
     }
 
@@ -798,6 +803,11 @@ class FluxoDaEscalaTest extends TestCase
         $this->post(route('escalas.reabrir', $escala))->assertSessionHas('atencao');
         $this->assertSame(StatusEscala::Rascunho, $escala->fresh()->status);
 
+        // Só a publicada é arquivada: arquivar um rascunho criaria uma
+        // segunda escala oficial no mês.
+        $this->post(route('escalas.arquivar', $escala))->assertForbidden();
+
+        $escala->refresh()->update(['status' => StatusEscala::Publicada, 'publicada_em' => now()]);
         $this->post(route('escalas.arquivar', $escala))->assertSessionHas('sucesso');
         $this->assertSame(StatusEscala::Arquivada, $escala->fresh()->status);
     }

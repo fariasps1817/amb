@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\StatusMotorista;
 use App\Enums\Vinculo;
 use App\Http\Requests\MotoristaRequest;
+use App\Models\Escala;
 use App\Models\Motorista;
 use App\Services\Documentos\ColunasDeMotoristas;
 use App\Services\Documentos\GeradorDeDocumentos;
@@ -160,13 +161,19 @@ class MotoristaController extends Controller
             'lotacoes.posto.ambulancia',
         ]);
 
+        // Historico e proximos plantoes so das escalas que valem: propostas
+        // alternativas e descartadas mostrariam dias que talvez nao acontecam.
+        $vigentes = Escala::idsVigentes();
+
         return view('motoristas.show', [
             'motorista' => $motorista,
             'lotacoes' => $motorista->lotacoes
+                ->filter(fn ($l) => in_array($l->escala_id, $vigentes, true))
                 ->sortByDesc(fn ($l) => [$l->escala->ano, $l->escala->mes])
                 ->take(12)
                 ->values(),
             'proximosPlantoes' => $motorista->plantoes()
+                ->whereIn('escala_id', $vigentes ?: [0])
                 ->whereDate('data', '>=', now()->toDateString())
                 ->with('posto.unidade', 'posto.ambulancia')
                 ->porData()

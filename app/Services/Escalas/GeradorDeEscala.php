@@ -67,6 +67,25 @@ class GeradorDeEscala
                 return;
             }
 
+            // A fila continua de onde parou no mes anterior. Se aquele mes
+            // ainda tem propostas sem decisao, nao ha de onde continuar: gerar
+            // assim seria escolher uma delas sem ninguem ter escolhido.
+            $semDecisao = $escala->anteriorSemDecisao();
+
+            if ($semDecisao->isNotEmpty() && $escala->postos->contains(fn (EscalaPosto $p) => $p->continuar_rotacao)) {
+                $resultado->adicionarAlerta(Alerta::erro(
+                    'mes_anterior_sem_decisao',
+                    sprintf(
+                        'A rotação continua de %s, que tem %d propostas e nenhuma publicada. Publique a proposta escolhida de %s antes de gerar esta escala.',
+                        $semDecisao->first()->referenciaLonga(),
+                        $semDecisao->count(),
+                        mb_strtolower($semDecisao->first()->referenciaLonga()),
+                    )
+                ));
+
+                return;
+            }
+
             foreach ($escala->postos as $posto) {
                 $this->gerarPosto($escala, $posto, $descartarAjustesManuais, $resultado);
             }
@@ -251,8 +270,13 @@ class GeradorDeEscala
     {
         $limite = $posto->inicioVigencia();
 
+        // So escalas vigentes: uma proposta descartada, ou ainda disputando o
+        // mes com outra, nao pode ditar de onde a fila continua.
+        $vigentes = Escala::idsVigentes();
+
         $candidatos = EscalaPosto::query()
             ->where('escala_id', '!=', $posto->escala_id)
+            ->whereIn('escala_id', $vigentes ?: [0])
             ->when(
                 $posto->ambulancia_id !== null,
                 fn ($q) => $q->where('ambulancia_id', $posto->ambulancia_id),
@@ -265,6 +289,7 @@ class GeradorDeEscala
             // A ambulancia e nova no setor: tenta casar pela lotacao.
             $candidatos = EscalaPosto::query()
                 ->where('escala_id', '!=', $posto->escala_id)
+                ->whereIn('escala_id', $vigentes ?: [0])
                 ->where('unidade_id', $posto->unidade_id)
                 ->where('rotulo', $posto->rotulo)
                 ->pluck('id');

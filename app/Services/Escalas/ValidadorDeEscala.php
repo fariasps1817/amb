@@ -114,6 +114,10 @@ class ValidadorDeEscala
             ->get()
             ->groupBy('motorista_id');
 
+        // A virada se confere contra a escala que valeu no mes anterior, e nao
+        // contra propostas descartadas ou ainda sem decisao.
+        $vigentes = array_values(array_diff(Escala::idsVigentes(), [$this->escala->id]));
+
         foreach ($plantoes as $motoristaId => $doMotorista) {
             /** @var Motorista|null $motorista */
             $motorista = $doMotorista->first()->motorista;
@@ -121,6 +125,7 @@ class ValidadorDeEscala
 
             // Plantao imediatamente anterior ao mes, para checar a virada.
             $anterior = EscalaPlantao::query()
+                ->whereIn('escala_id', $vigentes ?: [0])
                 ->where('motorista_id', $motoristaId)
                 ->where('data', '<', $this->escala->primeiroDia()->toDateString())
                 ->orderByDesc('data')

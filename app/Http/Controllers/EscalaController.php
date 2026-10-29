@@ -12,8 +12,10 @@ use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use App\Services\Escalas\ValidadorDeEscala;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use RuntimeException;
@@ -29,10 +31,17 @@ class EscalaController extends Controller
     {
         $escalas = Escala::query()
             ->maisRecentes()
+            ->orderBy('id')
             ->withCount(['postos', 'plantoes'])
             ->paginate(15);
 
-        return view('escalas.index', ['escalas' => $escalas]);
+        // Quantas escalas cada mes tem: mais de uma sao propostas alternativas.
+        $porMes = Escala::query()
+            ->selectRaw('ano * 100 + mes as chave, count(*) as total')
+            ->groupBy('chave')
+            ->pluck('total', 'chave');
+
+        return view('escalas.index', ['escalas' => $escalas, 'porMes' => $porMes]);
     }
 
     public function create(): View
@@ -91,12 +100,18 @@ class EscalaController extends Controller
             'postos.plantoes.motorista',
             'lotacoes.motorista',
             'autor',
+            'publicador',
         ]);
 
         $validador = ValidadorDeEscala::para($escala);
+        $doMes = $escala->doMesmoMes();
 
         return view('escalas.show', [
             'escala' => $escala,
+            // Propostas alternativas do mesmo mes, para alternar e publicar.
+            'doMes' => $doMes,
+            'outrasPropostas' => $doMes->filter(fn (Escala $e) => $e->ehRascunho() && ! $e->is($escala))->values(),
+            'mesTemOficial' => $doMes->contains(fn (Escala $e) => $e->oficial()),
             'resumo' => AnalisadorDeEfetivo::para($escala)->resumo(),
             'alertas' => $validador->validar(),
             'podePublicar' => $validador->podePublicar(),
@@ -194,6 +209,18 @@ class EscalaController extends Controller
     public function publicar(Request $request, Escala $escala): RedirectResponse
     {
         abort_unless($request->user()->podeEditar(), 403);
+        abort_unless($escala->ehRascunho(), 403, 'Só uma escala em rascunho pode ser publicada.');
+
+        $dados = $request->validate([
+            // O que fazer com as outras propostas do mes: excluir (padrao) ou
+            // guardar como descartadas, para consulta.
+            'outras' => ['nullable', 'in:excluir,descartar'],
+            'aprovada_por' => ['nullable', 'string', 'max:120'],
+            'aprovada_em' => ['nullable', 'date', 'before_or_equal:today'],
+        ], attributes: [
+            'aprovada_por' => 'quem aprovou',
+            'aprovada_em' => 'data da aprovação',
+        ]);
 
         $escala->load(['postos.lotacoes', 'postos.plantoes', 'lotacoes.motorista']);
         $validador = ValidadorDeEscala::para($escala);
@@ -208,28 +235,110 @@ class EscalaController extends Controller
             );
         }
 
-        $escala->update([
-            'status' => StatusEscala::Publicada,
-            'publicada_em' => now(),
-        ]);
+        $excluir = ($dados['outras'] ?? 'excluir') === 'excluir';
+
+        try {
+            $outras = $this->montador->publicar(
+                $escala,
+                $excluir,
+                $dados['aprovada_por'] ?? null,
+                filled($dados['aprovada_em'] ?? null) ? Carbon::parse($dados['aprovada_em']) : null,
+            );
+        } catch (RuntimeException|UniqueConstraintViolationException) {
+            return back()->with('erro', 'Já existe uma escala publicada para '.$escala->referenciaLonga().'.');
+        }
+
+        $sobreAsOutras = match (true) {
+            $outras === 0 => '',
+            $excluir => " As outras {$outras} proposta(s) do mês foram excluídas.",
+            default => " As outras {$outras} proposta(s) do mês foram guardadas como descartadas.",
+        };
 
         return redirect()
             ->route('documentos.index', $escala)
-            ->with('sucesso', "Escala de {$escala->referenciaLonga()} publicada. Emita os documentos e envie as mensagens aos motoristas.");
+            ->with('sucesso', "Escala de {$escala->titulo()} publicada.{$sobreAsOutras} Emita os documentos e envie as mensagens aos motoristas.");
     }
 
     public function reabrir(Request $request, Escala $escala): RedirectResponse
     {
         abort_unless($request->user()->podeEditar(), 403);
+        abort_unless($escala->publicada(), 403, 'Só uma escala publicada pode ser reaberta.');
 
         $escala->update(['status' => StatusEscala::Rascunho, 'publicada_em' => null]);
 
         return back()->with('atencao', 'Escala reaberta para ajustes. Reemita os documentos após as alterações.');
     }
 
+    // -----------------------------------------------------------------
+    // Propostas alternativas do mes
+    // -----------------------------------------------------------------
+
+    /** Copia a proposta inteira como uma nova alternativa do mesmo mes. */
+    public function duplicar(Request $request, Escala $escala): RedirectResponse
+    {
+        abort_unless($request->user()->podeEditar(), 403);
+
+        $dados = $request->validate(['nome' => ['nullable', 'string', 'max:60']]);
+
+        try {
+            $nova = $this->montador->duplicar($escala, $dados['nome'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('escalas.show', $nova)
+            ->with('sucesso', "{$nova->nome} criada a partir de ".($escala->fresh()->nome ?? 'a escala original').'. Ajuste o que muda nesta alternativa.');
+    }
+
+    /** Nome e justificativa da proposta, que aparecem na comparação e nos documentos. */
+    public function renomear(Request $request, Escala $escala): RedirectResponse
+    {
+        abort_unless($request->user()->podeEditar(), 403);
+        abort_if($escala->oficial(), 403, 'O nome identifica propostas; a escala publicada não precisa dele.');
+
+        $dados = $request->validate([
+            'nome' => ['nullable', 'string', 'max:60'],
+            'observacao' => ['nullable', 'string', 'max:2000'],
+        ], attributes: ['observacao' => 'descrição']);
+
+        $repetido = filled($dados['nome'] ?? null) && Escala::query()
+            ->doMes($escala->ano, $escala->mes)
+            ->whereKeyNot($escala->id)
+            ->where('nome', trim($dados['nome']))
+            ->exists();
+
+        if ($repetido) {
+            return back()->withErrors(['nome' => 'Já existe outra proposta com esse nome neste mês.'])->withInput();
+        }
+
+        $escala->update([
+            'nome' => filled($dados['nome'] ?? null) ? trim($dados['nome']) : null,
+            'observacao' => $dados['observacao'] ?? null,
+        ]);
+
+        return back()->with('sucesso', 'Proposta atualizada.');
+    }
+
+    /** Devolve uma proposta descartada ao rascunho, enquanto o mês não tem publicada. */
+    public function restaurar(Request $request, Escala $escala): RedirectResponse
+    {
+        abort_unless($request->user()->podeEditar(), 403);
+        abort_unless($escala->descartada(), 403);
+
+        try {
+            $this->montador->restaurar($escala);
+        } catch (RuntimeException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        return back()->with('sucesso', ($escala->nome ?? 'A proposta').' voltou para rascunho.');
+    }
+
     public function arquivar(Request $request, Escala $escala): RedirectResponse
     {
         abort_unless($request->user()->podeEditar(), 403);
+        abort_unless($escala->publicada(), 403, 'Só uma escala publicada pode ser arquivada.');
 
         $escala->update(['status' => StatusEscala::Arquivada]);
 
@@ -242,14 +351,14 @@ class EscalaController extends Controller
 
         // Escala publicada ja foi distribuida as unidades; exigir a reabertura
         // antes de excluir evita apagar por engano um mes em vigor.
-        if ($escala->publicada()) {
+        if ($escala->oficial()) {
             return back()->with('erro', 'Reabra a escala antes de excluí-la.');
         }
 
-        $referencia = $escala->referenciaLonga();
+        $titulo = $escala->titulo();
         $escala->delete();
 
-        return redirect()->route('escalas.index')->with('sucesso', "Escala de {$referencia} excluída.");
+        return redirect()->route('escalas.index')->with('sucesso', "Escala de {$titulo} excluída.");
     }
 
     // -----------------------------------------------------------------
