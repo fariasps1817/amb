@@ -140,6 +140,11 @@ cabeçalho e no rodapé de todos os PDFs.
 
 Trocas pontuais feitas à mão são marcadas como ajuste manual e **sobrevivem** a uma nova geração.
 
+**Ordem das ambulâncias.** A sequência dos blocos na montagem, na planilha e na lista de quem está de
+plantão se ajusta pelo botão *Ordenar ambulâncias*, na montagem ou na escala pronta. Uma ambulância
+nova entra logo depois das outras da mesma unidade (a SEDE 4 depois da SEDE 3), e a ordem segue para
+o mês seguinte quando ele repete a estrutura.
+
 ### 3. Documentos
 
 | Documento | Formato | Conteúdo |
@@ -162,6 +167,16 @@ atestado não recebe folha.
 
 Em **Mensagens**, o sistema monta um texto por motorista listando os dias de plantão, a unidade, a
 ambulância e o horário. Você confere e envia. Fica registrado quem enviou, quando e por qual meio.
+
+### 5. O dia a dia pelo celular
+
+O **painel** abre com quem está de plantão hoje, com o telefone de cada um, e o botão *Enviar para as
+unidades pelo WhatsApp*: o texto sai pronto, na ordem da planilha, e o WhatsApp abre para escolher o
+grupo. Em **Plantão do dia** dá para ver outro dia, incluir quem está de sobreaviso e editar o texto
+antes de enviar. Antes das 7h o painel avisa que quem está nas ambulâncias ainda é o plantão de ontem.
+
+Em **Aniversariantes**: os de hoje, de amanhã, dos próximos 7 dias, de um mês ou de um dia escolhido,
+com a idade que completam e os botões para ligar ou mandar os parabéns.
 
 ---
 
@@ -301,7 +316,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 247 testes
+php artisan test    # 268 testes
 ./vendor/bin/pint   # formatação
 ```
 

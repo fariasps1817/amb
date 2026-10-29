@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'nome_completo', 'nome_curto', 'cpf', 'data_nascimento',
@@ -161,6 +162,26 @@ class Motorista extends Model
     public function idade(): ?int
     {
         return $this->data_nascimento?->age;
+    }
+
+    /**
+     * Dia do aniversario no ano informado. Quem nasceu em 29/02 comemora em
+     * 28/02 nos anos que nao tem o dia 29.
+     */
+    public function aniversarioEm(int $ano): ?Carbon
+    {
+        if ($this->data_nascimento === null) {
+            return null;
+        }
+
+        $mes = $this->data_nascimento->month;
+        $dia = $this->data_nascimento->day;
+
+        if ($mes === 2 && $dia === 29 && ! Carbon::create($ano, 1, 1)->isLeapYear()) {
+            $dia = 28;
+        }
+
+        return Carbon::create($ano, $mes, $dia)->startOfDay();
     }
 
     // -----------------------------------------------------------------

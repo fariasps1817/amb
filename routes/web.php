@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AcessoController;
 use App\Http\Controllers\AmbulanciaController;
+use App\Http\Controllers\AniversarianteController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\DocumentoController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\EscalaController;
 use App\Http\Controllers\MensagemController;
 use App\Http\Controllers\MotoristaController;
 use App\Http\Controllers\PainelController;
+use App\Http\Controllers\PlantaoController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +40,10 @@ Route::middleware('auth')->group(function () {
 
     Route::redirect('/', '/painel');
     Route::get('painel', PainelController::class)->name('painel');
+
+    // Consultas do dia a dia, feitas sobretudo pelo celular.
+    Route::get('plantao', PlantaoController::class)->name('plantao');
+    Route::get('aniversariantes', AniversarianteController::class)->name('aniversariantes');
 
     // -----------------------------------------------------------------
     // Cadastros

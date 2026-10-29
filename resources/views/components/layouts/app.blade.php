@@ -76,6 +76,8 @@
         <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4 scrollbar-fina">
             <x-nav-grupo titulo="Operação">
                 <x-nav-item rota="painel" icone="painel">Painel</x-nav-item>
+                <x-nav-item rota="plantao" icone="relogio">Plantão do dia</x-nav-item>
+                <x-nav-item rota="aniversariantes" icone="bolo">Aniversariantes</x-nav-item>
                 <x-nav-item rota="escalas.index" icone="escalas" :ativo="request()->routeIs('escalas.*')">
                     Escalas mensais
                 </x-nav-item>
@@ -168,11 +170,18 @@
             </div>
 
             @isset($acoes)
-                <div class="flex shrink-0 items-center gap-2">{{ $acoes }}</div>
+                <div class="hidden shrink-0 items-center gap-2 sm:flex">{{ $acoes }}</div>
             @endisset
         </header>
 
         <main class="px-4 py-5 sm:px-6 sm:py-6">
+            {{-- No celular as acoes saem do cabecalho e vem para ca, com o nome
+                 escrito: no cabecalho elas espremiam o titulo e viravam icones
+                 soltos, sem dizer o que fazem. --}}
+            @isset($acoes)
+                <div class="mb-4 flex flex-wrap items-center gap-2 sm:hidden nao-imprimir">{{ $acoes }}</div>
+            @endisset
+
             <x-avisos />
             {{ $slot }}
         </main>

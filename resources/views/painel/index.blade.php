@@ -1,217 +1,185 @@
-<x-layouts.app titulo="Painel" :subtitulo="now()->translatedFormat('l, d \d\e F \d\e Y')">
-    <x-slot:acoes>
-        <x-botao href="{{ route('escalas.index') }}" variante="secundario" icone="escalas" tamanho="pequeno">
-            <span class="hidden sm:inline">Escalas</span>
-        </x-botao>
-    </x-slot:acoes>
+<x-layouts.app titulo="Painel" :subtitulo="ucfirst($hoje->translatedFormat('l, d \d\e F \d\e Y'))">
 
-    <div class="space-y-5">
+    {{--
+        Pensado para o celular, na ordem do dia a dia: primeiro quem está de
+        plantão (e o envio para as unidades), depois aniversariantes e a
+        situação da escala. Números de cadastro ficam nas telas de cadastro.
+    --}}
 
-        {{-- ------------------------------------------------------------
-             Números do cadastro
-             ------------------------------------------------------------ --}}
-
-        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <x-indicador
-                rotulo="Motoristas ativos"
-                :valor="$contagens['motoristas']"
-                icone="motoristas"
-                :rodape="$contagens['motoristas_inativos'] > 0 ? $contagens['motoristas_inativos'].' inativo(s)' : null"
-                :href="route('motoristas.index')"
-            />
-            <x-indicador
-                rotulo="Unidades"
-                :valor="$contagens['unidades']"
-                icone="unidades"
-                :href="route('unidades.index')"
-            />
-            <x-indicador
-                rotulo="Ambulâncias"
-                :valor="$contagens['ambulancias']"
-                icone="ambulancias"
-                :href="route('ambulancias.index')"
-            />
-            <x-indicador
-                rotulo="Plantões hoje"
-                :valor="$plantoesDeHoje->count()"
-                icone="escalas"
-                :rodape="$escalaAtual?->referenciaLonga()"
-            />
-        </div>
+    {{-- grid-cols-1 e o minmax(0, 1fr): sem ele a coluna cresce ate caber a
+         linha mais larga e a pagina rola para o lado no celular. --}}
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
         {{-- ------------------------------------------------------------
-             Escala do mês corrente
+             De plantão hoje
              ------------------------------------------------------------ --}}
 
-        @if ($escalaAtual)
+        <div class="space-y-3 lg:col-span-2">
+            @if ($antesDaTroca)
+                <div class="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-800">
+                    <x-icone nome="relogio" class="mt-0.5 size-4 shrink-0" />
+                    <p>
+                        Até as {{ $plantoes->first()->horaEntradaTexto() }}, quem está nas ambulâncias ainda é o plantão de ontem.
+                        <a href="{{ route('plantao', ['dia' => $hoje->copy()->subDay()->toDateString()]) }}" class="font-semibold underline">Ver o plantão de ontem</a>
+                    </p>
+                </div>
+            @endif
+
             <x-cartao
-                :titulo="'Escala de '.$escalaAtual->referenciaLonga()"
-                :descricao="$resumo['plantoes'].' plantões · '.$resumo['postos'].' ambulância(s) em operação'"
+                titulo="De plantão hoje"
+                :descricao="$plantoes->isNotEmpty()
+                    ? $hoje->format('d/m').' · das '.$plantoes->first()->horaEntradaTexto().' às '.$plantoes->first()->horaSaidaTexto().' do dia seguinte'
+                    : $hoje->format('d/m/Y')"
             >
-                <x-slot:acoes>
-                    <x-badge :cor="$escalaAtual->status->corBadge()">{{ $escalaAtual->status->rotulo() }}</x-badge>
-                    <x-botao href="{{ route('escalas.show', $escalaAtual) }}" variante="secundario" tamanho="pequeno">
-                        Abrir
-                    </x-botao>
-                </x-slot:acoes>
-
-                <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <div>
-                        <dt class="text-xs text-slate-500">Vagas do mês</dt>
-                        <dd class="mt-0.5 text-lg font-semibold text-slate-900 tabular-nums">
-                            {{ $resumo['vagas_ocupadas'] }}<span class="text-sm font-normal text-slate-400">/{{ $resumo['vagas_necessarias'] }}</span>
-                        </dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs text-slate-500">Reserva / apoio</dt>
-                        <dd class="mt-0.5 text-lg font-semibold text-slate-900 tabular-nums">{{ $resumo['disponiveis'] }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs text-slate-500">Afastados</dt>
-                        <dd class="mt-0.5 text-lg font-semibold text-slate-900 tabular-nums">
-                            {{ max(0, $resumo['com_destino'] - $resumo['disponiveis']) }}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs text-slate-500">Sem definição</dt>
-                        <dd class="mt-0.5 text-lg font-semibold tabular-nums {{ $resumo['sem_definicao'] > 0 ? 'text-rose-600' : 'text-slate-900' }}">
-                            {{ $resumo['sem_definicao'] }}
-                        </dd>
-                    </div>
-                </dl>
-
-                @if ($alertas)
-                    <div class="mt-4 space-y-2">
-                        @foreach (collect($alertas)->take(4) as $alerta)
-                            <div class="flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs {{ $alerta->classes() }}">
-                                <x-icone :nome="$alerta->severidade === 'erro' ? 'erro' : ($alerta->severidade === 'atencao' ? 'alerta' : 'info')" class="mt-px size-4 shrink-0" />
-                                <p>{{ $alerta->mensagem }}</p>
-                            </div>
+                @if ($plantoes->isEmpty())
+                    <p class="py-6 text-center text-sm text-slate-500">Nenhum plantão registrado para hoje.</p>
+                @else
+                    <div class="-mt-2.5 divide-y divide-slate-100">
+                        @foreach ($plantoes as $plantao)
+                            <x-plantonista :plantao="$plantao" />
                         @endforeach
+                    </div>
 
-                        @if (count($alertas) > 4)
-                            <p class="text-xs text-slate-500">
-                                e mais {{ count($alertas) - 4 }} aviso(s) —
-                                <a href="{{ route('escalas.show', $escalaAtual) }}" class="font-medium text-marca-700 hover:underline">ver todos</a>
-                            </p>
-                        @endif
+                    @foreach ($semPlantonista as $posto)
+                        <div class="mt-2 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                            <x-icone nome="alerta" class="mt-px size-4 shrink-0" />
+                            <p><strong>{{ $posto->rotuloLotacao() }}</strong> ({{ $posto->rotuloPlaca() }}) está sem motorista hoje.</p>
+                        </div>
+                    @endforeach
+
+                    {{-- Envio para as unidades: um toque abre o WhatsApp com a
+                         lista pronta; é só escolher o grupo. --}}
+                    <div
+                        class="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap sm:items-center"
+                        x-data="{ copiado: false, texto: @js($textoDoPlantao) }"
+                    >
+                        <x-botao :href="$linkDoPlantao" target="_blank" rel="noopener" tamanho="grande" icone="whatsapp">
+                            Enviar para as unidades pelo WhatsApp
+                        </x-botao>
+                        <x-botao
+                            x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            variante="secundario"
+                            tamanho="grande"
+                            icone="copiar"
+                        >
+                            <span x-text="copiado ? 'Copiado!' : 'Copiar a lista'">Copiar a lista</span>
+                        </x-botao>
+                        <a href="{{ route('plantao') }}" class="py-2 text-center text-sm font-medium text-marca-700 hover:underline sm:ml-auto">
+                            Ver a mensagem, outro dia ou incluir sobreaviso
+                        </a>
                     </div>
                 @endif
             </x-cartao>
-        @else
-            <x-cartao>
-                <div class="py-6 text-center">
-                    <span class="mx-auto flex size-11 items-center justify-center rounded-full bg-slate-100">
-                        <x-icone nome="escalas" class="size-6 text-slate-400" />
+        </div>
+
+        {{-- ------------------------------------------------------------
+             Coluna lateral: aniversariantes, escala e pendências
+             ------------------------------------------------------------ --}}
+
+        <div class="space-y-5">
+
+            {{-- O cartão inteiro é o link: alvo grande, fácil de acertar no celular. --}}
+            <a
+                href="{{ route('aniversariantes') }}"
+                class="group block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:ring-marca-300 sm:px-5"
+            >
+                <div class="flex items-center gap-3">
+                    <span class="flex size-11 shrink-0 items-center justify-center rounded-full {{ $aniversariantesHoje->isNotEmpty() ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500' }}">
+                        <x-icone nome="bolo" class="size-6" />
                     </span>
-                    <h3 class="mt-3 text-sm font-semibold text-slate-900">
-                        Nenhuma escala para {{ now()->translatedFormat('F \d\e Y') }}
-                    </h3>
-                    <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                        Monte a escala do mês para gerar os plantões, a planilha de distribuição e as mensagens dos motoristas.
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-slate-900">Aniversariantes</p>
+                        <p class="text-xs text-slate-500">
+                            @if ($aniversariantesHoje->isNotEmpty())
+                                {{ $aniversariantesHoje->count() }} {{ $aniversariantesHoje->count() === 1 ? 'pessoa faz' : 'pessoas fazem' }} aniversário hoje
+                            @else
+                                Ninguém faz aniversário hoje
+                            @endif
+                        </p>
+                    </div>
+                    <x-icone nome="seta-direita" class="size-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5" />
+                </div>
+
+                @if ($aniversariantesHoje->isNotEmpty())
+                    <p class="mt-3 text-sm font-medium text-slate-800">
+                        🎂 {{ $aniversariantesHoje->pluck('nome_curto')->implode(', ') }}
                     </p>
-                    <x-botao href="{{ route('escalas.create') }}" icone="mais" class="mt-4">
-                        Montar escala do mês
-                    </x-botao>
+                @elseif ($proximoAniversariante)
+                    <p class="mt-3 text-xs text-slate-600">
+                        Próximo: <strong class="text-slate-800">{{ $proximoAniversariante['motorista']->nome_curto }}</strong>,
+                        em {{ $proximoAniversariante['data']->format('d/m') }}
+                        ({{ $proximoAniversariante['data']->translatedFormat('l') }})
+                    </p>
+                @endif
+            </a>
+
+            {{-- Escala do mês e a do mês seguinte --}}
+            <x-cartao titulo="Escalas">
+                <div class="-my-1 divide-y divide-slate-100">
+                    @foreach ([
+                        ['escala' => $escalaAtual, 'erros' => $errosDaEscalaAtual, 'referencia' => $hoje],
+                        ['escala' => $proximaEscala, 'erros' => $errosDaProximaEscala, 'referencia' => $proximoMes],
+                    ] as $item)
+                        <div class="flex items-center gap-3 py-2.5">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-medium text-slate-900">{{ ucfirst($item['referencia']->translatedFormat('F \d\e Y')) }}</p>
+                                @if ($item['escala'])
+                                    <p class="text-xs {{ $item['erros'] > 0 ? 'text-rose-600' : 'text-slate-500' }}">
+                                        {{ $item['escala']->status->rotulo() }}
+                                        @if ($item['erros'] > 0)
+                                            · {{ $item['erros'] }} {{ $item['erros'] === 1 ? 'pendência' : 'pendências' }} para publicar
+                                        @endif
+                                    </p>
+                                @else
+                                    <p class="text-xs text-slate-500">Ainda não foi criada</p>
+                                @endif
+                            </div>
+
+                            @if ($item['escala'])
+                                <x-botao href="{{ route('escalas.show', $item['escala']) }}" variante="secundario" tamanho="pequeno">
+                                    Abrir
+                                </x-botao>
+                            @elseif (auth()->user()->podeEditar())
+                                <x-botao href="{{ route('escalas.create') }}" variante="suave" tamanho="pequeno" icone="mais">
+                                    Criar
+                                </x-botao>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
             </x-cartao>
-        @endif
 
-        <div class="grid gap-5 lg:grid-cols-5">
+            {{-- Pendências de cadastro: só aparecem quando existem --}}
+            @php
+                $listaPendencias = [
+                    ['chave' => 'cnh_vencida', 'rotulo' => 'CNH vencida', 'cor' => 'text-rose-700 bg-rose-50 ring-rose-200'],
+                    ['chave' => 'contrato_encerrado', 'rotulo' => 'Contrato encerrado', 'cor' => 'text-rose-700 bg-rose-50 ring-rose-200'],
+                    ['chave' => 'cnh_vencendo', 'rotulo' => 'CNH a vencer em 60 dias', 'cor' => 'text-amber-700 bg-amber-50 ring-amber-200'],
+                    ['chave' => 'contrato_vencendo', 'rotulo' => 'Contrato a encerrar em 30 dias', 'cor' => 'text-amber-700 bg-amber-50 ring-amber-200'],
+                    ['chave' => 'sem_telefone', 'rotulo' => 'Sem telefone cadastrado', 'cor' => 'text-slate-700 bg-slate-50 ring-slate-200'],
+                ];
+                $comPendencia = collect($listaPendencias)->filter(fn ($p) => $pendencias[$p['chave']]->isNotEmpty());
+            @endphp
 
-            {{-- --------------------------------------------------------
-                 Quem está de plantão hoje
-                 -------------------------------------------------------- --}}
-
-            <div class="lg:col-span-3">
-                <x-cartao titulo="De plantão hoje" :descricao="now()->format('d/m/Y')" class="h-full">
-                    @forelse ($plantoesDeHoje as $plantao)
-                        <div class="flex items-center gap-3 border-b border-slate-100 py-2.5 last:border-0 first:pt-0">
-                            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-marca-50 text-[0.65rem] font-bold text-marca-700 ring-1 ring-marca-100">
-                                {{ Str::limit($plantao->posto?->rotuloLotacao() ?? '', 6, '') }}
-                            </span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium text-slate-900">
-                                    {{ $plantao->motorista?->nome_curto }}
-                                </p>
-                                <p class="truncate text-xs text-slate-500">
-                                    {{ $plantao->posto?->unidade?->nome }} ·
-                                    {{ $plantao->posto?->rotuloPlaca() }}
-                                </p>
-                            </div>
-                            <div class="shrink-0 text-right">
-                                @if ($plantao->motorista?->telefone_1)
-                                    <a
-                                        href="tel:{{ \App\Support\Telefone::digitos($plantao->motorista->telefone_1) }}"
-                                        class="text-xs font-medium text-marca-700 hover:underline tabular-nums"
-                                    >
-                                        {{ $plantao->motorista->telefoneFormatado() }}
-                                    </a>
-                                @endif
-                                <p class="text-[0.7rem] text-slate-400 tabular-nums">
-                                    {{ $plantao->horaEntradaTexto() }} às {{ $plantao->horaSaidaTexto() }}
-                                </p>
-                            </div>
-                        </div>
-                    @empty
-                        <p class="py-6 text-center text-sm text-slate-500">
-                            Nenhum plantão registrado para hoje.
-                        </p>
-                    @endforelse
-                </x-cartao>
-            </div>
-
-            {{-- --------------------------------------------------------
-                 Pendências de cadastro
-                 -------------------------------------------------------- --}}
-
-            <div class="space-y-5 lg:col-span-2">
-                @php
-                    $listaPendencias = [
-                        ['chave' => 'cnh_vencida', 'rotulo' => 'CNH vencida', 'cor' => 'text-rose-700 bg-rose-50 ring-rose-200'],
-                        ['chave' => 'contrato_encerrado', 'rotulo' => 'Contrato encerrado', 'cor' => 'text-rose-700 bg-rose-50 ring-rose-200'],
-                        ['chave' => 'cnh_vencendo', 'rotulo' => 'CNH a vencer em 60 dias', 'cor' => 'text-amber-700 bg-amber-50 ring-amber-200'],
-                        ['chave' => 'contrato_vencendo', 'rotulo' => 'Contrato a encerrar em 30 dias', 'cor' => 'text-amber-700 bg-amber-50 ring-amber-200'],
-                        ['chave' => 'sem_telefone', 'rotulo' => 'Sem telefone cadastrado', 'cor' => 'text-slate-700 bg-slate-50 ring-slate-200'],
-                    ];
-                    $comPendencia = collect($listaPendencias)->filter(fn ($p) => $pendencias[$p['chave']]->isNotEmpty());
-                @endphp
-
+            @if ($comPendencia->isNotEmpty())
                 <x-cartao titulo="Pendências do cadastro">
-                    @forelse ($comPendencia as $item)
-                        <div class="border-b border-slate-100 py-2.5 last:border-0 first:pt-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="text-xs font-medium text-slate-700">{{ $item['rotulo'] }}</p>
-                                <span class="rounded-full px-1.5 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset tabular-nums {{ $item['cor'] }}">
-                                    {{ $pendencias[$item['chave']]->count() }}
-                                </span>
+                    <div class="-my-1 divide-y divide-slate-100">
+                        @foreach ($comPendencia as $item)
+                            <div class="py-2.5">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-xs font-medium text-slate-700">{{ $item['rotulo'] }}</p>
+                                    <span class="rounded-full px-1.5 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset tabular-nums {{ $item['cor'] }}">
+                                        {{ $pendencias[$item['chave']]->count() }}
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    {{ $pendencias[$item['chave']]->take(3)->pluck('nome_curto')->implode(', ') }}@if ($pendencias[$item['chave']]->count() > 3), …@endif
+                                </p>
                             </div>
-                            <p class="mt-1 text-xs text-slate-500">
-                                {{ $pendencias[$item['chave']]->take(3)->pluck('nome_curto')->implode(', ') }}@if ($pendencias[$item['chave']]->count() > 3), …@endif
-                            </p>
-                        </div>
-                    @empty
-                        <div class="py-4 text-center">
-                            <x-icone nome="check" class="mx-auto size-6 text-emerald-500" />
-                            <p class="mt-1.5 text-sm text-slate-600">Cadastros em ordem.</p>
-                        </div>
-                    @endforelse
+                        @endforeach
+                    </div>
                 </x-cartao>
-
-                <x-cartao titulo="Últimas escalas">
-                    @forelse ($ultimasEscalas as $escala)
-                        <a
-                            href="{{ route('escalas.show', $escala) }}"
-                            class="-mx-2 flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-50"
-                        >
-                            <span class="text-sm text-slate-700">{{ $escala->referenciaLonga() }}</span>
-                            <x-badge :cor="$escala->status->corBadge()">{{ $escala->status->rotulo() }}</x-badge>
-                        </a>
-                    @empty
-                        <p class="py-4 text-center text-sm text-slate-500">Nenhuma escala cadastrada.</p>
-                    @endforelse
-                </x-cartao>
-            </div>
+            @endif
         </div>
     </div>
 </x-layouts.app>
