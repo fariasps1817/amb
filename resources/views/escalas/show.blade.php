@@ -46,8 +46,23 @@
              Pendências e ações do ciclo de vida
              ------------------------------------------------------------ --}}
 
+        @php
+            $codigosQueBloqueiam = collect($bloqueios)->pluck('codigo')->all();
+            $tituloPendencias = match (true) {
+                $erros->isEmpty() => 'Avisos',
+                ! $escala->ehRascunho() => 'Pendências desta escala',
+                $bloqueios !== [] => 'Pendências que impedem a publicação',
+                default => 'Pendências antes de publicar',
+            };
+        @endphp
+
         @if ($erros->isNotEmpty() || $avisos->isNotEmpty())
-            <x-cartao :titulo="$erros->isNotEmpty() ? 'Pendências que impedem a publicação' : 'Avisos'">
+            <x-cartao
+                :titulo="$tituloPendencias"
+                :descricao="$escala->ehRascunho() && $erros->isNotEmpty() && $bloqueios === []
+                    ? 'Dá para publicar mesmo assim: ao publicar, você confirma as pendências e registra o motivo.'
+                    : null"
+            >
                 <div class="space-y-2">
                     @foreach ($erros->concat($avisos)->take(12) as $alerta)
                         <div class="flex items-start gap-2.5 rounded-lg border px-3 py-2 text-sm {{ $alerta->classes() }}">
@@ -55,7 +70,12 @@
                                 :nome="$alerta->severidade === 'erro' ? 'erro' : ($alerta->severidade === 'atencao' ? 'alerta' : 'info')"
                                 class="mt-0.5 size-4 shrink-0"
                             />
-                            <p>{{ $alerta->mensagem }}</p>
+                            <p>
+                                {{ $alerta->mensagem }}
+                                @if (in_array($alerta->codigo, $codigosQueBloqueiam, true))
+                                    <strong class="ml-1 whitespace-nowrap">— precisa ser corrigida para publicar.</strong>
+                                @endif
+                            </p>
                         </div>
                     @endforeach
 
@@ -71,7 +91,7 @@
         @if (auth()->user()->podeEditar() && ! $escala->descartada())
             <div
                 class="space-y-3"
-                x-data="{ publicando: {{ $errors->hasAny(['aprovada_por', 'aprovada_em', 'outras']) ? 'true' : 'false' }} }"
+                x-data="{ publicando: {{ $errors->hasAny(['aprovada_por', 'aprovada_em', 'outras', 'justificativa']) ? 'true' : 'false' }} }"
             >
             <div class="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                 @if ($escala->editavel())
@@ -106,13 +126,13 @@ Continuar?')"
                     {{-- Abre a confirmação abaixo. Diretivas como @disabled não
                          funcionam dentro de tags de componente; o atributo vai
                          como bind normal. --}}
-                    <x-botao x-on:click="publicando = true" tamanho="pequeno" icone="check" :disabled="! $podePublicar">
-                        {{ $outrasPropostas->isNotEmpty() ? 'Publicar esta proposta' : 'Publicar escala' }}
+                    <x-botao x-on:click="publicando = true" tamanho="pequeno" icone="check" :disabled="! $podePublicarComPendencias">
+                        {{ $outrasPropostas->isNotEmpty() ? 'Publicar esta proposta' : 'Publicar escala' }}{{ $podePublicar ? '' : ' com pendências' }}
                     </x-botao>
 
-                    @unless ($podePublicar)
+                    @unless ($podePublicarComPendencias)
                         <span class="text-xs text-slate-500">
-                            Resolva as pendências acima para publicar.
+                            {{ collect($bloqueios)->contains('codigo', 'sem_plantoes') ? 'Gere os plantões para publicar.' : 'Corrija a pendência marcada acima para publicar.' }}
                         </span>
                     @endunless
                 @elseif ($escala->publicada())
@@ -182,10 +202,13 @@ Continuar?')"
                  Confirmação da publicação: o que fazer com as outras
                  propostas do mês e quem aprovou
                  ------------------------------------------------------------ --}}
-            @if ($escala->ehRascunho() && $podePublicar)
+            @if ($escala->ehRascunho() && $podePublicarComPendencias)
                 <form
                     method="POST"
                     action="{{ route('escalas.publicar', $escala) }}"
+                    @unless ($podePublicar)
+                        onsubmit="return confirm('Publicar com {{ $erros->count() }} pendência(s)?\n\nFicará registrado quem publicou, quando e o motivo informado.')"
+                    @endunless
                     x-show="publicando"
                     x-cloak
                     x-init="$watch('publicando', aberto => aberto && $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' })))"
@@ -218,6 +241,46 @@ Continuar?')"
                         </fieldset>
                     @endif
 
+                    {{-- Publicar com pendências: ciência marcada e motivo escrito.
+                         O que estava pendente fica gravado na escala, como era
+                         no momento, junto com quem publicou. --}}
+                    @unless ($podePublicar)
+                        <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 sm:p-4">
+                            <p class="text-sm font-semibold text-amber-900">
+                                Esta escala tem {{ $erros->count() }} {{ $erros->count() === 1 ? 'pendência' : 'pendências' }}:
+                            </p>
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+                                @foreach ($erros as $erro)
+                                    <li>{{ $erro->mensagem }}</li>
+                                @endforeach
+                            </ul>
+
+                            <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-800 ring-1 ring-inset ring-amber-300">
+                                <input
+                                    type="checkbox"
+                                    name="aceitar_pendencias"
+                                    value="1"
+                                    required
+                                    @checked(old('aceitar_pendencias'))
+                                    class="mt-0.5 size-5 rounded border-slate-300 text-marca-600 focus:ring-marca-600"
+                                >
+                                <span>Estou ciente {{ $erros->count() === 1 ? 'desta pendência' : 'destas pendências' }} e quero publicar mesmo assim.</span>
+                            </label>
+
+                            <div class="mt-3">
+                                <x-textarea
+                                    nome="justificativa"
+                                    rotulo="Motivo (obrigatório)"
+                                    linhas="3"
+                                    required
+                                    minlength="10"
+                                    maxlength="1000"
+                                    placeholder="Ex.: troca combinada com os motoristas; a coordenação ajusta os dias 1º e 3 por fora."
+                                >{{ old('justificativa') }}</x-textarea>
+                            </div>
+                        </div>
+                    @endunless
+
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
                         <x-input
                             nome="aprovada_por"
@@ -237,7 +300,9 @@ Continuar?')"
 
                     <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <x-botao x-on:click="publicando = false" variante="secundario">Cancelar</x-botao>
-                        <x-botao type="submit" icone="check">Confirmar publicação</x-botao>
+                        <x-botao type="submit" icone="check">
+                            {{ $podePublicar ? 'Confirmar publicação' : 'Publicar mesmo assim' }}
+                        </x-botao>
                     </div>
                 </form>
             @endif

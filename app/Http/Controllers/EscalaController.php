@@ -115,6 +115,10 @@ class EscalaController extends Controller
             'resumo' => AnalisadorDeEfetivo::para($escala)->resumo(),
             'alertas' => $validador->validar(),
             'podePublicar' => $validador->podePublicar(),
+            // Publicar aceitando as pendencias, com motivo; as que sempre
+            // bloqueiam ficam marcadas na lista.
+            'podePublicarComPendencias' => $validador->podePublicarComPendencias(),
+            'bloqueios' => $validador->errosQueSempreBloqueiam(),
             'dias' => $escala->dias(),
             'grade' => $this->montarGrade($escala),
 
@@ -217,22 +221,42 @@ class EscalaController extends Controller
             'outras' => ['nullable', 'in:excluir,descartar'],
             'aprovada_por' => ['nullable', 'string', 'max:120'],
             'aprovada_em' => ['nullable', 'date', 'before_or_equal:today'],
+            // Publicar mesmo com pendencias: so com ciencia marcada e motivo.
+            'aceitar_pendencias' => ['nullable', 'boolean'],
+            'justificativa' => ['nullable', 'string', 'max:1000'],
         ], attributes: [
             'aprovada_por' => 'quem aprovou',
             'aprovada_em' => 'data da aprovação',
+            'justificativa' => 'motivo',
         ]);
 
         $escala->load(['postos.lotacoes', 'postos.plantoes', 'lotacoes.motorista']);
         $validador = ValidadorDeEscala::para($escala);
+        $erros = $validador->erros();
 
-        if (! $validador->podePublicar()) {
-            $erros = array_values(array_filter($validador->validar(), fn ($a) => $a->ehErro()));
-
+        // Algumas pendencias nao se aceitam: o mesmo motorista em duas
+        // ambulancias no mesmo dia, ou escala sem plantoes.
+        if ($bloqueios = $validador->errosQueSempreBloqueiam()) {
             return back()->with(
                 'erro',
-                'A escala não pode ser publicada. '.$erros[0]->mensagem
-                    .(count($erros) > 1 ? ' Há mais '.(count($erros) - 1).' pendência(s).' : '')
+                'A escala não pode ser publicada. '.$bloqueios[0]->mensagem.' Esta pendência precisa ser corrigida antes.'
             );
+        }
+
+        if ($erros !== []) {
+            if (! $request->boolean('aceitar_pendencias')) {
+                return back()->with(
+                    'erro',
+                    'A escala tem '.count($erros).' pendência(s): '.$erros[0]->mensagem
+                        .' Para publicar mesmo assim, confirme as pendências e informe o motivo.'
+                );
+            }
+
+            if (mb_strlen(trim((string) ($dados['justificativa'] ?? ''))) < 10) {
+                return back()
+                    ->withErrors(['justificativa' => 'Explique em poucas palavras por que publicar com as pendências (pelo menos 10 letras).'])
+                    ->withInput();
+            }
         }
 
         $excluir = ($dados['outras'] ?? 'excluir') === 'excluir';
@@ -243,6 +267,9 @@ class EscalaController extends Controller
                 $excluir,
                 $dados['aprovada_por'] ?? null,
                 filled($dados['aprovada_em'] ?? null) ? Carbon::parse($dados['aprovada_em']) : null,
+                // Como estavam no momento: a escala pode mudar depois.
+                array_map(fn ($a) => ['codigo' => $a->codigo, 'mensagem' => $a->mensagem], $erros),
+                $erros !== [] ? $dados['justificativa'] : null,
             );
         } catch (RuntimeException|UniqueConstraintViolationException) {
             return back()->with('erro', 'Já existe uma escala publicada para '.$escala->referenciaLonga().'.');
@@ -254,9 +281,13 @@ class EscalaController extends Controller
             default => " As outras {$outras} proposta(s) do mês foram guardadas como descartadas.",
         };
 
+        $sobreAsPendencias = $erros === []
+            ? ''
+            : ' Com '.count($erros).' pendência(s) aceita(s) — o motivo ficou registrado.';
+
         return redirect()
             ->route('documentos.index', $escala)
-            ->with('sucesso', "Escala de {$escala->titulo()} publicada.{$sobreAsOutras} Emita os documentos e envie as mensagens aos motoristas.");
+            ->with('sucesso', "Escala de {$escala->titulo()} publicada.{$sobreAsPendencias}{$sobreAsOutras} Emita os documentos e envie as mensagens aos motoristas.");
     }
 
     public function reabrir(Request $request, Escala $escala): RedirectResponse

@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 #[Fillable([
     'ano', 'mes', 'status', 'nome', 'origem_id', 'observacao', 'criada_por', 'gerada_em',
     'publicada_em', 'publicada_por', 'aprovada_por', 'aprovada_em',
+    'pendencias_aceitas', 'justificativa_publicacao',
 ])]
 class Escala extends Model
 {
@@ -29,6 +30,7 @@ class Escala extends Model
             'gerada_em' => 'datetime',
             'publicada_em' => 'datetime',
             'aprovada_em' => 'date',
+            'pendencias_aceitas' => 'array',
         ];
     }
 
@@ -251,6 +253,12 @@ class Escala extends Model
     public function descartada(): bool
     {
         return $this->status === StatusEscala::Descartada;
+    }
+
+    /** Publicada com pendências aceitas por quem publicou, com motivo registrado. */
+    public function publicadaComPendencias(): bool
+    {
+        return $this->oficial() && filled($this->pendencias_aceitas);
     }
 
     public function gerada(): bool

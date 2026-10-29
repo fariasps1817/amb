@@ -104,6 +104,34 @@
     </x-cartao>
 @endif
 
+{{-- Publicada com pendências: o que foi aceito, como estava na hora, e o motivo --}}
+@if ($escala->publicadaComPendencias())
+    @php $aceitas = collect($escala->pendencias_aceitas); @endphp
+    <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div class="flex items-start gap-2.5">
+            <x-icone nome="alerta" class="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <div class="min-w-0">
+                <p class="font-semibold">
+                    Publicada com {{ $aceitas->count() }} {{ $aceitas->count() === 1 ? 'pendência aceita' : 'pendências aceitas' }}
+                    @if ($escala->publicador) por {{ $escala->publicador->nome }} @endif
+                    @if ($escala->publicada_em) em {{ $escala->publicada_em->format('d/m/Y H:i') }}@endif.
+                </p>
+                @if ($escala->justificativa_publicacao)
+                    <p class="mt-1"><span class="font-medium">Motivo:</span> {{ $escala->justificativa_publicacao }}</p>
+                @endif
+                <details class="mt-1.5">
+                    <summary class="cursor-pointer text-xs font-medium text-amber-800">Ver as pendências como estavam na publicação</summary>
+                    <ul class="mt-1.5 list-disc space-y-1 pl-5 text-xs text-amber-900">
+                        @foreach ($aceitas as $pendencia)
+                            <li>{{ $pendencia['mensagem'] ?? '' }}</li>
+                        @endforeach
+                    </ul>
+                </details>
+            </div>
+        </div>
+    </div>
+@endif
+
 {{-- Quem aprovou e quem publicou: o registro que responde "quem decidiu isto" --}}
 @if ($escala->oficial() && ($escala->publicada_em || $escala->aprovada_por))
     <p class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900 ring-1 ring-inset ring-emerald-200">

@@ -28,6 +28,9 @@
                                     <span class="text-sm font-medium text-marca-700">{{ $escala->nome }}</span>
                                 @endif
                                 <x-badge :cor="$escala->status->corBadge()">{{ $escala->status->rotulo() }}</x-badge>
+                                @if ($escala->publicadaComPendencias())
+                                    <x-badge cor="bg-amber-100 text-amber-800 ring-amber-200">com pendências</x-badge>
+                                @endif
                             </div>
                             @if (($porMes[$escala->ano * 100 + $escala->mes] ?? 1) > 1 && $escala->ehRascunho())
                                 <a href="{{ route('escalas.comparar', $escala) }}" class="mt-0.5 inline-block text-xs font-medium text-amber-700 hover:underline">

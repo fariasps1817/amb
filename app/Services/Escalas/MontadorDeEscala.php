@@ -159,8 +159,10 @@ class MontadorDeEscala
         bool $excluirOutras = true,
         ?string $aprovadaPor = null,
         ?Carbon $aprovadaEm = null,
+        array $pendenciasAceitas = [],
+        ?string $justificativa = null,
     ): int {
-        return DB::transaction(function () use ($escala, $excluirOutras, $aprovadaPor, $aprovadaEm) {
+        return DB::transaction(function () use ($escala, $excluirOutras, $aprovadaPor, $aprovadaEm, $pendenciasAceitas, $justificativa) {
             // Trava as escalas do mes ate o fim da transacao: duas publicacoes
             // simultaneas esperam uma pela outra em vez de se atropelarem.
             $outras = Escala::query()
@@ -187,6 +189,9 @@ class MontadorDeEscala
                 'publicada_por' => auth()->id(),
                 'aprovada_por' => filled($aprovadaPor) ? trim($aprovadaPor) : null,
                 'aprovada_em' => $aprovadaEm?->toDateString(),
+                // Republicar sem pendencias limpa o registro da publicacao anterior.
+                'pendencias_aceitas' => $pendenciasAceitas !== [] ? array_values($pendenciasAceitas) : null,
+                'justificativa_publicacao' => $pendenciasAceitas !== [] && filled($justificativa) ? trim($justificativa) : null,
             ]);
 
             return $propostas->count();

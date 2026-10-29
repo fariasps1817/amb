@@ -16,6 +16,9 @@ use Illuminate\Support\Carbon;
  */
 class ValidadorDeEscala
 {
+    /** Resultado da validacao: e consultado varias vezes por tela e custa dezenas de consultas. */
+    private ?array $alertas = null;
+
     public function __construct(protected Escala $escala) {}
 
     public static function para(Escala $escala): self
@@ -28,7 +31,7 @@ class ValidadorDeEscala
      */
     public function validar(): array
     {
-        return array_merge(
+        return $this->alertas ??= array_merge(
             AnalisadorDeEfetivo::para($this->escala)->alertas(),
             $this->validarPostos(),
             $this->validarDescanso(),
@@ -37,16 +40,52 @@ class ValidadorDeEscala
         );
     }
 
-    /** A escala pode ser publicada? */
+    /**
+     * Pendencias que nem a confirmacao de quem publica libera: o mesmo
+     * motorista em duas ambulancias no mesmo dia (impossivel de cumprir, e duas
+     * unidades receberiam o mesmo nome) e escala sem nenhuma ambulancia.
+     */
+    public const SEMPRE_BLOQUEIAM = ['plantao_duplicado', 'sem_postos'];
+
+    /** A escala pode ser publicada sem nenhuma pendencia? */
     public function podePublicar(): bool
     {
-        foreach ($this->validar() as $alerta) {
-            if ($alerta->ehErro()) {
-                return false;
-            }
+        return $this->erros() === [];
+    }
+
+    /**
+     * Pode ser publicada se quem publica aceitar as pendencias e disser por
+     * que? Vale quando nao ha nenhuma das que sempre bloqueiam.
+     */
+    public function podePublicarComPendencias(): bool
+    {
+        return $this->errosQueSempreBloqueiam() === [];
+    }
+
+    /** @return array<int, Alerta> */
+    public function erros(): array
+    {
+        return array_values(array_filter($this->validar(), fn (Alerta $a) => $a->ehErro()));
+    }
+
+    /**
+     * As pendencias que impedem publicar mesmo com confirmacao -- inclusive a
+     * escala sem plantoes gerados, que nao tem o que publicar.
+     *
+     * @return array<int, Alerta>
+     */
+    public function errosQueSempreBloqueiam(): array
+    {
+        $bloqueios = array_values(array_filter(
+            $this->erros(),
+            fn (Alerta $a) => in_array($a->codigo, self::SEMPRE_BLOQUEIAM, true)
+        ));
+
+        if ($this->escala->postos()->exists() && $this->escala->plantoes()->doesntExist()) {
+            $bloqueios[] = Alerta::erro('sem_plantoes', 'Os plantões ainda não foram gerados: não há o que publicar.');
         }
 
-        return true;
+        return $bloqueios;
     }
 
     // -----------------------------------------------------------------
