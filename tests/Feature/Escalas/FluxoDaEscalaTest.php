@@ -3,6 +3,7 @@
 namespace Tests\Feature\Escalas;
 
 use App\Enums\StatusEscala;
+use App\Enums\StatusMotorista;
 use App\Enums\TipoDestino;
 use App\Livewire\DefinirDestinos;
 use App\Livewire\MontarEscala;
@@ -382,6 +383,32 @@ class FluxoDaEscalaTest extends TestCase
             ->count();
 
         $this->assertSame(3, $reservas);
+    }
+
+    /**
+     * Inativar o cadastro depois de criada a escala deixa uma linha sem
+     * destino. Ela nao e pendencia nem deve ser oferecida para receber
+     * destino: o motorista saiu do efetivo.
+     */
+    #[Test]
+    public function inativado_sem_destino_nao_aparece_na_tela_de_destinos(): void
+    {
+        $escala = $this->escalaMontada();
+        $inativado = Motorista::factory()->create();
+        app(MontadorDeEscala::class)->sincronizarEfetivo($escala);
+
+        $antes = Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->instance()->contagens();
+
+        $inativado->update(['status' => StatusMotorista::Inativo]);
+
+        $tela = Livewire::test(DefinirDestinos::class, ['escala' => $escala->fresh()])
+            ->call('filtrar', 'todos')
+            ->instance();
+
+        $this->assertSame($antes['pendentes'] - 1, $tela->contagens()['pendentes']);
+        $this->assertSame($antes['todos'] - 1, $tela->contagens()['todos']);
+        $this->assertNotContains($inativado->id, $tela->lotacoes()->pluck('motorista_id'));
     }
 
     /**

@@ -199,6 +199,17 @@ class ValidadorDeEscala
                 continue;
             }
 
+            // Inativar o cadastro nao tira o motorista das escalas ja montadas.
+            // Em mes encerrado isso e historico; em mes que ainda vai rodar, e
+            // plantao que ninguem vai cumprir.
+            if (! $lotacao->motorista->ativo() && ! $fim->lt(today())) {
+                $alertas[] = Alerta::erro(
+                    'motorista_inativo_escalado',
+                    "{$lotacao->motorista->nome_curto} está inativo no cadastro e continua escalado. Substitua-o na montagem.",
+                    ['motorista_id' => $lotacao->motorista_id]
+                );
+            }
+
             foreach ($lotacao->motorista->impedimentosNoPeriodo($inicio, $fim) as $impedimento) {
                 $alertas[] = Alerta::erro(
                     'motorista_inapto',

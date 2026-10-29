@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Escalas;
 
+use App\Enums\StatusMotorista;
 use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Escala;
@@ -12,6 +13,7 @@ use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use App\Services\Escalas\ValidadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -168,6 +170,37 @@ class ValidadorDeEscalaTest extends TestCase
 
         $this->assertContains('ambulancia_inativa', $codigos);
         $this->assertTrue(ValidadorDeEscala::para($escala->fresh())->podePublicar());
+    }
+
+    /**
+     * Inativar o cadastro nao desfaz a montagem: em mes que ainda vai rodar, o
+     * motorista continua com plantoes que ninguem vai cumprir. Ate o ultimo
+     * dia do mes, inclusive -- ultimoDia() e meia-noite, e a tarde desse dia
+     * ainda e mes em andamento.
+     */
+    #[Test]
+    public function barra_motorista_inativo_escalado_em_mes_que_nao_terminou(): void
+    {
+        $escala = $this->escalaCompleta(2026, 8);
+        $escala->lotacoes()->whereNotNull('escala_posto_id')->first()->motorista
+            ->update(['status' => StatusMotorista::Inativo]);
+
+        $this->travelTo(Carbon::parse('2026-08-31 15:00'));
+
+        $this->assertContains('motorista_inativo_escalado', $this->codigosDeErro($escala->fresh()));
+    }
+
+    /** Em mes encerrado, quem foi inativado depois e apenas historico. */
+    #[Test]
+    public function nao_acusa_inativo_em_escala_de_mes_encerrado(): void
+    {
+        $escala = $this->escalaCompleta(2026, 8);
+        $escala->lotacoes()->whereNotNull('escala_posto_id')->first()->motorista
+            ->update(['status' => StatusMotorista::Inativo]);
+
+        $this->travelTo(Carbon::parse('2026-09-01 08:00'));
+
+        $this->assertNotContains('motorista_inativo_escalado', $this->codigosDeErro($escala->fresh()));
     }
 
     // -----------------------------------------------------------------

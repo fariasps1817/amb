@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\StatusMotorista;
 use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Configuracao;
 use App\Models\Escala;
+use App\Models\EscalaLotacao;
 use App\Models\Motorista;
 use App\Models\Unidade;
 use App\Models\User;
@@ -586,6 +588,30 @@ class DocumentosTest extends TestCase
         // Afastado nao tem previsao, o que e diferente de prever zero.
         $this->assertSame('~', $linhaFerias['plantoes']);
         $this->assertSame('Férias de 01 a 30/08/26', $linhaFerias['ocorrencia']);
+    }
+
+    /**
+     * Quem e inativado com a escala ja criada fica com uma linha sem posto nem
+     * destino. Ela nao pode virar um "~" na lista; ja quem tinha destino no
+     * mes continua, porque e historico do mes.
+     */
+    #[Test]
+    public function a_lista_ignora_quem_foi_inativado_sem_destino(): void
+    {
+        $escala = $this->escalaCompleta();
+
+        $semDestino = Motorista::factory()->inativo()->create(['nome_completo' => 'LAURO SEM DESTINO']);
+        EscalaLotacao::query()->create(['escala_id' => $escala->id, 'motorista_id' => $semDestino->id]);
+
+        $licenca = Motorista::factory()->create(['nome_completo' => 'BRUNO DE LICENÇA']);
+        app(MontadorDeEscala::class)->definirDestino($escala, $licenca->id, TipoDestino::Licenca);
+        $licenca->update(['status' => StatusMotorista::Inativo]);
+
+        $nomes = app(GeradorDeDocumentos::class)->linhasDeOcorrencias($escala->fresh())->pluck('nome');
+
+        $this->assertCount(5, $nomes);
+        $this->assertNotContains('LAURO SEM DESTINO', $nomes);
+        $this->assertContains('BRUNO DE LICENÇA', $nomes);
     }
 
     #[Test]

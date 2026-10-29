@@ -85,7 +85,7 @@ class DefinirDestinos extends Component
             ->where('escala_id', $this->escala->id)
             ->with(['motorista', 'posto.unidade', 'posto.ambulancia', 'unidadeApoio'])
             ->get()
-            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null);
+            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null && ! $l->foraDoEfetivo());
 
         $lotacoes = match ($this->filtro) {
             'escalados' => $lotacoes->filter(fn ($l) => $l->escalado()),
@@ -112,7 +112,11 @@ class DefinirDestinos extends Component
     #[Computed]
     public function contagens(): array
     {
-        $todas = EscalaLotacao::query()->where('escala_id', $this->escala->id)->get();
+        $todas = EscalaLotacao::query()
+            ->where('escala_id', $this->escala->id)
+            ->with('motorista')
+            ->get()
+            ->reject(fn (EscalaLotacao $l) => $l->foraDoEfetivo());
 
         return [
             'todos' => $todas->count(),

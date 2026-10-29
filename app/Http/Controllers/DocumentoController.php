@@ -35,7 +35,9 @@ class DocumentoController extends Controller
                 ? GeradorDeDocumentos::LAYOUT_CLASSICO
                 : GeradorDeDocumentos::LAYOUT_AGRUPADO,
             'totalEscalados' => $escala->lotacoes->filter(fn ($l) => $l->escalado())->count(),
-            'totalLinhasOcorrencias' => $escala->lotacoes->count(),
+            'totalLinhasOcorrencias' => $escala->lotacoes
+                ->filter(fn ($l) => $l->motorista !== null && ! $l->foraDoEfetivo())
+                ->count(),
             'totalPlantoes' => $escala->plantoes()->count(),
 
             // Recebem folha de frequencia os escalados e tambem os de

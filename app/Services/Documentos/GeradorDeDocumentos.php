@@ -188,7 +188,7 @@ class GeradorDeDocumentos
         ]);
 
         return $escala->lotacoes
-            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null)
+            ->filter(fn (EscalaLotacao $l) => $l->motorista !== null && ! $l->foraDoEfetivo())
             ->sortBy(fn (EscalaLotacao $l) => $this->chaveAlfabetica($l->motorista->nome_completo))
             ->values()
             ->map(fn (EscalaLotacao $l, int $i) => [

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StatusMotorista;
 use App\Enums\TipoDestino;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -102,6 +103,16 @@ class EscalaLotacao extends Model
     public function disponivel(): bool
     {
         return $this->tipo_destino?->disponivel() ?? false;
+    }
+
+    /**
+     * Sobra de quem foi inativado depois de criada a escala, sem posto nem
+     * destino: a linha continua no banco, mas nao representa ninguem do
+     * efetivo do mes e nao deve ir para os documentos nem para a pendencia.
+     */
+    public function foraDoEfetivo(): bool
+    {
+        return ! $this->definido() && $this->motorista?->status === StatusMotorista::Inativo;
     }
 
     // -----------------------------------------------------------------
