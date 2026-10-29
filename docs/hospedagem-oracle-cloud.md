@@ -499,6 +499,9 @@ sudo apt-get upgrade -y
 > A tentação é rodar `composer update` para resolver. **Não faça isso**: ele
 > atualizaria todas as bibliotecas para versões que nunca foram testadas.
 > Instale o PHP certo.
+>
+> Se o 8.3 já foi instalado, desligue o FPM dele — ninguém o usa, e ele ocupa
+> uns 50 MB de uma máquina de 1 GB: `sudo systemctl disable --now php8.3-fpm`.
 
 ```bash
 sudo apt-get install -y software-properties-common
@@ -622,7 +625,20 @@ php artisan event:cache
 # o Nginx roda como www-data e precisa escrever nessas pastas
 sudo chown -R ubuntu:www-data storage bootstrap/cache
 sudo chmod -R 775 storage bootstrap/cache
+
+# o log do dia é escrito pelo site (www-data) e pelo agendador (ubuntu):
+# o setgid faz todo arquivo novo nascer no grupo www-data, e o ubuntu entra
+# no grupo para escrever nos arquivos que o site criar
+sudo chmod g+s storage/logs
+sudo usermod -aG www-data ubuntu
 ```
+
+> ⚠️ **Armadilha real.** Sem as duas últimas linhas, quem cria o arquivo de log
+> do dia tranca o outro do lado de fora até a meia-noite. Nos dias em que o
+> agendador chegava primeiro, o site não conseguia registrar nada — e respondia
+> **500** onde deveria responder 419. O `config/logging.php` já cria os arquivos
+> com permissão `0664`; falta só o grupo certo, que é o que estas linhas
+> garantem.
 
 ### Configurar o Nginx
 
@@ -1051,6 +1067,11 @@ cd /var/www/amb && php artisan schedule:list
 Hoje ele descarta, de madrugada, o histórico de acessos com mais de 6 meses e as
 sessões vencidas.
 
+Como o cron joga fora a saída, uma tarefa que falha não avisa ninguém. Foi assim
+que um `session:prune-expired` — comando que o Laravel nunca teve — falhou toda
+noite por meses. Hoje o teste `AgendadorTest` barra no CI qualquer agendamento
+de comando inexistente.
+
 ---
 
 ## ETAPA 18 — Caçador de capacidade Ampere (opcional)
@@ -1275,6 +1296,10 @@ ls /etc/cron.d/
 # a memória de troca está ativa
 free -h
 
+# site e agendador conseguem escrever no log do dia
+ls -ld /var/www/amb/storage/logs && getent group www-data
+# esperado: drwxrwsr-x ubuntu www-data   e   www-data:x:33:ubuntu
+
 # o deploy funciona
 /var/www/amb/deploy.sh
 ```
@@ -1296,7 +1321,8 @@ mais exige do servidor — se as folhas de frequência saírem, o resto sai.
 | `Connection refused` no SSH | IP errado, ou instância ainda provisionando |
 | `Permission denied (publickey)` | Chave pública não foi colada na criação da instância |
 | Erro 502 no navegador | PHP-FPM parado — `sudo systemctl restart php8.4-fpm` |
-| Erro 500 e tela branca | Ver `tail -50 /var/www/amb/storage/logs/laravel.log` |
+| Erro 500 e tela branca | Ver `tail -50 /var/www/amb/storage/logs/laravel-$(date +%F).log` |
+| Erro 500 onde deveria dar 419, e log do dia vazio | Arquivo do dia sem permissão de grupo — setgid em `storage/logs` (Etapa 11) |
 | `lock file does not contain a compatible set of packages` | PHP do Ubuntu é 8.3; instale o 8.4 pelo PPA (Etapa 9). **Não** rode `composer update` |
 | PDF falha só no navegador, funciona no terminal | Limites do PHP-FPM (Etapa 12) |
 | `certbot renew` parece travado | Ele dorme até 8 min de propósito. Use `--no-random-sleep-on-renew` |

@@ -111,6 +111,9 @@ echo "[7/8] Recompilando CSS e JavaScript"
 npm run build
 
 sudo chown -R ubuntu:www-data "$APP/storage" "$APP/bootstrap/cache"
+# Todo log novo nasce no grupo www-data, gravavel pelo site e pelo agendador
+# (ver "permission" em config/logging.php).
+sudo chmod g+s "$APP/storage/logs"
 sudo systemctl reload php8.4-fpm
 echo "      assets e permissoes ok"
 

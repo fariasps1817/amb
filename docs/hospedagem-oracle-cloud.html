@@ -305,7 +305,7 @@ summary { cursor: pointer; font-weight: 600; }
     <header class="capa">
         <h1>Montar o servidor do zero — Oracle Cloud Always Free</h1>
         <p class="assinatura">
-            Gerado em 05/08/2026 · Coordenação de Ambulâncias · Secretaria Municipal de Saúde
+            Gerado em 29/10/2026 · Coordenação de Ambulâncias · Secretaria Municipal de Saúde
         </p>
     </header>
 
@@ -955,6 +955,8 @@ symfony/console v8.1 requires php &gt;=8.4.1
 <p>A tentação é rodar <code>composer update</code> para resolver. <strong>Não faça isso</strong>: ele
 atualizaria todas as bibliotecas para versões que nunca foram testadas.
 Instale o PHP certo.</p>
+<p>Se o 8.3 já foi instalado, desligue o FPM dele — ninguém o usa, e ele ocupa
+uns 50 MB de uma máquina de 1 GB: <code>sudo systemctl disable --now php8.3-fpm</code>.</p>
 </blockquote>
 <pre><code class="language-bash">sudo apt-get install -y software-properties-common
 sudo add-apt-repository -y ppa:ondrej/php
@@ -1056,7 +1058,20 @@ php artisan event:cache
 # o Nginx roda como www-data e precisa escrever nessas pastas
 sudo chown -R ubuntu:www-data storage bootstrap/cache
 sudo chmod -R 775 storage bootstrap/cache
+
+# o log do dia é escrito pelo site (www-data) e pelo agendador (ubuntu):
+# o setgid faz todo arquivo novo nascer no grupo www-data, e o ubuntu entra
+# no grupo para escrever nos arquivos que o site criar
+sudo chmod g+s storage/logs
+sudo usermod -aG www-data ubuntu
 </code></pre>
+<blockquote class="armadilha"><p>⚠️ <strong>Armadilha real.</strong> Sem as duas últimas linhas, quem cria o arquivo de log
+do dia tranca o outro do lado de fora até a meia-noite. Nos dias em que o
+agendador chegava primeiro, o site não conseguia registrar nada — e respondia
+<strong>500</strong> onde deveria responder 419. O <code>config/logging.php</code> já cria os arquivos
+com permissão <code>0664</code>; falta só o grupo certo, que é o que estas linhas
+garantem.</p>
+</blockquote>
 <h3>Configurar o Nginx</h3>
 <pre><code class="language-bash">sudo tee /etc/nginx/sites-available/amb &gt;/dev/null &lt;&lt;'CONF'
 server {
@@ -1402,6 +1417,10 @@ cd /var/www/amb &amp;&amp; php artisan schedule:list
 </code></pre>
 <p>Hoje ele descarta, de madrugada, o histórico de acessos com mais de 6 meses e as
 sessões vencidas.</p>
+<p>Como o cron joga fora a saída, uma tarefa que falha não avisa ninguém. Foi assim
+que um <code>session:prune-expired</code> — comando que o Laravel nunca teve — falhou toda
+noite por meses. Hoje o teste <code>AgendadorTest</code> barra no CI qualquer agendamento
+de comando inexistente.</p>
 <hr />
 <h2 id="etapa-18-cacador-de-capacidade-ampere-opcional">ETAPA 18 — Caçador de capacidade Ampere (opcional)</h2>
 <p>Só faz sentido se você ficou na <code>E2.1.Micro</code> de 1 GB e quer subir para a Ampere
@@ -1596,6 +1615,10 @@ ls /etc/cron.d/
 # a memória de troca está ativa
 free -h
 
+# site e agendador conseguem escrever no log do dia
+ls -ld /var/www/amb/storage/logs &amp;&amp; getent group www-data
+# esperado: drwxrwsr-x ubuntu www-data   e   www-data:x:33:ubuntu
+
 # o deploy funciona
 /var/www/amb/deploy.sh
 </code></pre>
@@ -1645,7 +1668,11 @@ mais exige do servidor — se as folhas de frequência saírem, o resto sai.</p>
 </tr>
 <tr>
 <td>Erro 500 e tela branca</td>
-<td>Ver <code>tail -50 /var/www/amb/storage/logs/laravel.log</code></td>
+<td>Ver <code>tail -50 /var/www/amb/storage/logs/laravel-$(date +%F).log</code></td>
+</tr>
+<tr>
+<td>Erro 500 onde deveria dar 419, e log do dia vazio</td>
+<td>Arquivo do dia sem permissão de grupo — setgid em <code>storage/logs</code> (Etapa 11)</td>
 </tr>
 <tr>
 <td><code>lock file does not contain a compatible set of packages</code></td>

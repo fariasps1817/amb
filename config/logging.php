@@ -71,6 +71,12 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            // O site (www-data) e o agendador (ubuntu) escrevem no mesmo arquivo
+            // do dia. Com a permissao padrao, 0644, quem cria o arquivo tranca o
+            // outro do lado de fora ate a meia-noite -- e o site, sem conseguir
+            // registrar, respondia 500. No servidor a pasta storage/logs tem o
+            // bit setgid, para todo arquivo novo nascer no grupo www-data.
+            'permission' => 0664,
         ],
 
         'slack' => [

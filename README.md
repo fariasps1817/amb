@@ -301,7 +301,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 150 testes
+php artisan test    # 247 testes
 ./vendor/bin/pint   # formatação
 ```
 

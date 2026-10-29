@@ -61,6 +61,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 && is_string($daSessao)
                 && hash_equals($daSessao, $recebido);
 
+            $veioCookie = $requisicao->hasCookie(config('session.cookie'));
+
+            // Sem cookie de sessao nao ha sessao a investigar: e robo varrendo
+            // o site (POST na raiz, tentativas contra PHP-CGI). Eram todos os
+            // 419 registrados, e enterravam os de gente de verdade no ruido.
+            if (! $tokenConfere && ! $veioCookie) {
+                return null;
+            }
+
             Log::warning($tokenConfere
                 ? '419 com token valido: erro de componente mascarado pelo Livewire'
                 : '419 por token de sessao invalido', [
@@ -68,7 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'token_confere' => $tokenConfere ? 'sim' : 'nao',
                     'assinatura_recebido' => is_string($recebido) ? substr(md5($recebido), 0, 8) : '(vazio)',
                     'assinatura_sessao' => is_string($daSessao) ? substr(md5($daSessao), 0, 8) : '(vazio)',
-                    'sessao_veio_no_cookie' => $requisicao->hasCookie(config('session.cookie')),
+                    'sessao_veio_no_cookie' => $veioCookie,
                     'autenticado' => auth()->id() ?? '(nao)',
                 ]);
 
