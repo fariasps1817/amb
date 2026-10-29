@@ -8,6 +8,7 @@ use App\Models\Escala;
 use App\Models\EscalaPlantao;
 use App\Models\Motorista;
 use App\Models\Unidade;
+use App\Services\Escalas\Alerta;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
@@ -113,7 +114,7 @@ class EscalaController extends Controller
             'outrasPropostas' => $doMes->filter(fn (Escala $e) => $e->ehRascunho() && ! $e->is($escala))->values(),
             'mesTemOficial' => $doMes->contains(fn (Escala $e) => $e->oficial()),
             'resumo' => AnalisadorDeEfetivo::para($escala)->resumo(),
-            'alertas' => $validador->validar(),
+            'alertas' => $this->semAsJaAceitas($escala, $validador->validar()),
             'podePublicar' => $validador->podePublicar(),
             // Publicar aceitando as pendencias, com motivo; as que sempre
             // bloqueiam ficam marcadas na lista.
@@ -395,6 +396,35 @@ class EscalaController extends Controller
     // -----------------------------------------------------------------
     // Apoio
     // -----------------------------------------------------------------
+
+    /**
+     * Na escala publicada com pendencias aceitas, elas foram resolvidas por
+     * quem publicou -- o descanso curto combinado com o motorista, a vaga
+     * coberta por fora. Mostra-las de novo em vermelho passaria a ideia de
+     * problema em aberto: ficam so no quadro do registro da publicacao.
+     *
+     * Sai so o que bate com o registro (mesmo codigo e mesma mensagem). Uma
+     * pendencia que surja depois da publicacao continua aparecendo, e ao
+     * reabrir a escala todas voltam, porque publicar de novo exige aceitar.
+     *
+     * @param  array<int, Alerta>  $alertas
+     * @return array<int, Alerta>
+     */
+    private function semAsJaAceitas(Escala $escala, array $alertas): array
+    {
+        if (! $escala->publicadaComPendencias()) {
+            return $alertas;
+        }
+
+        $aceitas = collect($escala->pendencias_aceitas)
+            ->map(fn (array $p) => ($p['codigo'] ?? '').'|'.($p['mensagem'] ?? ''))
+            ->all();
+
+        return array_values(array_filter(
+            $alertas,
+            fn (Alerta $a) => ! $a->ehErro() || ! in_array($a->codigo.'|'.$a->mensagem, $aceitas, true)
+        ));
+    }
 
     /**
      * Grade da planilha: para cada posto, o plantao de cada dia do mes.

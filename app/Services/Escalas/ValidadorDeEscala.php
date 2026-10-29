@@ -255,6 +255,13 @@ class ValidadorDeEscala
             }
 
             foreach ($lotacao->motorista->impedimentosNoPeriodo($inicio, $fim) as $impedimento) {
+                // O cadastro inativo ja tem o alerta proprio acima, que separa
+                // o mes encerrado (historico) do que ainda vai rodar e diz o
+                // que fazer. Repeti-lo aqui dava duas pendencias para uma coisa.
+                if ($impedimento === Motorista::IMPEDIMENTO_INATIVO) {
+                    continue;
+                }
+
                 $alertas[] = Alerta::erro(
                     'motorista_inapto',
                     "{$lotacao->motorista->nome_curto}: {$impedimento}",

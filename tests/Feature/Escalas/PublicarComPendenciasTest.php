@@ -3,6 +3,7 @@
 namespace Tests\Feature\Escalas;
 
 use App\Enums\StatusEscala;
+use App\Enums\StatusMotorista;
 use App\Enums\TipoDestino;
 use App\Models\Ambulancia;
 use App\Models\Escala;
@@ -12,7 +13,9 @@ use App\Models\Unidade;
 use App\Models\User;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
+use App\Services\Escalas\ValidadorDeEscala;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -168,11 +171,49 @@ class PublicarComPendenciasTest extends TestCase
             ->assertSee('Publicada com')
             ->assertSee('por '.$this->operador->nome)
             ->assertSee('Troca combinada entre os motoristas.')
-            ->assertSee('Pendências desta escala');
+            // As aceitas ficam só no quadro do registro, não no cartão vermelho.
+            ->assertDontSee('Pendências desta escala');
 
         // Aceitar as pendências é decisão tomada: a lista não marca a escala,
         // o registro fica só no quadro da própria escala.
         $this->get(route('escalas.index'))->assertOk()->assertDontSee('com pendências');
+    }
+
+    /**
+     * O que foi aceito sai do cartão vermelho; o que aparecer depois da
+     * publicação continua nele -- e reabrindo, as aceitas voltam, porque
+     * publicar de novo exige aceitar de novo.
+     */
+    #[Test]
+    public function so_as_pendencias_novas_aparecem_no_cartao_da_escala_publicada(): void
+    {
+        $this->travelTo(Carbon::parse('2026-08-10 10:00'));
+        $escala = $this->escalaComDescansoCurto();
+        $aceita = ValidadorDeEscala::para($escala)->erros()[0]->mensagem;
+
+        $this->post(route('escalas.publicar', $escala), [
+            'aceitar_pendencias' => 1,
+            'justificativa' => 'Troca combinada entre os motoristas.',
+        ]);
+
+        // Depois de publicada, um motorista escalado é inativado no cadastro.
+        $inativado = $escala->lotacoes()->whereNotNull('escala_posto_id')->orderByDesc('posicao')->first()->motorista;
+        $inativado->update(['status' => StatusMotorista::Inativo]);
+
+        $resposta = $this->get(route('escalas.show', $escala))->assertOk()->assertSee('Pendências desta escala');
+        $this->assertSame(
+            1,
+            collect($resposta->viewData('alertas'))->filter(fn ($a) => $a->ehErro())->count(),
+            'Só a pendência nova, uma vez só, deveria estar no cartão.'
+        );
+        $this->assertSame('motorista_inativo_escalado', collect($resposta->viewData('alertas'))->first(fn ($a) => $a->ehErro())->codigo);
+
+        $this->post(route('escalas.reabrir', $escala));
+
+        $this->assertContains(
+            $aceita,
+            collect($this->get(route('escalas.show', $escala))->viewData('alertas'))->pluck('mensagem')->all()
+        );
     }
 
     // -----------------------------------------------------------------

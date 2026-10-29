@@ -227,12 +227,14 @@ class Motorista extends Model
      * Retorna a lista de impedimentos encontrados (vazia = apto). Usado pelo
      * gerador de escalas para avisar o coordenador antes de fechar o mes.
      */
+    public const IMPEDIMENTO_INATIVO = 'Motorista com cadastro inativo.';
+
     public function impedimentosNoPeriodo(\DateTimeInterface $inicio, \DateTimeInterface $fim): array
     {
         $impedimentos = [];
 
         if (! $this->ativo()) {
-            $impedimentos[] = 'Motorista com cadastro inativo.';
+            $impedimentos[] = self::IMPEDIMENTO_INATIVO;
         }
 
         if ($this->cnh_validade !== null && $this->cnh_validade < $inicio) {
