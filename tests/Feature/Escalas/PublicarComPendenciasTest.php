@@ -170,7 +170,9 @@ class PublicarComPendenciasTest extends TestCase
             ->assertSee('Troca combinada entre os motoristas.')
             ->assertSee('Pendências desta escala');
 
-        $this->get(route('escalas.index'))->assertOk()->assertSee('com pendências');
+        // Aceitar as pendências é decisão tomada: a lista não marca a escala,
+        // o registro fica só no quadro da própria escala.
+        $this->get(route('escalas.index'))->assertOk()->assertDontSee('com pendências');
     }
 
     // -----------------------------------------------------------------
