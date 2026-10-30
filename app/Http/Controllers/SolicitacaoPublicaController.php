@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Http\Requests\SolicitacaoDeAltaRequest;
 use App\Models\Configuracao;
 use App\Models\SolicitacaoDeTransporte;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Solicitacoes\RegistroDeSolicitacao;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\URL;
@@ -41,6 +43,16 @@ class SolicitacaoPublicaController extends Controller
         $dados = collect($request->validated())->except('declaracao')->all();
 
         $solicitacao = $registro->registrar($dados, $request->ip(), $request->userAgent());
+
+        // Reenvio do mesmo formulario devolve o pedido ja gravado: nao e pedido novo.
+        // Sem dados do paciente: se a solicitacao for apagada, eles nao ficam aqui.
+        if ($solicitacao->wasRecentlyCreated) {
+            Auditoria::registrar(
+                AcaoAuditada::SolicitacaoRecebida,
+                "Recebida pela página aberta a solicitação {$solicitacao->protocolo}, de {$solicitacao->hospital_nome} ({$solicitacao->hospital_cidade})",
+                $solicitacao,
+            );
+        }
 
         // Assinado: a confirmacao mostra data e protocolo, e ninguem chega a
         // ela trocando o numero no endereco.

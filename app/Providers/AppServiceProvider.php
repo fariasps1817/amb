@@ -2,15 +2,20 @@
 
 namespace App\Providers;
 
+use App\Enums\AcaoAuditada;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Whatsapp\Contracts\DriverDeWhatsapp;
 use App\Services\Whatsapp\Drivers\DriverCloudApi;
 use App\Services\Whatsapp\Drivers\DriverDeLink;
 use App\Services\Whatsapp\Drivers\DriverEvolution;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -52,6 +57,15 @@ class AppServiceProvider extends ServiceProvider
                 'erro',
                 'Muitos envios em pouco tempo a partir desta conexão. Aguarde alguns minutos ou ligue para a coordenação.'
             )));
+
+        // Quem marcou "manter a sessao" volta sem passar pela tela de login: e este
+        // evento que permite anotar a volta. Os logins pela tela sao anotados no
+        // LoginController, que ainda recusa usuario desativado depois deste evento.
+        Event::listen(Login::class, function (Login $evento) {
+            if (Auth::guard($evento->guard)->viaRemember()) {
+                Auditoria::registrar(AcaoAuditada::SessaoRetomada, 'Voltou ao sistema pela sessão mantida neste aparelho');
+            }
+        });
 
         // Em desenvolvimento e nos testes, falha alto quando um atributo enviado
         // ao model nao esta em Fillable, em vez de descarta-lo em silencio —

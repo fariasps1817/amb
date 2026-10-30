@@ -3,9 +3,10 @@
     $meuIp = request()->ip();
 @endphp
 
-<x-layouts.app titulo="Acessos" subtitulo="Quem entrou e quem tentou entrar no sistema">
+<x-layouts.app titulo="Auditoria" subtitulo="Quem entrou e quem tentou entrar no sistema">
 
     <div class="space-y-5">
+        @include('auditoria._abas', ['ativa' => 'tentativas'])
 
         {{-- Resumo das últimas 24 horas --}}
         <div class="grid gap-3 sm:grid-cols-2">

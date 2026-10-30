@@ -95,11 +95,18 @@
                         class="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap sm:items-center"
                         x-data="{ copiado: false, texto: @js($textoDoPlantao) }"
                     >
-                        <x-botao :href="$linkDoPlantao" target="_blank" rel="noopener" tamanho="grande" icone="whatsapp">
+                        <x-botao
+                            :href="$linkDoPlantao"
+                            x-on:click="registrarEnvio({ evento: 'plantao', forma: 'whatsapp', dia: '{{ $hoje->toDateString() }}' })"
+                            target="_blank"
+                            rel="noopener"
+                            tamanho="grande"
+                            icone="whatsapp"
+                        >
                             Enviar para as unidades pelo WhatsApp
                         </x-botao>
                         <x-botao
-                            x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            x-on:click="registrarEnvio({ evento: 'plantao', forma: 'copia', dia: '{{ $hoje->toDateString() }}' }); copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
                             variante="secundario"
                             tamanho="grande"
                             icone="copiar"

@@ -2,10 +2,13 @@
 
 namespace App\Livewire;
 
+use App\Enums\AcaoAuditada;
 use App\Enums\TipoDestino;
 use App\Models\Escala;
 use App\Models\EscalaLotacao;
+use App\Models\Motorista;
 use App\Models\Unidade;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Support\Collection;
@@ -143,6 +146,9 @@ class DefinirDestinos extends Component
      */
     public function definir(int $motoristaId, ?string $tipo, MontadorDeEscala $montador): void
     {
+        $motorista = Motorista::query()->find($motoristaId);
+        $antes = $this->situacaoDe($motoristaId);
+
         if (blank($tipo)) {
             EscalaLotacao::query()
                 ->where('escala_id', $this->escala->id)
@@ -156,12 +162,30 @@ class DefinirDestinos extends Component
                     'observacao' => null,
                 ]);
 
+            Auditoria::registrar(
+                AcaoAuditada::DestinoLimpo,
+                "Limpou o destino de {$motorista?->nome_curto}",
+                $motorista,
+                $this->escala,
+                [['campo' => 'Destino', 'de' => $antes, 'para' => null]],
+            );
+
             $this->limparCache();
 
             return;
         }
 
-        $montador->definirDestino($this->escala, $motoristaId, TipoDestino::from($tipo));
+        $destino = TipoDestino::from($tipo);
+
+        $montador->definirDestino($this->escala, $motoristaId, $destino);
+
+        Auditoria::registrar(
+            AcaoAuditada::DestinoDefinido,
+            "Definiu o destino de {$motorista?->nome_curto}: {$destino->rotulo()}",
+            $motorista,
+            $this->escala,
+            [['campo' => 'Destino', 'de' => $antes, 'para' => $destino->rotulo()]],
+        );
 
         $this->limparCache();
     }
@@ -211,6 +235,8 @@ class DefinirDestinos extends Component
             // valer a contagem da escala.
             'plantoes_ajustados' => $lotacao->escalado() ? null : $lotacao->plantoes_ajustados,
         ]);
+
+        Auditoria::alteracao(AcaoAuditada::OcorrenciaRemovida, $lotacao, "Removeu a ocorrência de {$lotacao->motorista?->nome_curto}", $this->escala);
 
         $this->fecharEdicao();
         $this->limparCache();
@@ -271,6 +297,8 @@ class DefinirDestinos extends Component
             'unidade_apoio_id' => $lotacao->tipo_destino === TipoDestino::Apoio ? $this->unidadeApoioId : null,
         ]);
 
+        Auditoria::alteracao(AcaoAuditada::DetalhesDaLotacaoAlterados, $lotacao, "Alterou período, ocorrência ou plantões de {$lotacao->motorista?->nome_curto}", $this->escala);
+
         $this->fecharEdicao();
         $this->limparCache();
 
@@ -282,7 +310,10 @@ class DefinirDestinos extends Component
      */
     public function todosParaReserva(MontadorDeEscala $montador): void
     {
-        $total = $montador->definirRestantesComoReserva($this->escala->fresh()->load('postos', 'lotacoes'));
+        $escala = $this->escala->fresh()->load('postos', 'lotacoes');
+        $nomes = AnalisadorDeEfetivo::para($escala)->motoristasSemDefinicao()->pluck('nome_curto')->implode(', ');
+
+        $total = $montador->definirRestantesComoReserva($escala);
 
         $this->limparCache();
 
@@ -291,6 +322,14 @@ class DefinirDestinos extends Component
 
             return;
         }
+
+        Auditoria::registrar(
+            AcaoAuditada::RestantesParaReserva,
+            "Definiu {$total} motorista(s) sem destino como reserva/sobreaviso",
+            $this->escala,
+            $this->escala,
+            Auditoria::detalhes(['Motoristas' => $nomes]),
+        );
 
         $this->dispatch(
             'aviso',
@@ -308,6 +347,18 @@ class DefinirDestinos extends Component
     // -----------------------------------------------------------------
     // Apoio
     // -----------------------------------------------------------------
+
+    /** Onde o motorista esta no mes, em texto: a ambulancia ou o destino administrativo. */
+    private function situacaoDe(int $motoristaId): ?string
+    {
+        $lotacao = EscalaLotacao::query()
+            ->where('escala_id', $this->escala->id)
+            ->where('motorista_id', $motoristaId)
+            ->with('posto.unidade')
+            ->first();
+
+        return $lotacao?->escalado() ? $lotacao->posto?->rotuloLotacao() : $lotacao?->tipo_destino?->rotulo();
+    }
 
     private function lotacao(int $id): EscalaLotacao
     {

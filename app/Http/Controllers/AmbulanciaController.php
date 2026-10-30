@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Http\Requests\AmbulanciaRequest;
 use App\Models\Ambulancia;
 use App\Models\Unidade;
+use App\Services\Auditoria\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,6 +45,8 @@ class AmbulanciaController extends Controller
     {
         $ambulancia = Ambulancia::query()->create($request->validated());
 
+        Auditoria::criacao(AcaoAuditada::AmbulanciaCriada, $ambulancia, "Cadastrou a ambulância {$ambulancia->placaFormatada()}");
+
         return redirect()
             ->route('ambulancias.index')
             ->with('sucesso', "Ambulância {$ambulancia->placaFormatada()} cadastrada.");
@@ -78,6 +82,8 @@ class AmbulanciaController extends Controller
     {
         $ambulancia->update($request->validated());
 
+        Auditoria::alteracao(AcaoAuditada::AmbulanciaAlterada, $ambulancia, "Alterou o cadastro da ambulância {$ambulancia->placaFormatada()}");
+
         return redirect()
             ->route('ambulancias.index')
             ->with('sucesso', "Ambulância {$ambulancia->placaFormatada()} atualizada.");
@@ -94,12 +100,16 @@ class AmbulanciaController extends Controller
         if ($ambulancia->postos()->exists()) {
             $ambulancia->update(['ativo' => false]);
 
+            Auditoria::alteracao(AcaoAuditada::AmbulanciaDesativada, $ambulancia, "Pediu para excluir a ambulância {$placa}, que consta em escalas: ficou desativada");
+
             return redirect()
                 ->route('ambulancias.index')
                 ->with('atencao', "A ambulância {$placa} consta em escalas já registradas e por isso foi desativada, preservando o histórico.");
         }
 
         $ambulancia->delete();
+
+        Auditoria::exclusao(AcaoAuditada::AmbulanciaExcluida, $ambulancia, "Excluiu a ambulância {$placa}");
 
         return redirect()->route('ambulancias.index')->with('sucesso', "Ambulância {$placa} excluída.");
     }

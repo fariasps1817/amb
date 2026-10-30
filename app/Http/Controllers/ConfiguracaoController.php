@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Http\Requests\ConfiguracaoRequest;
 use App\Models\Configuracao;
+use App\Services\Auditoria\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -42,6 +44,8 @@ class ConfiguracaoController extends Controller
 
         $configuracao->update($dados);
 
+        Auditoria::alteracao(AcaoAuditada::ConfiguracaoAlterada, $configuracao, 'Alterou a identidade institucional');
+
         $mensagem = 'Identidade institucional atualizada.';
 
         if ($enviadas > 0) {
@@ -60,6 +64,8 @@ class ConfiguracaoController extends Controller
 
         $this->apagarArquivo($configuracao->{$campo});
         $configuracao->update([$campo => null]);
+
+        Auditoria::alteracao(AcaoAuditada::ConfiguracaoImagemRemovida, $configuracao, 'Removeu da identidade institucional: '.Configuracao::CAMPOS_DE_IMAGEM[$campo]);
 
         return redirect()
             ->route('configuracoes.edit')

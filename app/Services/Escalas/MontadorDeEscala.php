@@ -439,8 +439,10 @@ class MontadorDeEscala
      * Sobe (-1) ou desce (+1) o posto uma casa na sequencia do mes. E a ordem
      * dos blocos na montagem, na planilha impressa e na lista de quem esta de
      * plantao, e e copiada quando o mes seguinte repete a estrutura.
+     *
+     * @return bool Se mudou de lugar: o primeiro nao sobe e o ultimo nao desce.
      */
-    public function moverPosto(EscalaPosto $posto, int $direcao): void
+    public function moverPosto(EscalaPosto $posto, int $direcao): bool
     {
         $ids = EscalaPosto::query()
             ->where('escala_id', $posto->escala_id)
@@ -453,12 +455,14 @@ class MontadorDeEscala
         $destino = $atual + ($direcao < 0 ? -1 : 1);
 
         if ($atual === false || ! isset($ids[$destino])) {
-            return;
+            return false;
         }
 
         [$ids[$atual], $ids[$destino]] = [$ids[$destino], $ids[$atual]];
 
         $this->renumerarPostos($ids);
+
+        return true;
     }
 
     /**

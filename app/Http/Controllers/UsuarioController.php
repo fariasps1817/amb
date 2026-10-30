@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Models\User;
+use App\Services\Auditoria\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,7 +33,9 @@ class UsuarioController extends Controller
         $dados = $request->validate($this->regras());
         $dados['ativo'] = $request->boolean('ativo');
 
-        User::query()->create($dados);
+        $usuario = User::query()->create($dados);
+
+        Auditoria::criacao(AcaoAuditada::UsuarioCriado, $usuario, "Cadastrou o usuário {$usuario->usuario} ({$usuario->perfilRotulo()})");
 
         return redirect()->route('usuarios.index')->with('sucesso', 'Usuário cadastrado.');
     }
@@ -58,6 +62,8 @@ class UsuarioController extends Controller
 
         $usuario->update($dados);
 
+        Auditoria::alteracao(AcaoAuditada::UsuarioAlterado, $usuario, "Alterou o usuário {$usuario->usuario}");
+
         return redirect()->route('usuarios.index')->with('sucesso', 'Usuário atualizado.');
     }
 
@@ -80,6 +86,8 @@ class UsuarioController extends Controller
 
         $nome = $usuario->nome;
         $usuario->delete();
+
+        Auditoria::exclusao(AcaoAuditada::UsuarioExcluido, $usuario, "Excluiu o usuário {$usuario->usuario}");
 
         return redirect()->route('usuarios.index')->with('sucesso', "Usuário {$nome} excluído.");
     }

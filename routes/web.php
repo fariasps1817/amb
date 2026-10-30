@@ -3,10 +3,12 @@
 use App\Http\Controllers\AcessoController;
 use App\Http\Controllers\AmbulanciaController;
 use App\Http\Controllers\AniversarianteController;
+use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ComparacaoDePropostasController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\DocumentoController;
+use App\Http\Controllers\EnvioPeloWhatsappController;
 use App\Http\Controllers\EscalaController;
 use App\Http\Controllers\MensagemController;
 use App\Http\Controllers\MotoristaController;
@@ -161,6 +163,18 @@ Route::middleware('auth')->group(function () {
     Route::get('acessos', AcessoController::class)
         ->middleware('admin')
         ->name('acessos.index');
+
+    Route::controller(AuditoriaController::class)->prefix('auditoria')->name('auditoria.')->middleware('admin')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('exportar', 'exportar')->name('exportar');
+        Route::get('sessoes', 'sessoes')->name('sessoes');
+        Route::get('sessoes/{sessao}', 'sessao')->whereUuid('sessao')->name('sessao');
+    });
+
+    // Fora do grupo acima: quem toca nos botoes de envio nao e so o administrador.
+    Route::post('auditoria/envio', EnvioPeloWhatsappController::class)
+        ->middleware('throttle:60,1')
+        ->name('auditoria.envio');
 
     // Chamada pelo aviso de inatividade quando o usuario pede para continuar
     // conectado. Qualquer requisicao autenticada ja renova a sessao; esta

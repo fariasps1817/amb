@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Enums\AcaoAuditada;
 use App\Models\Escala;
 use App\Models\EscalaPosto;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Escalas\MontadorDeEscala;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -61,9 +63,16 @@ class OrdenarPostos extends Component
     {
         abort_unless(auth()->user()->podeEditar() && $this->escala->fresh()->editavel(), 403);
 
-        $posto = EscalaPosto::query()->where('escala_id', $this->escala->id)->findOrFail($postoId);
+        $posto = EscalaPosto::query()->where('escala_id', $this->escala->id)->with('unidade')->findOrFail($postoId);
 
-        $montador->moverPosto($posto, $direcao);
+        if ($montador->moverPosto($posto, $direcao)) {
+            Auditoria::registrar(
+                AcaoAuditada::PostoReordenado,
+                "Moveu {$posto->rotuloLotacao()} para ".($direcao < 0 ? 'cima' : 'baixo').' na ordem das ambulâncias',
+                $posto,
+                $this->escala,
+            );
+        }
 
         $this->alterou = true;
         unset($this->postos);

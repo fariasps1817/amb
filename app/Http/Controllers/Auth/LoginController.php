@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AcaoAuditada;
 use App\Enums\MotivoDeAcesso;
 use App\Http\Controllers\Controller;
 use App\Models\TentativaDeAcesso;
 use App\Models\User;
+use App\Services\Auditoria\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -115,6 +117,7 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         TentativaDeAcesso::registrar($request, $usuarioDigitado, MotivoDeAcesso::Sucesso);
+        Auditoria::registrar(AcaoAuditada::SessaoEntrou, 'Entrou no sistema');
 
         $usuario->forceFill(['ultimo_acesso_em' => now()])->save();
 
@@ -126,6 +129,12 @@ class LoginController extends Controller
         // O aviso de inatividade envia este campo para que a tela de login
         // explique por que a sessao terminou, em vez de so mostrar o formulario.
         $porInatividade = $request->boolean('inatividade');
+
+        // Antes de encerrar: depois nao ha mais quem nem de qual sessao.
+        Auditoria::registrar(
+            $porInatividade ? AcaoAuditada::SessaoInatividade : AcaoAuditada::SessaoSaiu,
+            $porInatividade ? 'Sessão encerrada por inatividade' : 'Saiu do sistema',
+        );
 
         Auth::logout();
 

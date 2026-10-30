@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Models\Configuracao;
 use App\Models\Escala;
 use App\Models\Motorista;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Documentos\GeradorDeDocumentos;
 use Barryvdh\DomPDF\PDF as DomPdf;
 use Illuminate\Http\Request;
@@ -71,6 +73,8 @@ class DocumentoController extends Controller
             $request,
             $this->gerador->planilha($escala, $layout, $incluirForaDeEscala),
             $this->gerador->nomeArquivo($escala, 'escala'),
+            $escala,
+            'a planilha mensal de plantões',
         );
     }
 
@@ -81,6 +85,8 @@ class DocumentoController extends Controller
             $request,
             $this->gerador->ocorrencias($escala),
             $this->gerador->nomeArquivo($escala, 'ocorrencias'),
+            $escala,
+            'a lista mensal de ocorrências',
         );
     }
 
@@ -98,6 +104,8 @@ class DocumentoController extends Controller
             $request,
             $this->gerador->frequencias($escala, $comHoras),
             $this->gerador->nomeArquivo($escala, 'frequencias', $comHoras ? 'com-horas' : null),
+            $escala,
+            'as folhas de frequência de todos os motoristas',
         );
     }
 
@@ -114,11 +122,23 @@ class DocumentoController extends Controller
             $request,
             $this->gerador->frequencia($escala, $motorista, $comHoras),
             $this->gerador->nomeArquivo($escala, 'frequencia', $sufixo),
+            $escala,
+            "a folha de frequência de {$motorista->nome_curto}",
+            $motorista,
         );
     }
 
-    private function responder(Request $request, DomPdf $pdf, string $nome): Response
+    /** Toda emissao passa por aqui, e por isso e aqui que entra na auditoria. */
+    private function responder(Request $request, DomPdf $pdf, string $nome, Escala $escala, string $documento, ?Motorista $motorista = null): Response
     {
+        Auditoria::registrar(
+            AcaoAuditada::DocumentoEmitido,
+            ($request->boolean('download') ? 'Baixou ' : 'Abriu ').$documento,
+            $motorista,
+            $escala,
+            naoRepetirPor: 60,
+        );
+
         return $request->boolean('download')
             ? $pdf->download($nome)
             : $pdf->stream($nome);

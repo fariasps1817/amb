@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Enums\MotivoNaoAtendimento;
 use App\Enums\StatusMotorista;
 use App\Enums\StatusSolicitacao;
 use App\Models\Motorista;
 use App\Models\SolicitacaoDeTransporte;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Whatsapp\MensagemDeTransporte;
 use App\Services\Whatsapp\PlantaoDoDia;
 use Illuminate\Http\JsonResponse;
@@ -113,6 +115,8 @@ class SolicitacaoController extends Controller
             'registrada_em' => now(),
         ]);
 
+        Auditoria::alteracao(AcaoAuditada::SolicitacaoAtendida, $solicitacao, "Registrou como atendida a solicitação {$solicitacao->protocolo}");
+
         return redirect()
             ->route('solicitacoes.index')
             ->with('sucesso', "Solicitação {$solicitacao->protocolo} registrada como atendida.");
@@ -149,6 +153,8 @@ class SolicitacaoController extends Controller
             'registrada_em' => now(),
         ]);
 
+        Auditoria::alteracao(AcaoAuditada::SolicitacaoNaoAtendida, $solicitacao, "Registrou como não atendida a solicitação {$solicitacao->protocolo}");
+
         return redirect()
             ->route('solicitacoes.index')
             ->with('sucesso', "Solicitação {$solicitacao->protocolo} registrada como não atendida.");
@@ -167,6 +173,9 @@ class SolicitacaoController extends Controller
             'registrada_em' => null,
         ]);
 
+        // O desfecho sai da solicitacao aqui: o antes e depois e o que sobra dele.
+        Auditoria::alteracao(AcaoAuditada::SolicitacaoReaberta, $solicitacao, "Reabriu a solicitação {$solicitacao->protocolo}, apagando o desfecho registrado");
+
         return redirect()
             ->route('solicitacoes.show', $solicitacao)
             ->with('atencao', 'Solicitação reaberta: ela voltou a aguardar atendimento.');
@@ -180,6 +189,9 @@ class SolicitacaoController extends Controller
     public function destroy(SolicitacaoDeTransporte $solicitacao): RedirectResponse
     {
         $solicitacao->delete();
+
+        // So o protocolo e a situacao: apagar existe para o dado do paciente sumir.
+        Auditoria::registrar(AcaoAuditada::SolicitacaoExcluida, "Apagou a solicitação {$solicitacao->protocolo} ({$solicitacao->status->rotulo()})", $solicitacao);
 
         return redirect()
             ->route('solicitacoes.index')

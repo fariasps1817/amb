@@ -112,9 +112,13 @@ return [
     | rid of old sessions from storage. Here are the chances that it will
     | happen on a given request. By default, the odds are 2 out of 100.
     |
+    | Desligado de proposito. A limpeza e feita uma vez por noite, em
+    | routes/console.php, e antes dela a auditoria registra as sessoes que
+    | venceram. Com o sorteio, elas sumiriam durante o dia sem deixar registro.
+    |
     */
 
-    'lottery' => [2, 100],
+    'lottery' => [0, 100],
 
     /*
     |--------------------------------------------------------------------------

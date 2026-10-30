@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Enums\StatusEscala;
 use App\Models\Ambulancia;
 use App\Models\Escala;
 use App\Models\EscalaPlantao;
 use App\Models\Motorista;
 use App\Models\Unidade;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Escalas\Alerta;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
@@ -86,6 +88,13 @@ class EscalaController extends Controller
         // Traz todo o efetivo ativo para a folha do mes, para a tela de destinos
         // ja listar quem falta definir.
         $this->montador->sincronizarEfetivo($escala);
+
+        Auditoria::registrar(
+            AcaoAuditada::EscalaCriada,
+            $request->boolean('copiar_mes_anterior') && $escala->anterior() !== null ? 'Criou a escala, copiando a estrutura do mês anterior' : 'Criou a escala a partir da frota',
+            $escala,
+            $escala,
+        );
 
         return redirect()
             ->route('escalas.montar', $escala)
@@ -199,6 +208,8 @@ class EscalaController extends Controller
 
         $resultado = $this->gerador->gerar($escala, $request->boolean('descartar_ajustes'));
 
+        Auditoria::geracaoDePlantoes($escala, $resultado, $request->boolean('descartar_ajustes'));
+
         if ($resultado->temErros()) {
             return back()->with('erro', $resultado->erros()[0]->mensagem);
         }
@@ -262,6 +273,15 @@ class EscalaController extends Controller
 
         $excluir = ($dados['outras'] ?? 'excluir') === 'excluir';
 
+        // Antes de publicar: excluidas, nao ha mais de onde ler o nome delas.
+        $nomesDasOutras = Escala::query()
+            ->doMes($escala->ano, $escala->mes)
+            ->whereKeyNot($escala->id)
+            ->get()
+            ->filter(fn (Escala $e) => $e->ehRascunho())
+            ->map(fn (Escala $e) => $e->nome ?? 'Sem nome')
+            ->implode(', ');
+
         try {
             $outras = $this->montador->publicar(
                 $escala,
@@ -275,6 +295,20 @@ class EscalaController extends Controller
         } catch (RuntimeException|UniqueConstraintViolationException) {
             return back()->with('erro', 'Já existe uma escala publicada para '.$escala->referenciaLonga().'.');
         }
+
+        Auditoria::registrar(
+            AcaoAuditada::EscalaPublicada,
+            'Publicou a escala'.($erros !== [] ? ' com '.count($erros).' pendência(s) aceita(s)' : ''),
+            $escala,
+            $escala,
+            Auditoria::detalhes([
+                'Aprovada por' => $dados['aprovada_por'] ?? null,
+                'Aprovada em' => filled($dados['aprovada_em'] ?? null) ? Carbon::parse($dados['aprovada_em'])->format('d/m/Y') : null,
+                'Pendências aceitas' => implode("\n", array_map(fn ($a) => $a->mensagem, $erros)),
+                'Motivo' => $erros !== [] ? $dados['justificativa'] : null,
+                $excluir ? 'Outras propostas excluídas' : 'Outras propostas guardadas como descartadas' => $nomesDasOutras,
+            ]),
+        );
 
         $sobreAsOutras = match (true) {
             $outras === 0 => '',
@@ -298,6 +332,8 @@ class EscalaController extends Controller
 
         $escala->update(['status' => StatusEscala::Rascunho, 'publicada_em' => null]);
 
+        Auditoria::alteracao(AcaoAuditada::EscalaReaberta, $escala, 'Reabriu a escala para ajustes', $escala);
+
         return back()->with('atencao', 'Escala reaberta para ajustes. Reemita os documentos após as alterações.');
     }
 
@@ -317,6 +353,8 @@ class EscalaController extends Controller
         } catch (RuntimeException $e) {
             return back()->with('erro', $e->getMessage());
         }
+
+        Auditoria::registrar(AcaoAuditada::EscalaDuplicada, 'Criou uma nova proposta a partir de '.($escala->fresh()->nome ?? 'a escala original'), $nova, $nova);
 
         return redirect()
             ->route('escalas.show', $nova)
@@ -349,6 +387,8 @@ class EscalaController extends Controller
             'observacao' => $dados['observacao'] ?? null,
         ]);
 
+        Auditoria::alteracao(AcaoAuditada::EscalaRenomeada, $escala, 'Alterou o nome ou a descrição da proposta', $escala);
+
         return back()->with('sucesso', 'Proposta atualizada.');
     }
 
@@ -364,6 +404,8 @@ class EscalaController extends Controller
             return back()->with('erro', $e->getMessage());
         }
 
+        Auditoria::alteracao(AcaoAuditada::EscalaRestaurada, $escala, 'Devolveu a proposta descartada para rascunho', $escala);
+
         return back()->with('sucesso', ($escala->nome ?? 'A proposta').' voltou para rascunho.');
     }
 
@@ -373,6 +415,8 @@ class EscalaController extends Controller
         abort_unless($escala->publicada(), 403, 'Só uma escala publicada pode ser arquivada.');
 
         $escala->update(['status' => StatusEscala::Arquivada]);
+
+        Auditoria::alteracao(AcaoAuditada::EscalaArquivada, $escala, 'Arquivou a escala', $escala);
 
         return back()->with('sucesso', 'Escala arquivada. Ela permanece disponível apenas para consulta.');
     }
@@ -389,6 +433,8 @@ class EscalaController extends Controller
 
         $titulo = $escala->titulo();
         $escala->delete();
+
+        Auditoria::registrar(AcaoAuditada::EscalaExcluida, 'Excluiu a escala', $escala, $escala);
 
         return redirect()->route('escalas.index')->with('sucesso', "Escala de {$titulo} excluída.");
     }

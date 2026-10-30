@@ -159,6 +159,7 @@
                         <a
                             :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
                             href="https://wa.me/?text={{ rawurlencode($texto) }}"
+                            x-on:click="registrarEnvio({ evento: 'plantao', forma: 'whatsapp', dia: '{{ $dia->toDateString() }}' })"
                             target="_blank"
                             rel="noopener"
                             class="inline-flex items-center justify-center gap-2 rounded-lg bg-marca-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-marca-700"
@@ -168,7 +169,7 @@
                         </a>
 
                         <x-botao
-                            x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            x-on:click="registrarEnvio({ evento: 'plantao', forma: 'copia', dia: '{{ $dia->toDateString() }}' }); copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
                             variante="secundario"
                             tamanho="grande"
                             icone="copiar"
@@ -181,7 +182,7 @@
                         <x-botao
                             x-show="podeCompartilhar"
                             x-cloak
-                            x-on:click="navigator.share({ text: texto }).catch(() => {})"
+                            x-on:click="registrarEnvio({ evento: 'plantao', forma: 'compartilhar', dia: '{{ $dia->toDateString() }}' }); navigator.share({ text: texto }).catch(() => {})"
                             variante="secundario"
                             tamanho="grande"
                             icone="compartilhar"

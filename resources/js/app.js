@@ -201,6 +201,32 @@ const iniciarContadorDeSolicitacoes = () => {
 document.addEventListener('DOMContentLoaded', iniciarContadorDeSolicitacoes);
 
 // ---------------------------------------------------------------------------
+// Auditoria dos envios pelo WhatsApp
+// ---------------------------------------------------------------------------
+
+/*
+ * O envio acontece no aparelho, em um link: sem este aviso o sistema nao saberia
+ * que o toque aconteceu. "keepalive" faz a requisicao sobreviver a troca de
+ * aplicativo no celular. Uma falha aqui nao pode atrapalhar o envio: e ignorada.
+ */
+window.registrarEnvio = (dados) => {
+    const rota = document.querySelector('meta[name="auditoria-envio"]')?.content;
+
+    if (! rota) return;
+
+    fetch(rota, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        },
+        body: JSON.stringify(dados),
+    }).catch(() => {});
+};
+
+// ---------------------------------------------------------------------------
 // Copiar para a area de transferencia
 // ---------------------------------------------------------------------------
 

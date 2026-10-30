@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Http\Requests\UnidadeRequest;
 use App\Models\Unidade;
+use App\Services\Auditoria\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,6 +41,8 @@ class UnidadeController extends Controller
     {
         $unidade = Unidade::query()->create($request->dadosDaUnidade());
 
+        Auditoria::criacao(AcaoAuditada::UnidadeCriada, $unidade, "Cadastrou a unidade {$unidade->sigla}");
+
         return redirect()
             ->route('unidades.index')
             ->with('sucesso', "Unidade {$unidade->sigla} cadastrada em regime {$unidade->regimeNotacao()}.");
@@ -60,6 +64,8 @@ class UnidadeController extends Controller
     {
         $regimeAnterior = $unidade->regimeNotacao();
         $unidade->update($request->dadosDaUnidade());
+
+        Auditoria::alteracao(AcaoAuditada::UnidadeAlterada, $unidade, "Alterou o cadastro da unidade {$unidade->sigla}");
 
         $mensagem = "Unidade {$unidade->sigla} atualizada.";
 
@@ -85,6 +91,8 @@ class UnidadeController extends Controller
         if ($unidade->postos()->exists()) {
             $unidade->update(['ativo' => false]);
 
+            Auditoria::alteracao(AcaoAuditada::UnidadeDesativada, $unidade, "Pediu para excluir a unidade {$sigla}, que consta em escalas: ficou desativada");
+
             return redirect()
                 ->route('unidades.index')
                 ->with('atencao', "A unidade {$sigla} consta em escalas já registradas e por isso foi desativada, preservando o histórico.");
@@ -97,6 +105,8 @@ class UnidadeController extends Controller
         }
 
         $unidade->delete();
+
+        Auditoria::exclusao(AcaoAuditada::UnidadeExcluida, $unidade, "Excluiu a unidade {$sigla}");
 
         return redirect()->route('unidades.index')->with('sucesso', "Unidade {$sigla} excluída.");
     }

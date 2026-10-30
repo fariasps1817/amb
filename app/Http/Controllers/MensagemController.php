@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Models\Escala;
 use App\Models\EscalaMensagem;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Whatsapp\EnviadorDeMensagens;
 use App\Services\Whatsapp\MontadorDeMensagens;
 use Illuminate\Http\RedirectResponse;
@@ -69,6 +71,13 @@ class MensagemController extends Controller
             return back()->with('atencao', 'Nenhuma mensagem nova para preparar. As já enviadas foram mantidas.');
         }
 
+        Auditoria::registrar(
+            AcaoAuditada::MensagensPreparadas,
+            "Preparou {$preparadas} mensagem(ns) aos motoristas".($request->boolean('recriar_enviadas') ? ', recriando as já enviadas' : ''),
+            $escala,
+            $escala,
+        );
+
         return back()->with('sucesso', "{$preparadas} mensagem(ns) preparada(s). Confira o texto e envie.");
     }
 
@@ -85,6 +94,8 @@ class MensagemController extends Controller
         }
 
         $this->enviador->marcarComoEnviada($mensagem);
+
+        Auditoria::registrar(AcaoAuditada::MensagemConfirmada, "Confirmou o envio da mensagem a {$mensagem->motorista?->nome_curto}", $mensagem->motorista, $escala);
 
         return back()->with('sucesso', "Envio registrado para {$mensagem->motorista?->nome_curto}.");
     }
@@ -109,6 +120,14 @@ class MensagemController extends Controller
                 'O driver configurado é o de link: abra o WhatsApp pelo botão e depois confirme o envio.'
             );
         }
+
+        Auditoria::registrar(
+            $resultado->enviado ? AcaoAuditada::MensagemEnviada : AcaoAuditada::MensagemFalhou,
+            ($resultado->enviado ? 'Enviou a mensagem a ' : 'Falhou o envio da mensagem a ').$mensagem->motorista?->nome_curto,
+            $mensagem->motorista,
+            $escala,
+            $resultado->enviado ? [] : Auditoria::detalhes(['Retorno' => $resultado->retorno]),
+        );
 
         return $resultado->enviado
             ? back()->with('sucesso', "Mensagem enviada para {$mensagem->motorista?->nome_curto}.")
@@ -140,6 +159,14 @@ class MensagemController extends Controller
         }
 
         $resultado = $this->enviador->enviarPendentes($escala);
+
+        Auditoria::registrar(
+            AcaoAuditada::MensagensEmLote,
+            "Enviou as mensagens em lote: {$resultado['enviadas']} enviada(s) e {$resultado['falhas']} com falha",
+            $escala,
+            $escala,
+            Auditoria::detalhes(['Falhas' => implode("\n", $resultado['mensagens'])]),
+        );
 
         if ($resultado['falhas'] === 0) {
             return back()->with('sucesso', "{$resultado['enviadas']} mensagem(ns) enviada(s).");

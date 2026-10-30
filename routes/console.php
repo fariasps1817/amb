@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\RegistroDeAuditoria;
 use App\Models\TentativaDeAcesso;
+use App\Services\Auditoria\SessoesExpiradas;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -21,16 +23,22 @@ Artisan::command('inspire', function () {
 |
 */
 
-// Descarta o historico antigo de tentativas de acesso. Sem isso a tabela
-// cresceria sem limite: uma tentativa exaustiva gera milhares de linhas.
-Schedule::command('model:prune', ['--model' => [TentativaDeAcesso::class]])
+// Descarta o que passou do prazo de guarda: 6 meses para as tentativas de acesso e
+// 12 para as acoes na auditoria, por decisao da coordenacao. Sem isso as tabelas
+// cresceriam sem limite: uma tentativa exaustiva gera milhares de linhas. As
+// solicitacoes de ambulancia ficam de fora: a guarda delas e indefinida, por enquanto.
+Schedule::command('model:prune', ['--model' => [TentativaDeAcesso::class, RegistroDeAuditoria::class]])
     ->dailyAt('03:20');
 
 // Sessoes vencidas continuam ocupando espaco na tabela ate serem coletadas.
-// A coleta padrao do Laravel e por sorteio, entao pode demorar a acontecer.
 // O Laravel nao tem comando para isso -- um "session:prune-expired" ficou
 // agendado aqui por meses, falhando toda noite. Chamamos a mesma coleta que o
-// sorteio faria, no driver de sessao configurado.
-Schedule::call(fn () => Session::getHandler()->gc(config('session.lifetime') * 60))
+// sorteio faria, no driver de sessao configurado. Antes de apagar, a auditoria
+// anota quem saiu sem sair: e a unica pista de que aquela sessao terminou.
+Schedule::call(function () {
+    app(SessoesExpiradas::class)->registrar();
+
+    Session::getHandler()->gc(config('session.lifetime') * 60);
+})
     ->name('limpar-sessoes-vencidas')
     ->dailyAt('03:30');

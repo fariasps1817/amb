@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#2b736e">
+    <meta name="auditoria-envio" content="{{ route('auditoria.envio') }}">
     @if ($solicitacoesAguardando !== null)
         <meta name="contagem-solicitacoes" content="{{ route('solicitacoes.contagem') }}" data-valor="{{ $solicitacoesAguardando }}">
     @endif
@@ -115,8 +116,8 @@
                     <x-nav-item rota="usuarios.index" icone="usuarios" :ativo="request()->routeIs('usuarios.*')">
                         Usuários
                     </x-nav-item>
-                    <x-nav-item rota="acessos.index" icone="cadeado" :ativo="request()->routeIs('acessos.*')">
-                        Acessos
+                    <x-nav-item rota="auditoria.index" icone="cadeado" :ativo="request()->routeIs('auditoria.*', 'acessos.*')">
+                        Auditoria
                     </x-nav-item>
                 @endif
                 <x-nav-item rota="configuracoes.edit" icone="configuracoes" :ativo="request()->routeIs('configuracoes.*')">

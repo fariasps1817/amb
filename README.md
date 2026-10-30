@@ -283,9 +283,9 @@ independentes:
 A camada de origem existe porque a de conta sozinha não detém varredura: quem tenta dezenas de
 nomes diferentes ganha um contador novo a cada nome, e nenhum chega ao limite.
 
-Toda tentativa fica registrada em `tentativas_de_acesso` com o motivo, visível na tela
-**Acessos** (só para administradores), com resumo das últimas 24h e destaque para as origens que
-mais erraram. Sem esse registro o bloqueio aconteceria em silêncio e ninguém ficaria sabendo que
+Toda tentativa fica registrada em `tentativas_de_acesso` com o motivo, visível na aba **Tentativas**
+da tela **Auditoria** (só para administradores), com resumo das últimas 24h e destaque para as origens
+que mais erraram. Sem esse registro o bloqueio aconteceria em silêncio e ninguém ficaria sabendo que
 houve ataque.
 
 Dois cuidados na implementação:
@@ -311,6 +311,33 @@ Três detalhes que a implementação precisou cobrir:
 
 O histórico de acessos com mais de 6 meses e as sessões vencidas são descartados diariamente pelo
 agendador (`routes/console.php`), que depende de uma linha de cron chamando `schedule:run`.
+
+### Auditoria
+
+A tela **Auditoria** (só para administradores) mostra quem fez o quê, quando e de onde: uma linha do tempo
+com filtros por pessoa, período, tipo e escala, a visão de cada sessão (entrada, ações e saída) e a exportação
+em planilha, que também fica registrada.
+
+- **O que entra:** entradas e saídas (inclusive por inatividade, sessão expirada e volta pela sessão mantida),
+  cadastros, toda a montagem da escala, geração, publicação (com as pendências aceitas, o motivo e o destino das
+  outras propostas), documentos emitidos, mensagens, desfecho e exclusão de solicitações e os toques nos botões
+  que levam texto ao WhatsApp. **Não entram** as simples visitas a telas.
+- **Antes e depois:** cada alteração guarda o valor anterior e o novo. CPF e telefone vão completos, por decisão
+  da coordenação; por isso só o administrador vê. Da senha só se registra que mudou.
+- **Guarda:** 12 meses para as ações e 6 para as tentativas de acesso. As solicitações ficam de fora do descarte:
+  a guarda delas é indefinida, por enquanto.
+- **Os registros não mudam:** o model recusa alterar e apagar, e só o descarte do prazo os remove. Sobrevivem à
+  exclusão do usuário ou da escala, por isso não têm chave estrangeira e copiam o nome de quem fez.
+- **Falha não atrapalha:** um erro ao registrar vai para o log e a ação de quem está trabalhando segue.
+
+Boa parte da montagem grava direto no banco, sem disparar evento de model, então o registro é feito ação por ação
+(`Auditoria::registrar`), nos controllers e nas telas. `CoberturaDaAuditoriaTest` falha quando surge rota que grava,
+ou ação de tela, que ninguém classificou: é a trava contra esquecer a auditoria em funcionalidade nova.
+
+**Limites conhecidos:** com a Retransmissão Privada do iPhone, o endereço de rede é o da Apple. Quem fecha o navegador
+sem sair só aparece como "sessão expirada" depois da limpeza da madrugada: é ela que lê as sessões vencidas, e por isso
+a coleta por sorteio do Laravel está desligada em `config/session.php`. O envio pelo WhatsApp acontece no aparelho, então
+o registro diz "abriu o WhatsApp", e não que a mensagem foi enviada.
 
 ---
 
@@ -357,7 +384,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 357 testes
+php artisan test    # 446 testes
 ./vendor/bin/pint   # formatação
 ```
 

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoAuditada;
 use App\Enums\StatusMotorista;
 use App\Enums\Vinculo;
 use App\Http\Requests\MotoristaRequest;
 use App\Models\Escala;
 use App\Models\Motorista;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Documentos\ColunasDeMotoristas;
 use App\Services\Documentos\GeradorDeDocumentos;
 use App\Support\Aniversario;
@@ -49,6 +51,14 @@ class MotoristaController extends Controller
         );
 
         $nome = 'motoristas-'.now()->format('Y-m-d').'.pdf';
+
+        $filtros = $this->filtrosAplicados($request);
+
+        Auditoria::registrar(
+            AcaoAuditada::DocumentoEmitido,
+            ($request->boolean('download') ? 'Baixou' : 'Abriu').' a lista de motoristas em PDF'.($filtros !== [] ? ' ('.implode('; ', $filtros).')' : ''),
+            naoRepetirPor: 60,
+        );
 
         return $request->boolean('download')
             ? $pdf->download($nome)
@@ -147,6 +157,8 @@ class MotoristaController extends Controller
     {
         $motorista = Motorista::query()->create($request->validated());
 
+        Auditoria::criacao(AcaoAuditada::MotoristaCriado, $motorista, "Cadastrou o motorista {$motorista->nome_curto}");
+
         return redirect()
             ->route('motoristas.index')
             ->with('sucesso', "Motorista {$motorista->nome_curto} cadastrado.");
@@ -191,6 +203,8 @@ class MotoristaController extends Controller
     {
         $motorista->update($request->validated());
 
+        Auditoria::alteracao(AcaoAuditada::MotoristaAlterado, $motorista, "Alterou o cadastro de {$motorista->nome_curto}");
+
         return redirect()
             ->route('motoristas.index')
             ->with('sucesso', "Cadastro de {$motorista->nome_curto} atualizado.");
@@ -211,12 +225,16 @@ class MotoristaController extends Controller
         if ($motorista->lotacoes()->exists()) {
             $motorista->update(['status' => StatusMotorista::Inativo]);
 
+            Auditoria::alteracao(AcaoAuditada::MotoristaInativado, $motorista, "Pediu para excluir {$nome}, que participa de escalas: ficou inativo");
+
             return redirect()
                 ->route('motoristas.index')
                 ->with('atencao', "{$nome} participa de escalas já registradas e por isso foi marcado como inativo, preservando o histórico.");
         }
 
         $motorista->delete();
+
+        Auditoria::exclusao(AcaoAuditada::MotoristaExcluido, $motorista, "Excluiu o motorista {$nome}");
 
         return redirect()
             ->route('motoristas.index')

@@ -2,12 +2,14 @@
 
 namespace App\Livewire;
 
+use App\Enums\AcaoAuditada;
 use App\Models\Ambulancia;
 use App\Models\Escala;
 use App\Models\EscalaLotacao;
 use App\Models\EscalaPosto;
 use App\Models\Motorista;
 use App\Models\Unidade;
+use App\Services\Auditoria\Auditoria;
 use App\Services\Escalas\AnalisadorDeEfetivo;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
@@ -231,6 +233,8 @@ class MontarEscala extends Component
             return;
         }
 
+        Auditoria::registrar(AcaoAuditada::PostoAdicionado, "Adicionou a ambulância {$posto->descricao()}", $posto, $this->escala);
+
         $this->cancelarNovoPosto();
         $this->postoAberto = $posto->id;
         $this->limparCache();
@@ -242,10 +246,22 @@ class MontarEscala extends Component
     {
         $posto = $this->posto($postoId);
         $descricao = $posto->descricao();
+        $equipe = $posto->lotacoes()->with('motorista')->get()
+            ->map(fn (EscalaLotacao $l) => $l->motorista?->nome_curto)
+            ->filter()
+            ->implode(', ');
 
         // Apagar o posto leva as lotacoes e os plantoes por cascata; os
         // motoristas voltam para a lista de disponiveis.
         $posto->delete();
+
+        Auditoria::registrar(
+            AcaoAuditada::PostoRemovido,
+            "Removeu a ambulância {$descricao}",
+            $posto,
+            $this->escala,
+            Auditoria::detalhes(['Equipe que estava nela' => $equipe]),
+        );
 
         if ($this->postoAberto === $postoId) {
             $this->postoAberto = null;
@@ -284,6 +300,13 @@ class MontarEscala extends Component
             ->where('escala_posto_id', $posto->id)
             ->where('posicao', '>', $vagas)
             ->update(['escala_posto_id' => null, 'posicao' => null, 'plantoes_previstos' => 0]);
+
+        Auditoria::alteracao(
+            AcaoAuditada::PostoUnidadeAlterada,
+            $posto,
+            "Remanejou a ambulância {$posto->rotuloPlaca()} para a unidade {$unidade->sigla}".($liberadas > 0 ? ", liberando {$liberadas} motorista(s)" : ''),
+            $this->escala,
+        );
 
         $this->limparCache();
 
@@ -335,6 +358,8 @@ class MontarEscala extends Component
 
         $posto->update([$campo => $data?->toDateString()]);
 
+        Auditoria::alteracao(AcaoAuditada::PostoVigenciaAlterada, $posto, "Alterou o período de operação de {$posto->rotuloLotacao()}", $this->escala);
+
         $this->limparCache();
 
         $this->dispatch(
@@ -352,6 +377,15 @@ class MontarEscala extends Component
     {
         $posto = $this->posto($postoId);
         $posto->update(['continuar_rotacao' => ! $posto->continuar_rotacao]);
+
+        Auditoria::alteracao(
+            AcaoAuditada::PostoRotacaoAlterada,
+            $posto,
+            $posto->continuar_rotacao
+                ? "A fila de {$posto->rotuloLotacao()} passou a continuar do mês anterior"
+                : "A fila de {$posto->rotuloLotacao()} passou a reiniciar na posição 1",
+            $this->escala,
+        );
 
         $this->limparCache();
 
@@ -392,12 +426,38 @@ class MontarEscala extends Component
             return;
         }
 
+        $posto = $this->posto($postoId);
+        $motorista = Motorista::query()->find((int) $motoristaId);
+
+        // Lidos antes: lotar move o motorista e tira quem estava na vaga.
+        $ocupante = $this->lotacaoNaPosicao($postoId, $posicao);
+        $origem = EscalaLotacao::query()
+            ->where('escala_id', $this->escala->id)
+            ->where('motorista_id', (int) $motoristaId)
+            ->whereNotNull('escala_posto_id')
+            ->with('posto.unidade')
+            ->first();
+
         try {
-            $montador->lotarMotorista($this->posto($postoId), (int) $motoristaId, $posicao);
+            $montador->lotarMotorista($posto, (int) $motoristaId, $posicao);
         } catch (RuntimeException $e) {
             $this->dispatch('aviso', tipo: 'erro', texto: $e->getMessage());
 
             return;
+        }
+
+        // Escolher de novo quem ja estava na vaga nao muda nada.
+        if ($ocupante?->motorista_id !== (int) $motoristaId) {
+            Auditoria::registrar(
+                AcaoAuditada::MotoristaLotado,
+                "Lotou {$motorista?->nome_curto} na posição {$posicao} de {$posto->rotuloLotacao()}",
+                $motorista,
+                $this->escala,
+                Auditoria::detalhes([
+                    'Antes estava em' => $origem ? "{$origem->posto?->rotuloLotacao()}, posição {$origem->posicao}" : null,
+                    'Saiu da vaga' => $ocupante?->motorista?->nome_curto,
+                ]),
+            );
         }
 
         $this->buscaMotorista = '';
@@ -406,10 +466,22 @@ class MontarEscala extends Component
 
     public function liberarPosicao(int $postoId, int $posicao): void
     {
+        $posto = $this->posto($postoId);
+        $ocupante = $this->lotacaoNaPosicao($postoId, $posicao);
+
         EscalaLotacao::query()
             ->where('escala_posto_id', $postoId)
             ->where('posicao', $posicao)
             ->update(['escala_posto_id' => null, 'posicao' => null, 'plantoes_previstos' => 0]);
+
+        if ($ocupante !== null) {
+            Auditoria::registrar(
+                AcaoAuditada::PosicaoLiberada,
+                "Retirou {$ocupante->motorista?->nome_curto} da posição {$posicao} de {$posto->rotuloLotacao()}",
+                $ocupante->motorista,
+                $this->escala,
+            );
+        }
 
         $this->limparCache();
     }
@@ -429,8 +501,8 @@ class MontarEscala extends Component
             return;
         }
 
-        $atual = EscalaLotacao::query()->where('escala_posto_id', $postoId)->where('posicao', $posicao)->first();
-        $vizinho = EscalaLotacao::query()->where('escala_posto_id', $postoId)->where('posicao', $destino)->first();
+        $atual = $this->lotacaoNaPosicao($postoId, $posicao);
+        $vizinho = $this->lotacaoNaPosicao($postoId, $destino);
 
         if ($atual === null) {
             return;
@@ -440,6 +512,14 @@ class MontarEscala extends Component
         $atual->update(['posicao' => null]);
         $vizinho?->update(['posicao' => $posicao]);
         $atual->update(['posicao' => $destino]);
+
+        Auditoria::registrar(
+            AcaoAuditada::PosicaoTrocada,
+            "Passou {$atual->motorista?->nome_curto} da posição {$posicao} para a {$destino} em {$posto->rotuloLotacao()}",
+            $atual->motorista,
+            $this->escala,
+            Auditoria::detalhes(['Trocou de lugar com' => $vizinho?->motorista?->nome_curto]),
+        );
 
         $this->limparCache();
     }
@@ -457,6 +537,8 @@ class MontarEscala extends Component
             return;
         }
 
+        Auditoria::registrar(AcaoAuditada::VagasPreenchidas, "Preencheu {$preenchidas} vaga(s) automaticamente, em ordem alfabética", $this->escala, $this->escala);
+
         $this->dispatch(
             'aviso',
             tipo: 'sucesso',
@@ -468,6 +550,8 @@ class MontarEscala extends Component
     public function gerarPlantoes(GeradorDeEscala $gerador)
     {
         $resultado = $gerador->gerar($this->escala->fresh());
+
+        Auditoria::geracaoDePlantoes($this->escala, $resultado);
 
         if ($resultado->temErros()) {
             $this->dispatch('aviso', tipo: 'erro', texto: $resultado->erros()[0]->mensagem);
@@ -493,6 +577,15 @@ class MontarEscala extends Component
             ->where('escala_id', $this->escala->id)
             ->with('ambulancia', 'unidade')
             ->findOrFail($postoId);
+    }
+
+    private function lotacaoNaPosicao(int $postoId, int $posicao): ?EscalaLotacao
+    {
+        return EscalaLotacao::query()
+            ->where('escala_posto_id', $postoId)
+            ->where('posicao', $posicao)
+            ->with('motorista')
+            ->first();
     }
 
     private function limparCache(): void

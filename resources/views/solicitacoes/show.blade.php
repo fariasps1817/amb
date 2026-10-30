@@ -6,11 +6,13 @@
     // Os dois grupos da lista de envio, no mesmo formato.
     $gruposDeMotoristas = [
         'De plantão agora' => $deServico->map(fn ($plantao) => [
+            'id' => $plantao->motorista_id,
             'nome' => $plantao->motorista->nome_curto,
             'lotacao' => $plantao->posto?->rotuloLotacao(),
             'numero' => Telefone::paraWhatsapp($plantao->motorista->telefone_1),
         ]),
         'Demais motoristas' => $demaisMotoristas->map(fn ($motorista) => [
+            'id' => $motorista->id,
             'nome' => $motorista->nome_curto,
             'lotacao' => null,
             'numero' => Telefone::paraWhatsapp($motorista->telefone_1),
@@ -182,7 +184,7 @@
                                                      não repetir, ao mandar a vários: não confirma que foi enviada. --}}
                                                 <a
                                                     :href="'https://wa.me/{{ $motorista['numero'] }}?text=' + encodeURIComponent(texto)"
-                                                    x-on:click="abertos.push('{{ $motorista['numero'] }}')"
+                                                    x-on:click="abertos.push('{{ $motorista['numero'] }}'); registrarEnvio({ evento: 'solicitacao', forma: 'whatsapp', solicitacao: {{ $solicitacao->id }}, motorista: {{ $motorista['id'] }} })"
                                                     target="_blank"
                                                     rel="noopener"
                                                     class="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm transition hover:bg-slate-50"
@@ -214,6 +216,7 @@
                     {{-- Sem número: o WhatsApp abre para escolher a conversa ou o grupo. --}}
                     <a
                         :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
+                        x-on:click="registrarEnvio({ evento: 'solicitacao', forma: 'whatsapp', solicitacao: {{ $solicitacao->id }} })"
                         target="_blank"
                         rel="noopener"
                         class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
@@ -235,7 +238,7 @@
                     <div class="mt-1 text-right">
                         <button
                             type="button"
-                            x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            x-on:click="registrarEnvio({ evento: 'solicitacao', forma: 'copia', solicitacao: {{ $solicitacao->id }} }); copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
                             class="inline-flex min-h-9 items-center gap-1.5 rounded px-2 text-xs font-medium text-slate-500 transition hover:text-slate-700"
                         >
                             <x-icone nome="copiar" class="size-4" />
