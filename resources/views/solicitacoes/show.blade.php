@@ -178,10 +178,9 @@
                                     @foreach ($motoristas as $motorista)
                                         <li>
                                             @if ($motorista['numero'])
-                                                {{-- O endereço acompanha o texto editado. A marca serve para não
-                                                     repetir, ao mandar a vários: não confirma que a mensagem foi enviada. --}}
+                                                {{-- O endereço é montado na tela, com o texto já editado. A marca serve para
+                                                     não repetir, ao mandar a vários: não confirma que foi enviada. --}}
                                                 <a
-                                                    href="https://wa.me/{{ $motorista['numero'] }}?text={{ rawurlencode($textoParaMotorista) }}"
                                                     :href="'https://wa.me/{{ $motorista['numero'] }}?text=' + encodeURIComponent(texto)"
                                                     x-on:click="abertos.push('{{ $motorista['numero'] }}')"
                                                     target="_blank"
@@ -214,7 +213,6 @@
 
                     {{-- Sem número: o WhatsApp abre para escolher a conversa ou o grupo. --}}
                     <a
-                        href="https://wa.me/?text={{ rawurlencode($textoParaMotorista) }}"
                         :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
                         target="_blank"
                         rel="noopener"
