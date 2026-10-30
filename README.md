@@ -195,20 +195,22 @@ com a idade que completam e os botões para ligar ou mandar os parabéns.
 
 ### 6. Solicitações de ambulância
 
-Hospitais de qualquer município pedem o transporte do paciente em alta até a residência em Cascavel-CE
-por uma página aberta, sem login, feita para o celular: `/solicitar-ambulancia`. Quem envia declara ser
-profissional do hospital, e a coordenação confirma por telefone. Na tela *Solicitações*, *Copiar link do
-formulário* dá o endereço para passar aos hospitais.
+Hospitais de qualquer município do Ceará (escolhido em uma lista, fonte IBGE) pedem o transporte do paciente
+em alta até a residência em Cascavel-CE por uma página aberta, sem login, feita para o celular:
+`/solicitar-ambulancia`. Quem envia declara ser profissional do hospital, e a coordenação confirma por
+telefone. Na tela *Solicitações*, *Copiar link do formulário* dá o endereço para passar aos hospitais.
 
 - **Definido pelo servidor, nunca pelo formulário:** data e hora (fuso de Fortaleza), município de destino
   e situação do pedido.
 - **Coordenação:** o painel traz um cartão com o número vermelho de pedidos aguardando, que também aparece
   no menu e no título da aba, e se atualiza sozinho a cada minuto. Nos detalhes se registra o desfecho:
   *atendida* (motorista, data e hora, observações) ou *não atendida* (motivo). Quem está de plantão vem
-  primeiro na lista de motoristas.
-- **Enviar ao motorista:** enquanto o pedido aguarda, os detalhes trazem o texto pronto da viagem para mandar
-  pelo WhatsApp de quem coordena: a um motorista escolhido na lista, abrindo direto a conversa dele, ou a quem
-  se escolher no próprio WhatsApp. O texto pode ser editado antes.
+  primeiro na lista de motoristas. Cada telefone tem atalhos para ligar e para abrir o WhatsApp.
+- **Enviar ao motorista:** enquanto o pedido aguarda, *Enviar mensagem* abre a lista de motoristas; o toque em
+  um deles abre direto a conversa, com o texto pronto da viagem, e a tela continua aberta para mandar a outros.
+  Também se pode escolher outra pessoa dos contatos, editar o texto ou copiá-lo.
+- **Apagar:** só o Administrador, pelo ícone discreto no fim dos detalhes. Apaga de vez, com confirmação. Nenhuma
+  outra tabela depende do pedido, e o número do protocolo não volta a ser usado.
 - **Página aberta:** campo-armadilha para robôs e limite de 30 envios por hora por origem. O formulário não
   usa o token de sessão: assim, quem o deixa aberto por muito tempo não perde o que digitou.
 - **Envio repetido:** reenviar o mesmo formulário não duplica o pedido. O mesmo paciente e telefone em até
@@ -355,7 +357,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 349 testes
+php artisan test    # 357 testes
 ./vendor/bin/pint   # formatação
 ```
 

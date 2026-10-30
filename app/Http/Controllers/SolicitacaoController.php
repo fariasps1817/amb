@@ -67,7 +67,8 @@ class SolicitacaoController extends Controller
             'demaisMotoristas' => Motorista::query()
                 ->where('status', StatusMotorista::Ativo)
                 ->whereNotIn('id', $idsDeServico ?: [0])
-                ->ordenadoPorNome()
+                // As listas da tela mostram o nome curto: e por ele que se procura.
+                ->orderBy('nome_curto')
                 ->get(),
             'motivos' => MotivoNaoAtendimento::opcoes(),
             'textoParaMotorista' => $mensagem->texto($solicitacao),
@@ -169,6 +170,20 @@ class SolicitacaoController extends Controller
         return redirect()
             ->route('solicitacoes.show', $solicitacao)
             ->with('atencao', 'Solicitação reaberta: ela voltou a aguardar atendimento.');
+    }
+
+    /**
+     * Apaga de vez, para remover testes e pedidos indevidos. So o Administrador
+     * (na rota). Nenhuma tabela depende do pedido; quem o apontava como possivel
+     * duplicada apenas perde o aviso (chave estrangeira com "nullOnDelete").
+     */
+    public function destroy(SolicitacaoDeTransporte $solicitacao): RedirectResponse
+    {
+        $solicitacao->delete();
+
+        return redirect()
+            ->route('solicitacoes.index')
+            ->with('sucesso', "Solicitação {$solicitacao->protocolo} apagada.");
     }
 
     /** Duas pessoas abrindo o mesmo pedido: a segunda nao sobrescreve a primeira. */

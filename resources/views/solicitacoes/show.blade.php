@@ -2,7 +2,20 @@
     use App\Support\Telefone;
 
     $abaInicial = $errors->hasAny(['motivo_nao_atendimento']) || old('_acao') === 'nao_atendida' ? 'nao' : 'sim';
-    $telefonesDoPaciente = array_filter([$solicitacao->contato_telefone_1, $solicitacao->contato_telefone_2]);
+
+    // Os dois grupos da lista de envio, no mesmo formato.
+    $gruposDeMotoristas = [
+        'De plantão agora' => $deServico->map(fn ($plantao) => [
+            'nome' => $plantao->motorista->nome_curto,
+            'lotacao' => $plantao->posto?->rotuloLotacao(),
+            'numero' => Telefone::paraWhatsapp($plantao->motorista->telefone_1),
+        ]),
+        'Demais motoristas' => $demaisMotoristas->map(fn ($motorista) => [
+            'nome' => $motorista->nome_curto,
+            'lotacao' => null,
+            'numero' => Telefone::paraWhatsapp($motorista->telefone_1),
+        ]),
+    ];
 @endphp
 
 <x-layouts.app :titulo="'Solicitação '.$solicitacao->protocolo" :subtitulo="$solicitacao->tipo->rotulo()">
@@ -82,15 +95,11 @@
                     <x-campo-leitura rotulo="Hospital" :valor="$solicitacao->hospital_nome" />
                     <x-campo-leitura rotulo="Cidade e bairro" :valor="$solicitacao->hospital_cidade.' · '.$solicitacao->hospital_bairro" />
                     <x-campo-leitura rotulo="Solicitante" :valor="$solicitacao->solicitante_nome.' | '.$solicitacao->solicitante_funcao" />
-                    <x-campo-leitura rotulo="Telefone" :valor="$solicitacao->telefoneSolicitante()" />
+                    <x-campo-telefone :numero="$solicitacao->solicitante_telefone" />
                 </dl>
 
-                <x-botao href="tel:{{ $solicitacao->solicitante_telefone }}" tamanho="grande" icone="telefone" class="mt-4 w-full">
-                    Ligar para {{ Str::before($solicitacao->solicitante_nome, ' ') }}
-                </x-botao>
-
                 @if ($solicitacao->estaAguardando())
-                    <p class="mt-2 text-center text-xs text-slate-500">
+                    <p class="mt-3 text-xs text-slate-500">
                         A página é aberta: confirme por telefone antes de mandar a ambulância.
                     </p>
                 @endif
@@ -105,15 +114,11 @@
                     <x-campo-leitura rotulo="Nome" :valor="$solicitacao->paciente_nome" />
                     <x-campo-leitura rotulo="Idade" :valor="$solicitacao->idadeTexto()" />
                     <x-campo-leitura rotulo="Acompanhante" :valor="$solicitacao->acompanhante_nome" />
+                    <x-campo-telefone :numero="$solicitacao->contato_telefone_1" />
+                    @if (filled($solicitacao->contato_telefone_2))
+                        <x-campo-telefone rotulo="Outro telefone" :numero="$solicitacao->contato_telefone_2" />
+                    @endif
                 </dl>
-
-                <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                    @foreach ($telefonesDoPaciente as $telefone)
-                        <x-botao href="tel:{{ $telefone }}" variante="secundario" tamanho="grande" icone="telefone">
-                            {{ Telefone::formatar($telefone) }}
-                        </x-botao>
-                    @endforeach
-                </div>
             </x-cartao>
 
             {{-- ------------------------------------------------------------
@@ -153,86 +158,71 @@
 
         @if ($solicitacao->estaAguardando())
             {{-- Em uma div comum: o @js não é processado dentro da tag de um componente. --}}
-            <div
-                x-data="{
-                    texto: @js($textoParaMotorista),
-                    destino: '',
-                    copiado: false,
-                    podeCompartilhar: typeof navigator.share === 'function',
-                }"
-            >
+            <div x-data="{ texto: @js($textoParaMotorista), listaAberta: false, abertos: [], copiado: false }">
             <x-cartao titulo="Enviar para o motorista" descricao="Vai pelo seu WhatsApp, com os dados da viagem.">
-                <div class="space-y-2">
-                    <x-select nome="destino_whatsapp" rotulo="Motorista" vazio="Selecione o motorista" x-model="destino">
-                        @if ($deServico->isNotEmpty())
-                            <optgroup label="De plantão agora">
-                                @foreach ($deServico as $plantao)
-                                    @php $numero = Telefone::paraWhatsapp($plantao->motorista->telefone_1); @endphp
-                                    <option value="{{ $numero }}" @disabled($numero === null)>
-                                        {{ $plantao->motorista->nome_curto }} · {{ $plantao->posto?->rotuloLotacao() }}{{ $numero === null ? ' (sem telefone)' : '' }}
-                                    </option>
-                                @endforeach
-                            </optgroup>
-                        @endif
-                        <optgroup label="Demais motoristas">
-                            @foreach ($demaisMotoristas as $motorista)
-                                @php $numero = Telefone::paraWhatsapp($motorista->telefone_1); @endphp
-                                <option value="{{ $numero }}" @disabled($numero === null)>
-                                    {{ $motorista->nome_curto }}{{ $numero === null ? ' (sem telefone)' : '' }}
-                                </option>
-                            @endforeach
-                        </optgroup>
-                    </x-select>
+                <x-botao x-on:click="listaAberta = ! listaAberta" x-bind:aria-expanded="listaAberta" tamanho="grande" class="w-full">
+                    <x-icone nome="whatsapp-marca" class="size-4 shrink-0 fill-current stroke-none" />
+                    Enviar mensagem
+                    <x-icone nome="seta-baixo" class="size-4 shrink-0 transition" x-bind:class="listaAberta && 'rotate-180'" />
+                </x-botao>
 
-                    {{-- Link montado na hora do toque, com o texto já editado. --}}
-                    <a
-                        :href="destino ? 'https://wa.me/' + destino + '?text=' + encodeURIComponent(texto) : null"
-                        :aria-disabled="destino ? 'false' : 'true'"
-                        :class="destino ? '' : 'pointer-events-none opacity-50'"
-                        target="_blank"
-                        rel="noopener"
-                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-marca-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-marca-700"
-                    >
-                        <x-icone nome="whatsapp" class="size-4 shrink-0" />
-                        Enviar para este motorista
-                    </a>
-                    <p class="text-xs text-slate-500">Para mandar a mais de um, escolha outro motorista e toque de novo.</p>
-                </div>
+                <div x-show="listaAberta" x-cloak class="mt-3 space-y-3">
+                    {{-- Rolagem própria: com a lista inteira na página, o resto da tela fica longe. --}}
+                    <div class="max-h-80 space-y-3 overflow-y-auto">
+                        @foreach ($gruposDeMotoristas as $grupo => $motoristas)
+                            @continue($motoristas->isEmpty())
 
-                <div class="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap">
+                            <div>
+                                <p class="mb-1 text-xs font-medium text-slate-500">{{ $grupo }}</p>
+                                <ul class="divide-y divide-slate-100 rounded-lg ring-1 ring-inset ring-slate-200">
+                                    @foreach ($motoristas as $motorista)
+                                        <li>
+                                            @if ($motorista['numero'])
+                                                {{-- O endereço acompanha o texto editado. A marca serve para não
+                                                     repetir, ao mandar a vários: não confirma que a mensagem foi enviada. --}}
+                                                <a
+                                                    href="https://wa.me/{{ $motorista['numero'] }}?text={{ rawurlencode($textoParaMotorista) }}"
+                                                    :href="'https://wa.me/{{ $motorista['numero'] }}?text=' + encodeURIComponent(texto)"
+                                                    x-on:click="abertos.push('{{ $motorista['numero'] }}')"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                    class="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm transition hover:bg-slate-50"
+                                                >
+                                                    <span class="min-w-0">
+                                                        <span class="font-medium text-slate-900">{{ $motorista['nome'] }}</span>
+                                                        @if ($motorista['lotacao'])
+                                                            <span class="text-slate-500">· {{ $motorista['lotacao'] }}</span>
+                                                        @endif
+                                                    </span>
+                                                    <span class="flex shrink-0 items-center gap-1.5 text-emerald-600">
+                                                        <x-icone nome="check" class="size-4" x-show="abertos.includes('{{ $motorista['numero'] }}')" x-cloak />
+                                                        <x-icone nome="whatsapp-marca" class="size-4 fill-current stroke-none" />
+                                                    </span>
+                                                </a>
+                                            @else
+                                                <span class="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm text-slate-400">
+                                                    {{ $motorista['nome'] }}
+                                                    <span class="shrink-0 text-xs">sem telefone</span>
+                                                </span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endforeach
+                    </div>
+
                     {{-- Sem número: o WhatsApp abre para escolher a conversa ou o grupo. --}}
                     <a
-                        :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
                         href="https://wa.me/?text={{ rawurlencode($textoParaMotorista) }}"
+                        :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
                         target="_blank"
                         rel="noopener"
-                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
                     >
-                        <x-icone nome="whatsapp" class="size-4 shrink-0" />
-                        Escolher no WhatsApp
+                        <x-icone nome="whatsapp-marca" class="size-4 shrink-0 fill-current stroke-none text-emerald-600" />
+                        Outra pessoa dos meus contatos
                     </a>
-
-                    {{-- No celular abre a lista de apps do aparelho, que permite
-                         mandar a vários de uma vez. --}}
-                    <x-botao
-                        x-show="podeCompartilhar"
-                        x-cloak
-                        x-on:click="navigator.share({ text: texto }).catch(() => {})"
-                        variante="secundario"
-                        tamanho="grande"
-                        icone="compartilhar"
-                    >
-                        Compartilhar…
-                    </x-botao>
-
-                    <x-botao
-                        x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
-                        variante="secundario"
-                        tamanho="grande"
-                        icone="copiar"
-                    >
-                        <span x-text="copiado ? 'Copiado!' : 'Copiar texto'">Copiar texto</span>
-                    </x-botao>
                 </div>
 
                 <details class="mt-3">
@@ -241,9 +231,19 @@
                     <textarea
                         id="texto-para-motorista"
                         x-model="texto"
-                        rows="16"
+                        rows="20"
                         class="mt-2 block w-full rounded-lg border-0 bg-slate-50 px-3 py-2.5 font-mono text-[0.8rem] leading-relaxed text-slate-800 ring-1 ring-inset ring-slate-200 focus:bg-white focus:ring-2 focus:ring-marca-600"
                     ></textarea>
+                    <div class="mt-1 text-right">
+                        <button
+                            type="button"
+                            x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                            class="inline-flex min-h-9 items-center gap-1.5 rounded px-2 text-xs font-medium text-slate-500 transition hover:text-slate-700"
+                        >
+                            <x-icone nome="copiar" class="size-4" />
+                            <span x-text="copiado ? 'Copiado!' : 'Copiar texto'">Copiar texto</span>
+                        </button>
+                    </div>
                 </details>
             </x-cartao>
             </div>
@@ -335,9 +335,31 @@
             </x-cartao>
         @endif
 
-        {{-- Origem do envio: para investigar abuso da página aberta --}}
-        @if (auth()->user()->ehAdmin() && $solicitacao->ip)
-            <p class="text-xs text-slate-400">Enviada a partir de {{ $solicitacao->ip }}</p>
+        {{-- Só do Administrador: origem do envio, para investigar abuso da página aberta, e apagar. --}}
+        @if (auth()->user()->ehAdmin())
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-xs text-slate-400">
+                    @if ($solicitacao->ip)
+                        Enviada a partir de {{ $solicitacao->ip }}
+                    @endif
+                </p>
+                <form
+                    method="POST"
+                    action="{{ route('solicitacoes.destroy', $solicitacao) }}"
+                    onsubmit="return confirm('Apagar a solicitação {{ $solicitacao->protocolo }}? Ela sai do sistema de vez e isso não pode ser desfeito.')"
+                >
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        type="submit"
+                        title="Apagar solicitação"
+                        aria-label="Apagar solicitação"
+                        class="flex size-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    >
+                        <x-icone nome="lixeira" class="size-5" />
+                    </button>
+                </form>
+            </div>
         @endif
     </div>
 </x-layouts.app>

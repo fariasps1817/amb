@@ -1,6 +1,7 @@
 @php
     use App\Enums\Locomocao;
     use App\Models\SolicitacaoDeTransporte;
+    use App\Support\MunicipiosDoCeara;
 
     $telefones = $config->telefonesFormatados();
     $municipio = SolicitacaoDeTransporte::MUNICIPIO_DESTINO.' - '.SolicitacaoDeTransporte::UF_DESTINO;
@@ -52,7 +53,7 @@
                 <div class="space-y-4">
                     <x-input nome="hospital_nome" rotulo="Nome do hospital" :value="old('hospital_nome')" required obrigatorio maxlength="150" />
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <x-input nome="hospital_cidade" rotulo="Cidade" :value="old('hospital_cidade')" required obrigatorio maxlength="100" />
+                        <x-select nome="hospital_cidade" rotulo="Cidade" vazio="Selecione a cidade" :opcoes="MunicipiosDoCeara::opcoes()" required obrigatorio />
                         <x-input nome="hospital_bairro" rotulo="Bairro" :value="old('hospital_bairro')" required obrigatorio maxlength="100" />
                     </div>
                 </div>

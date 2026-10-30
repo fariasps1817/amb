@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Locomocao;
+use App\Support\MunicipiosDoCeara;
 use App\Support\Telefone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -45,7 +46,7 @@ class SolicitacaoDeAltaRequest extends FormRequest
     {
         return [
             'hospital_nome' => ['required', 'string', 'max:150'],
-            'hospital_cidade' => ['required', 'string', 'max:100'],
+            'hospital_cidade' => ['required', Rule::in(MunicipiosDoCeara::LISTA)],
             'hospital_bairro' => ['required', 'string', 'max:100'],
 
             'solicitante_nome' => ['required', 'string', 'max:120'],
@@ -105,6 +106,7 @@ class SolicitacaoDeAltaRequest extends FormRequest
     {
         return [
             'declaracao.accepted' => 'Confirme que você é profissional deste hospital.',
+            'hospital_cidade.in' => 'Escolha a cidade do hospital na lista.',
             'solicitante_telefone.digits_between' => 'Informe o telefone de contato com DDD.',
             'contato_telefone_1.digits_between' => 'Informe o telefone do paciente ou acompanhante com DDD.',
             'contato_telefone_2.digits_between' => 'Informe o segundo telefone com DDD.',

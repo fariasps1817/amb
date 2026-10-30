@@ -6,6 +6,7 @@ use App\Enums\Locomocao;
 use App\Enums\MotivoNaoAtendimento;
 use App\Enums\StatusSolicitacao;
 use App\Models\Ambulancia;
+use App\Models\Configuracao;
 use App\Models\Motorista;
 use App\Models\SolicitacaoDeTransporte;
 use App\Models\Unidade;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
 use App\Services\Whatsapp\MensagemDeTransporte;
+use App\Support\MunicipiosDoCeara;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -109,6 +111,34 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
             ]);
 
         $this->assertSame(0, SolicitacaoDeTransporte::query()->count());
+    }
+
+    #[Test]
+    public function a_cidade_do_hospital_e_escolhida_na_lista_de_municipios_do_ceara(): void
+    {
+        $this->assertCount(184, MunicipiosDoCeara::LISTA);
+
+        $this->get(route('solicitacao.formulario'))
+            ->assertOk()
+            ->assertSee('Selecione a cidade')
+            ->assertSeeInOrder(['Fortaleza', 'Quixadá', 'Sobral'])
+            ->assertSee('<option value="Cascavel"', false);
+
+        $this->post(route('solicitacao.enviar'), $this->dados(['hospital_cidade' => 'Recife']))
+            ->assertSessionHasErrors(['hospital_cidade' => 'Escolha a cidade do hospital na lista.']);
+
+        $this->assertSame(0, SolicitacaoDeTransporte::query()->count());
+    }
+
+    /** Erro em outro campo: a cidade escolhida continua marcada. */
+    #[Test]
+    public function a_cidade_escolhida_nao_se_perde_quando_o_envio_volta_com_erro(): void
+    {
+        $this->from(route('solicitacao.formulario'))
+            ->followingRedirects()
+            ->post(route('solicitacao.enviar'), $this->dados(['hospital_cidade' => 'Quixadá', 'paciente_nome' => '']))
+            ->assertOk()
+            ->assertSeeHtml('<option value="Quixadá" selected');
     }
 
     /** Os hospitais ficam em vários municípios: sem DDD não dá para ligar. */
@@ -345,16 +375,25 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
 
         $texto = app(MensagemDeTransporte::class)->texto($solicitacao);
 
-        $this->assertStringContainsString('*TRANSPORTE DE PACIENTE — ALTA HOSPITALAR*', $texto);
+        $this->assertStringContainsString("🚑 *TRANSPORTE DE PACIENTE*\n*ALTA HOSPITALAR*\n", $texto);
         $this->assertStringContainsString('Protocolo '.$solicitacao->protocolo, $texto);
         $this->assertStringContainsString("*Buscar em:*\nHospital Geral de Fortaleza\nPapicu · Fortaleza", $texto);
-        $this->assertStringContainsString('Contato: Maria Clara | Assistente Social · (85) 98692-6853', $texto);
-        $this->assertStringContainsString('JOSÉ DA SILVA · 72 anos', $texto);
-        $this->assertStringContainsString('Acompanhante: Ana da Silva', $texto);
-        $this->assertStringContainsString('Telefone: (85) 98888-7777 / (85) 97777-6666', $texto);
+        $this->assertStringContainsString("Contato: Maria Clara | Assistente Social\n(85) 98692-6853\n", $texto);
+        $this->assertStringContainsString("JOSÉ DA SILVA · 72 anos\nAcompanhante: Ana da Silva\n(85) 98888-7777\n(85) 97777-6666\n", $texto);
         $this->assertStringContainsString("*Levar para:*\nRua das Flores, 10\nCentro · Cascavel-CE\nReferência: Perto da praça", $texto);
         $this->assertStringContainsString('Acamado (maca) · Oxigênio · Consciente', $texto);
         $this->assertStringNotContainsString($solicitacao->ip, $texto);
+    }
+
+    /** Assinatura com o telefone da coordenação sozinho na linha, como os demais. */
+    #[Test]
+    public function a_mensagem_assina_com_cada_telefone_da_coordenacao_na_sua_linha(): void
+    {
+        Configuracao::atual()->update(['setor' => 'Coordenação de Ambulâncias', 'telefone_1' => '8533342244', 'telefone_2' => '85986926853']);
+
+        $texto = app(MensagemDeTransporte::class)->texto($this->solicitacao());
+
+        $this->assertStringEndsWith("\n\n_Coordenação de Ambulâncias_\n(85) 3334-2244\n(85) 98692-6853", $texto);
     }
 
     /** Campos opcionais em branco não deixam linhas soltas na mensagem. */
@@ -381,11 +420,47 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
         $this->get(route('solicitacoes.show', $solicitacao))
             ->assertOk()
             ->assertSee('Enviar para o motorista')
-            ->assertSee('Enviar para este motorista')
-            ->assertSee('value="5585986926853"', false)
-            ->assertSee('SEM TELEFONE (sem telefone)')
+            ->assertSee('Enviar mensagem')
+            ->assertSee('https://wa.me/5585986926853?text=', false)
+            ->assertSeeInOrder(['SEM TELEFONE', 'sem telefone'])
+            ->assertSee('Outra pessoa dos meus contatos')
             ->assertSee('https://wa.me/?text=', false)
-            ->assertSee('TRANSPORTE DE PACIENTE');
+            ->assertSee('TRANSPORTE DE PACIENTE')
+            ->assertSeeInOrder(['Ver ou editar a mensagem', 'Copiar texto'])
+            ->assertDontSee('Compartilhar');
+    }
+
+    /** A lista mostra o nome curto: em ordem pelo completo, pareceria embaralhada. */
+    #[Test]
+    public function a_lista_de_motoristas_segue_a_ordem_do_nome_que_mostra(): void
+    {
+        $solicitacao = $this->solicitacao();
+        Motorista::factory()->create(['nome_curto' => 'ZECA', 'nome_completo' => 'ANTONIO JOSE']);
+        Motorista::factory()->create(['nome_curto' => 'BETO', 'nome_completo' => 'ROBERTO LIMA']);
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('solicitacoes.show', $solicitacao))
+            ->assertOk()
+            ->assertSeeInOrder(['BETO', 'ZECA']);
+    }
+
+    #[Test]
+    public function cada_telefone_dos_detalhes_tem_atalho_para_ligar_e_para_o_whatsapp(): void
+    {
+        $solicitacao = $this->solicitacao(['contato_telefone_2' => '(85) 97777-6666']);
+
+        $this->actingAs(User::factory()->create());
+
+        $resposta = $this->get(route('solicitacoes.show', $solicitacao))->assertOk();
+
+        foreach (['85986926853', '85988887777', '85977776666'] as $numero) {
+            $resposta
+                ->assertSee('href="tel:'.$numero.'"', false)
+                ->assertSee('href="https://wa.me/55'.$numero.'"', false);
+        }
+
+        $resposta->assertDontSee('Ligar para Maria');
     }
 
     /** Depois do desfecho não há mais viagem a combinar. */
@@ -510,6 +585,72 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
         $this->assertNull($solicitacao->motorista_id);
         $this->assertNull($solicitacao->atendida_em);
         $this->assertNull($solicitacao->registrada_por);
+    }
+
+    // -----------------------------------------------------------------
+    // Apagar
+    // -----------------------------------------------------------------
+
+    #[Test]
+    public function o_administrador_apaga_a_solicitacao_e_nada_fica_para_tras(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-30 10:00:00'));
+        $original = $this->solicitacao();
+        // Entra como possível duplicada da primeira: a ligação aponta para o registro apagado.
+        $repetida = $this->solicitacao();
+        $this->assertSame($original->id, $repetida->possivel_duplicada_de);
+
+        $motorista = Motorista::factory()->create();
+        $original->update(['status' => StatusSolicitacao::Atendida, 'motorista_id' => $motorista->id]);
+
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->get(route('solicitacoes.show', $original))
+            ->assertOk()
+            ->assertSee('Apagar solicitação');
+
+        $this->delete(route('solicitacoes.destroy', $original))
+            ->assertRedirect(route('solicitacoes.index'))
+            ->assertSessionHas('sucesso');
+
+        $this->assertModelMissing($original);
+        $this->assertNull($repetida->fresh()->possivel_duplicada_de);
+        $this->get(route('solicitacoes.show', $repetida))->assertOk()->assertDontSee('Possível duplicada');
+
+        // O motorista e os demais cadastros não são afetados.
+        $this->assertModelExists($motorista);
+    }
+
+    /** O número de um pedido apagado não volta a ser usado: não confunde com o que já foi informado. */
+    #[Test]
+    public function apagar_nao_faz_o_protocolo_se_repetir(): void
+    {
+        $apagada = $this->solicitacao();
+        $protocolo = $apagada->protocolo;
+
+        $this->actingAs(User::factory()->admin()->create());
+        $this->delete(route('solicitacoes.destroy', $apagada));
+
+        $this->assertNotSame($protocolo, $this->solicitacao()->protocolo);
+    }
+
+    #[Test]
+    public function so_o_administrador_apaga_a_solicitacao(): void
+    {
+        $solicitacao = $this->solicitacao();
+
+        $this->delete(route('solicitacoes.destroy', $solicitacao))->assertRedirect(route('login'));
+
+        $this->actingAs(User::factory()->leitor()->create());
+        $this->delete(route('solicitacoes.destroy', $solicitacao))->assertForbidden();
+
+        $this->actingAs(User::factory()->create());
+        $this->delete(route('solicitacoes.destroy', $solicitacao))->assertForbidden();
+        $this->get(route('solicitacoes.show', $solicitacao))
+            ->assertOk()
+            ->assertDontSee('Apagar solicitação');
+
+        $this->assertModelExists($solicitacao);
     }
 
     // -----------------------------------------------------------------

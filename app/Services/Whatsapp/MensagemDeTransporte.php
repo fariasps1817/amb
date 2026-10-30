@@ -19,14 +19,17 @@ class MensagemDeTransporte
     {
         $config = Configuracao::atual();
 
+        // O negrito do WhatsApp nao atravessa a quebra de linha: um par de * em cada.
         $linhas = [
-            '🚑 *TRANSPORTE DE PACIENTE — '.mb_strtoupper($solicitacao->tipo->rotulo()).'*',
+            '🚑 *TRANSPORTE DE PACIENTE*',
+            '*'.mb_strtoupper($solicitacao->tipo->rotulo()).'*',
             'Protocolo '.$solicitacao->protocolo,
             '',
             '*Buscar em:*',
             $solicitacao->hospital_nome,
             $solicitacao->hospital_bairro.' · '.$solicitacao->hospital_cidade,
-            'Contato: '.$solicitacao->solicitante_nome.' | '.$solicitacao->solicitante_funcao.' · '.$solicitacao->telefoneSolicitante(),
+            'Contato: '.$solicitacao->solicitante_nome.' | '.$solicitacao->solicitante_funcao,
+            $solicitacao->telefoneSolicitante(),
             '',
             '*Paciente:*',
             $solicitacao->paciente_nome.' · '.$solicitacao->idadeTexto(),
@@ -36,10 +39,7 @@ class MensagemDeTransporte
             $linhas[] = 'Acompanhante: '.$solicitacao->acompanhante_nome;
         }
 
-        $linhas[] = 'Telefone: '.collect([$solicitacao->contato_telefone_1, $solicitacao->contato_telefone_2])
-            ->filter()
-            ->map(fn (string $numero) => Telefone::formatar($numero))
-            ->implode(' / ');
+        array_push($linhas, ...$this->telefones($solicitacao->contato_telefone_1, $solicitacao->contato_telefone_2));
 
         $linhas[] = '';
         $linhas[] = '*Levar para:*';
@@ -58,13 +58,30 @@ class MensagemDeTransporte
             $linhas[] = $solicitacao->observacoes_paciente;
         }
 
-        $assinatura = collect([$config->setor, $config->telefonesFormatados()])->filter()->implode(' · ');
+        $assinatura = [
+            ...(filled($config->setor) ? ['_'.$config->setor.'_'] : []),
+            ...$this->telefones($config->telefone_1, $config->telefone_2),
+        ];
 
-        if ($assinatura !== '') {
-            $linhas[] = '';
-            $linhas[] = '_'.$assinatura.'_';
+        if ($assinatura !== []) {
+            array_push($linhas, '', ...$assinatura);
         }
 
         return implode("\n", $linhas);
+    }
+
+    /**
+     * Cada numero fica sozinho na sua linha, sem rotulo nem formatacao: facil de
+     * tocar no celular para ligar ou copiar.
+     *
+     * @return list<string>
+     */
+    private function telefones(?string ...$numeros): array
+    {
+        return collect($numeros)
+            ->filter()
+            ->map(fn (string $numero) => Telefone::formatar($numero))
+            ->values()
+            ->all();
     }
 }

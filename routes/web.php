@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
         Route::post('{solicitacao}/atendida', 'atendida')->name('atendida');
         Route::post('{solicitacao}/nao-atendida', 'naoAtendida')->name('nao-atendida');
         Route::post('{solicitacao}/reabrir', 'reabrir')->name('reabrir');
+        Route::delete('{solicitacao}', 'destroy')->middleware('admin')->name('destroy');
     });
 
     // -----------------------------------------------------------------
