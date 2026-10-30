@@ -12,6 +12,8 @@ use App\Http\Controllers\MensagemController;
 use App\Http\Controllers\MotoristaController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PlantaoController;
+use App\Http\Controllers\SolicitacaoController;
+use App\Http\Controllers\SolicitacaoPublicaController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +35,18 @@ Route::post('sair', [LoginController::class, 'sair'])
 
 /*
 |--------------------------------------------------------------------------
+| Solicitacao de ambulancia pelo hospital (pagina aberta, sem login)
+|--------------------------------------------------------------------------
+*/
+
+Route::controller(SolicitacaoPublicaController::class)->prefix('solicitar-ambulancia')->name('solicitacao.')->group(function () {
+    Route::get('/', 'formulario')->name('formulario');
+    Route::post('/', 'enviar')->middleware('throttle:solicitacoes')->name('enviar');
+    Route::get('recebida/{protocolo}', 'recebida')->middleware('signed')->name('recebida');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Area autenticada
 |--------------------------------------------------------------------------
 */
@@ -45,6 +59,19 @@ Route::middleware('auth')->group(function () {
     // Consultas do dia a dia, feitas sobretudo pelo celular.
     Route::get('plantao', PlantaoController::class)->name('plantao');
     Route::get('aniversariantes', AniversarianteController::class)->name('aniversariantes');
+
+    // -----------------------------------------------------------------
+    // Solicitacoes de transporte recebidas (dados de saude: so a coordenacao)
+    // -----------------------------------------------------------------
+
+    Route::controller(SolicitacaoController::class)->prefix('solicitacoes')->name('solicitacoes.')->middleware('editor')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('contagem', 'contagem')->name('contagem');
+        Route::get('{solicitacao}', 'show')->name('show');
+        Route::post('{solicitacao}/atendida', 'atendida')->name('atendida');
+        Route::post('{solicitacao}/nao-atendida', 'naoAtendida')->name('nao-atendida');
+        Route::post('{solicitacao}/reabrir', 'reabrir')->name('reabrir');
+    });
 
     // -----------------------------------------------------------------
     // Cadastros

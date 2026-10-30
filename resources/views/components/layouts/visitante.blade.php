@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#2b736e">
+    {{-- Login e solicitação do hospital: nada disso deve aparecer em buscadores. --}}
+    <meta name="robots" content="noindex, nofollow">
 
     <title>{{ isset($titulo) ? "{$titulo} · " : '' }}{{ config('app.name') }}</title>
 

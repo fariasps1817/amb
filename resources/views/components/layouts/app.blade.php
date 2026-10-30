@@ -1,3 +1,9 @@
+@php
+    // Nulo para quem nao ve solicitacoes (perfil de consulta): dados de saude.
+    $solicitacoesAguardando = auth()->user()->podeEditar()
+        ? \App\Models\SolicitacaoDeTransporte::query()->aguardando()->count()
+        : null;
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR" class="h-full bg-slate-50">
 <head>
@@ -5,6 +11,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#2b736e">
+    @if ($solicitacoesAguardando !== null)
+        <meta name="contagem-solicitacoes" content="{{ route('solicitacoes.contagem') }}" data-valor="{{ $solicitacoesAguardando }}">
+    @endif
 
     <title>{{ isset($titulo) ? "{$titulo} · " : '' }}{{ config('app.name') }}</title>
 
@@ -76,6 +85,12 @@
         <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4 scrollbar-fina">
             <x-nav-grupo titulo="Operação">
                 <x-nav-item rota="painel" icone="painel">Painel</x-nav-item>
+                {{-- Dados de saúde: só para quem coordena. --}}
+                @if (auth()->user()->podeEditar())
+                    <x-nav-item rota="solicitacoes.index" icone="sino" :ativo="request()->routeIs('solicitacoes.*')" :contador="$solicitacoesAguardando">
+                        Solicitações
+                    </x-nav-item>
+                @endif
                 <x-nav-item rota="plantao" icone="relogio">Plantão do dia</x-nav-item>
                 <x-nav-item rota="aniversariantes" icone="bolo">Aniversariantes</x-nav-item>
                 <x-nav-item rota="escalas.index" icone="escalas" :ativo="request()->routeIs('escalas.*')">
@@ -143,10 +158,20 @@
             <button
                 type="button"
                 @click="menuAberto = true"
-                class="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+                class="relative -ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
             >
                 <x-icone nome="menu" class="size-6" />
                 <span class="sr-only">Abrir menu</span>
+
+                {{-- No celular o menu fica fechado: o aviso aparece sobre o botão,
+                     para ser visto de qualquer tela. --}}
+                @if ($solicitacoesAguardando !== null)
+                    <span
+                        data-contador-solicitacoes
+                        @if ($solicitacoesAguardando === 0) hidden @endif
+                        class="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[0.7rem] font-bold text-white tabular-nums ring-2 ring-white"
+                    >{{ $solicitacoesAguardando }}</span>
+                @endif
             </button>
 
             {{-- So no computador: no celular a barra ja e uma gaveta. --}}

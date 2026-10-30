@@ -47,6 +47,22 @@ class PlantaoDoDia
             ->values();
     }
 
+    /**
+     * Quem esta de servico neste momento: antes da hora de troca (7h, em geral)
+     * ainda e o plantao de ontem.
+     *
+     * @return Collection<int, EscalaPlantao>
+     */
+    public function deServicoAgora(): Collection
+    {
+        $hoje = $this->plantoes(today());
+        $entrada = $hoje->first()?->horaEntradaTexto();
+
+        return $entrada !== null && now()->format('H:i') < $entrada
+            ? $this->plantoes(today()->subDay())
+            : $hoje;
+    }
+
     /** Escala que vale para o mes do dia, para a tela avisar quando ainda e rascunho. */
     public function escala(Carbon $dia): ?Escala
     {

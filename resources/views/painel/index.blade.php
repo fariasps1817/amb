@@ -11,6 +11,46 @@
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
         {{-- ------------------------------------------------------------
+             Solicitações de ambulância: acima de tudo, porque tem alguém
+             esperando. O número vermelho se atualiza sozinho (app.js), e a
+             página recarrega quando ele muda, para o texto acompanhar.
+             ------------------------------------------------------------ --}}
+
+        @if ($solicitacoesAguardando !== null)
+            @php $aguardando = $solicitacoesAguardando['total']; @endphp
+            <a
+                href="{{ route('solicitacoes.index') }}"
+                data-recarregar-ao-mudar-contagem
+                class="group relative flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 transition sm:px-5 lg:col-span-3 {{ $aguardando > 0 ? 'ring-rose-300 hover:ring-rose-400' : 'ring-slate-200 hover:ring-marca-300' }}"
+            >
+                <span class="flex size-11 shrink-0 items-center justify-center rounded-full {{ $aguardando > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500' }}">
+                    <x-icone nome="sino" class="size-6" />
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-semibold text-slate-900">Solicitações de ambulância</span>
+                    <span class="block text-xs {{ $aguardando > 0 ? 'font-medium text-rose-700' : 'text-slate-500' }}">
+                        @if ($aguardando > 0)
+                            {{ $aguardando }} aguardando atendimento ·
+                            {{ $aguardando === 1 ? 'há' : 'a mais antiga há' }} {{ $solicitacoesAguardando['mais_antiga']->diffForHumans(syntax: \Carbon\CarbonInterface::DIFF_ABSOLUTE) }}
+                        @else
+                            Nenhuma aguardando atendimento
+                        @endif
+                    </span>
+                </span>
+
+                <x-icone nome="seta-direita" class="size-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5" />
+
+                {{-- O número vermelho, no cantinho do cartão --}}
+                <span
+                    data-contador-solicitacoes
+                    @if ($aguardando === 0) hidden @endif
+                    class="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 px-1.5 text-xs font-bold text-white tabular-nums ring-2 ring-white"
+                >{{ $aguardando }}</span>
+            </a>
+        @endif
+
+        {{-- ------------------------------------------------------------
              De plantão hoje
              ------------------------------------------------------------ --}}
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\StatusMotorista;
 use App\Models\Escala;
 use App\Models\Motorista;
+use App\Models\SolicitacaoDeTransporte;
 use App\Services\Escalas\ValidadorDeEscala;
 use App\Services\Whatsapp\PlantaoDoDia;
 use App\Support\Aniversario;
@@ -50,7 +51,30 @@ class PainelController extends Controller
             'errosDaProximaEscala' => $this->erros($proximaEscala),
 
             'pendencias' => $this->pendenciasDeCadastro(),
+
+            // Dados de saude: o cartao so aparece para quem coordena.
+            'solicitacoesAguardando' => $this->solicitacoesAguardando(),
         ]);
+    }
+
+    /**
+     * Quantos pedidos aguardam e ha quanto tempo o mais antigo espera. Nulo para
+     * o perfil de consulta, que nao ve solicitacoes.
+     *
+     * @return array{total: int, mais_antiga: ?Carbon}|null
+     */
+    private function solicitacoesAguardando(): ?array
+    {
+        if (! auth()->user()->podeEditar()) {
+            return null;
+        }
+
+        $aguardando = SolicitacaoDeTransporte::query()->aguardando();
+
+        return [
+            'total' => (clone $aguardando)->count(),
+            'mais_antiga' => (clone $aguardando)->orderBy('solicitada_em')->first()?->solicitada_em,
+        ];
     }
 
     /**

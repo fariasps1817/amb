@@ -111,6 +111,13 @@
         display: none;
     }
 
+    /* O numero de solicitacoes continua, no canto do icone. */
+    .menu-recolhido .menu-contador {
+        top: -0.125rem;
+        right: 0.5rem;
+        transform: none;
+    }
+
     .menu-recolhido .menu-topo,
     .menu-recolhido .menu-marca,
     .menu-recolhido .menu-item,

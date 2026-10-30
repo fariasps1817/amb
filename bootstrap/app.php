@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\GarantirPerfilAdmin;
+use App\Http\Middleware\GarantirPerfilEditor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,7 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => GarantirPerfilAdmin::class,
+            'editor' => GarantirPerfilEditor::class,
         ]);
+
+        // A solicitacao publica nao tem login, e portanto nao ha sessao a
+        // proteger com o token. Com ele, quem deixasse o formulario aberto alem
+        // do prazo da sessao -- ligando para a familia, por exemplo -- veria
+        // "419 Page Expired" ao enviar e perderia tudo o que digitou. Contra
+        // abuso valem a armadilha e o limite de envios por origem.
+        $middleware->preventRequestForgery(except: ['solicitar-ambulancia']);
 
         // Visitante sem sessao vai para a tela de login do sistema.
         $middleware->redirectGuestsTo('/entrar');

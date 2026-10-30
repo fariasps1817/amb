@@ -193,6 +193,27 @@ antes de enviar. Antes das 7h o painel avisa que quem está nas ambulâncias ain
 Em **Aniversariantes**: os de hoje, de amanhã, dos próximos 7 dias, de um mês ou de um dia escolhido,
 com a idade que completam e os botões para ligar ou mandar os parabéns.
 
+### 6. Solicitações de ambulância
+
+Hospitais de qualquer município pedem o transporte do paciente em alta até a residência em Cascavel-CE
+por uma página aberta, sem login, feita para o celular: `/solicitar-ambulancia`. Quem envia declara ser
+profissional do hospital, e a coordenação confirma por telefone. Na tela *Solicitações*, *Copiar link do
+formulário* dá o endereço para passar aos hospitais.
+
+- **Definido pelo servidor, nunca pelo formulário:** data e hora (fuso de Fortaleza), município de destino
+  e situação do pedido.
+- **Coordenação:** o painel traz um cartão com o número vermelho de pedidos aguardando, que também aparece
+  no menu e no título da aba, e se atualiza sozinho a cada minuto. Nos detalhes se registra o desfecho:
+  *atendida* (motorista, data e hora, observações) ou *não atendida* (motivo). Quem está de plantão vem
+  primeiro na lista de motoristas.
+- **Página aberta:** campo-armadilha para robôs e limite de 30 envios por hora por origem. O formulário não
+  usa o token de sessão: assim, quem o deixa aberto por muito tempo não perde o que digitou.
+- **Envio repetido:** reenviar o mesmo formulário não duplica o pedido. O mesmo paciente e telefone em até
+  6 horas entra marcado como *possível duplicada*.
+- **Dados de saúde:** só Administrador e Operador veem. A confirmação mostra apenas o protocolo.
+- **A ligar:** o aviso ao grupo de WhatsApp da coordenação entra em `RegistroDeSolicitacao`, o único ponto
+  por onde um pedido chega ao sistema. O campo `tipo` deixa lugar para a futura consulta eletiva.
+
 ---
 
 ## WhatsApp: modos de envio
@@ -331,7 +352,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 268 testes
+php artisan test    # 345 testes
 ./vendor/bin/pint   # formatação
 ```
 

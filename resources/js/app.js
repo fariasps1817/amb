@@ -134,6 +134,73 @@ document.addEventListener('click', (evento) => {
 });
 
 // ---------------------------------------------------------------------------
+// Contador de solicitacoes de ambulancia
+// ---------------------------------------------------------------------------
+
+/*
+ * O numero vermelho precisa mudar sem ninguem recarregar a tela: ha paciente
+ * esperando, e a coordenacao costuma deixar o sistema aberto. O total tambem vai
+ * no titulo da aba, para ser visto com o sistema atras de outra janela.
+ *
+ * Consulta uma vez por minuto e so com a aba visivel, para nao gastar o servidor
+ * pequeno. Nao conta como atividade do usuario: o aviso de inatividade olha o
+ * teclado e o mouse, entao a tela ociosa continua encerrando a sessao no prazo.
+ *
+ * O meta so existe para quem pode ver solicitacoes (ver layouts/app).
+ */
+const iniciarContadorDeSolicitacoes = () => {
+    const meta = document.querySelector('meta[name="contagem-solicitacoes"]');
+
+    if (! meta) return;
+
+    const tituloOriginal = document.title;
+    let atual = Number(meta.dataset.valor);
+
+    const exibir = (total) => {
+        document.querySelectorAll('[data-contador-solicitacoes]').forEach((elemento) => {
+            elemento.textContent = total;
+            elemento.hidden = total === 0;
+        });
+
+        document.title = total > 0 ? `(${total}) ${tituloOriginal}` : tituloOriginal;
+    };
+
+    const consultar = async () => {
+        if (document.visibilityState !== 'visible') return;
+
+        try {
+            const resposta = await fetch(meta.content, { headers: { Accept: 'application/json' } });
+
+            // Sessao encerrada: quem cuida disso e o aviso de inatividade.
+            if (! resposta.ok) return;
+
+            const { aguardando } = await resposta.json();
+
+            if (aguardando === atual) return;
+
+            atual = aguardando;
+
+            // O cartao do painel tambem traz texto e cor que dependem do numero.
+            if (document.querySelector('[data-recarregar-ao-mudar-contagem]')) {
+                window.location.reload();
+
+                return;
+            }
+
+            exibir(aguardando);
+        } catch {
+            // Sem internet no momento: tenta de novo no proximo minuto.
+        }
+    };
+
+    exibir(atual);
+    setInterval(consultar, 60000);
+    document.addEventListener('visibilitychange', consultar);
+};
+
+document.addEventListener('DOMContentLoaded', iniciarContadorDeSolicitacoes);
+
+// ---------------------------------------------------------------------------
 // Copiar para a area de transferencia
 // ---------------------------------------------------------------------------
 
