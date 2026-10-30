@@ -7,6 +7,7 @@ use App\Enums\StatusMotorista;
 use App\Enums\StatusSolicitacao;
 use App\Models\Motorista;
 use App\Models\SolicitacaoDeTransporte;
+use App\Services\Whatsapp\MensagemDeTransporte;
 use App\Services\Whatsapp\PlantaoDoDia;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -52,7 +53,7 @@ class SolicitacaoController extends Controller
         return response()->json(['aguardando' => SolicitacaoDeTransporte::query()->aguardando()->count()]);
     }
 
-    public function show(SolicitacaoDeTransporte $solicitacao, PlantaoDoDia $plantao): View
+    public function show(SolicitacaoDeTransporte $solicitacao, PlantaoDoDia $plantao, MensagemDeTransporte $mensagem): View
     {
         $solicitacao->load(['motorista', 'registradaPor', 'duplicadaDe']);
 
@@ -69,6 +70,7 @@ class SolicitacaoController extends Controller
                 ->ordenadoPorNome()
                 ->get(),
             'motivos' => MotivoNaoAtendimento::opcoes(),
+            'textoParaMotorista' => $mensagem->texto($solicitacao),
         ]);
     }
 

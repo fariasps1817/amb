@@ -206,6 +206,9 @@ formulário* dá o endereço para passar aos hospitais.
   no menu e no título da aba, e se atualiza sozinho a cada minuto. Nos detalhes se registra o desfecho:
   *atendida* (motorista, data e hora, observações) ou *não atendida* (motivo). Quem está de plantão vem
   primeiro na lista de motoristas.
+- **Enviar ao motorista:** enquanto o pedido aguarda, os detalhes trazem o texto pronto da viagem para mandar
+  pelo WhatsApp de quem coordena: a um motorista escolhido na lista, abrindo direto a conversa dele, ou a quem
+  se escolher no próprio WhatsApp. O texto pode ser editado antes.
 - **Página aberta:** campo-armadilha para robôs e limite de 30 envios por hora por origem. O formulário não
   usa o token de sessão: assim, quem o deixa aberto por muito tempo não perde o que digitou.
 - **Envio repetido:** reenviar o mesmo formulário não duplica o pedido. O mesmo paciente e telefone em até
@@ -352,7 +355,7 @@ mensal de ocorrências contemple 100% do efetivo.
 
 ```bash
 composer dev        # servidor, fila, logs e Vite juntos
-php artisan test    # 345 testes
+php artisan test    # 349 testes
 ./vendor/bin/pint   # formatação
 ```
 

@@ -26,15 +26,9 @@
 
         <x-avisos />
 
-        <div class="mb-5 space-y-2 text-sm">
-            <div role="note" class="flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-rose-900">
-                <x-icone nome="alerta" class="mt-0.5 size-5 shrink-0 text-rose-600" />
-                <p><strong>Não é para urgência ou emergência.</strong> Nesses casos, ligue <a href="tel:192" class="font-semibold underline">192 (SAMU)</a>.</p>
-            </div>
-            <div role="note" class="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sky-900">
-                <x-icone nome="info" class="mt-0.5 size-5 shrink-0 text-sky-600" />
-                <p>Para uso de <strong>profissionais do hospital</strong>, como o Serviço Social ou a chefia de enfermagem. Depois do envio, a coordenação liga para confirmar.</p>
-            </div>
+        <div role="note" class="mb-5 flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900">
+            <x-icone nome="info" class="mt-0.5 size-5 shrink-0 text-sky-600" />
+            <p>Para uso de <strong>profissionais do hospital</strong>, como o Serviço Social ou a chefia de enfermagem. Depois do envio, a coordenação liga para confirmar.</p>
         </div>
 
         <form

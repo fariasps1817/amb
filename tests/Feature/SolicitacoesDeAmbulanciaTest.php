@@ -12,6 +12,7 @@ use App\Models\Unidade;
 use App\Models\User;
 use App\Services\Escalas\GeradorDeEscala;
 use App\Services\Escalas\MontadorDeEscala;
+use App\Services\Whatsapp\MensagemDeTransporte;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -33,11 +34,11 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
     // -----------------------------------------------------------------
 
     #[Test]
-    public function o_formulario_abre_sem_login_e_avisa_que_nao_e_para_urgencia(): void
+    public function o_formulario_abre_sem_login(): void
     {
         $this->get(route('solicitacao.formulario'))
             ->assertOk()
-            ->assertSee('Não é para urgência ou emergência')
+            ->assertSee('profissionais do hospital')
             ->assertSee('Cascavel - CE')
             ->assertSee('Sou profissional deste hospital')
             ->assertSee('noindex', false);
@@ -331,6 +332,74 @@ class SolicitacoesDeAmbulanciaTest extends TestCase
             ->assertSee('Acamado (maca)')
             ->assertSee('Oxigênio')
             ->assertSeeInOrder(['De plantão agora', $dePlantao->nome_curto, 'Demais motoristas', $forasteiro->nome_curto]);
+    }
+
+    // -----------------------------------------------------------------
+    // Enviar para o motorista
+    // -----------------------------------------------------------------
+
+    #[Test]
+    public function a_mensagem_traz_o_que_o_motorista_precisa_e_nada_da_origem_do_envio(): void
+    {
+        $solicitacao = $this->solicitacao(['contato_telefone_2' => '(85) 97777-6666']);
+
+        $texto = app(MensagemDeTransporte::class)->texto($solicitacao);
+
+        $this->assertStringContainsString('*TRANSPORTE DE PACIENTE — ALTA HOSPITALAR*', $texto);
+        $this->assertStringContainsString('Protocolo '.$solicitacao->protocolo, $texto);
+        $this->assertStringContainsString("*Buscar em:*\nHospital Geral de Fortaleza\nPapicu · Fortaleza", $texto);
+        $this->assertStringContainsString('Contato: Maria Clara | Assistente Social · (85) 98692-6853', $texto);
+        $this->assertStringContainsString('JOSÉ DA SILVA · 72 anos', $texto);
+        $this->assertStringContainsString('Acompanhante: Ana da Silva', $texto);
+        $this->assertStringContainsString('Telefone: (85) 98888-7777 / (85) 97777-6666', $texto);
+        $this->assertStringContainsString("*Levar para:*\nRua das Flores, 10\nCentro · Cascavel-CE\nReferência: Perto da praça", $texto);
+        $this->assertStringContainsString('Acamado (maca) · Oxigênio · Consciente', $texto);
+        $this->assertStringNotContainsString($solicitacao->ip, $texto);
+    }
+
+    /** Campos opcionais em branco não deixam linhas soltas na mensagem. */
+    #[Test]
+    public function a_mensagem_omite_o_que_nao_foi_informado(): void
+    {
+        $solicitacao = $this->solicitacao(['acompanhante_nome' => null, 'destino_referencia' => null]);
+
+        $texto = app(MensagemDeTransporte::class)->texto($solicitacao);
+
+        $this->assertStringNotContainsString('Acompanhante:', $texto);
+        $this->assertStringNotContainsString('Referência:', $texto);
+    }
+
+    #[Test]
+    public function os_detalhes_oferecem_enviar_ao_motorista_pelo_whatsapp(): void
+    {
+        $solicitacao = $this->solicitacao();
+        $comTelefone = Motorista::factory()->create(['nome_curto' => 'COM TELEFONE', 'telefone_1' => '85986926853']);
+        Motorista::factory()->create(['nome_curto' => 'SEM TELEFONE', 'telefone_1' => null]);
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('solicitacoes.show', $solicitacao))
+            ->assertOk()
+            ->assertSee('Enviar para o motorista')
+            ->assertSee('Enviar para este motorista')
+            ->assertSee('value="5585986926853"', false)
+            ->assertSee('SEM TELEFONE (sem telefone)')
+            ->assertSee('https://wa.me/?text=', false)
+            ->assertSee('TRANSPORTE DE PACIENTE');
+    }
+
+    /** Depois do desfecho não há mais viagem a combinar. */
+    #[Test]
+    public function solicitacao_com_desfecho_nao_oferece_o_envio(): void
+    {
+        $solicitacao = $this->solicitacao();
+        $solicitacao->update(['status' => StatusSolicitacao::NaoAtendida, 'motivo_nao_atendimento' => MotivoNaoAtendimento::HospitalCancelou]);
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('solicitacoes.show', $solicitacao))
+            ->assertOk()
+            ->assertDontSee('Enviar para o motorista');
     }
 
     // -----------------------------------------------------------------

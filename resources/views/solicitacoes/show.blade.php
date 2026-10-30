@@ -147,6 +147,109 @@
         </div>
 
         {{-- ------------------------------------------------------------
+             Enviar para o motorista pelo WhatsApp. O texto vem pronto e pode
+             ser editado; a tela continua aberta, para mandar a mais de um.
+             ------------------------------------------------------------ --}}
+
+        @if ($solicitacao->estaAguardando())
+            {{-- Em uma div comum: o @js não é processado dentro da tag de um componente. --}}
+            <div
+                x-data="{
+                    texto: @js($textoParaMotorista),
+                    destino: '',
+                    copiado: false,
+                    podeCompartilhar: typeof navigator.share === 'function',
+                }"
+            >
+            <x-cartao titulo="Enviar para o motorista" descricao="Vai pelo seu WhatsApp, com os dados da viagem.">
+                <div class="space-y-2">
+                    <x-select nome="destino_whatsapp" rotulo="Motorista" vazio="Selecione o motorista" x-model="destino">
+                        @if ($deServico->isNotEmpty())
+                            <optgroup label="De plantão agora">
+                                @foreach ($deServico as $plantao)
+                                    @php $numero = Telefone::paraWhatsapp($plantao->motorista->telefone_1); @endphp
+                                    <option value="{{ $numero }}" @disabled($numero === null)>
+                                        {{ $plantao->motorista->nome_curto }} · {{ $plantao->posto?->rotuloLotacao() }}{{ $numero === null ? ' (sem telefone)' : '' }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                        <optgroup label="Demais motoristas">
+                            @foreach ($demaisMotoristas as $motorista)
+                                @php $numero = Telefone::paraWhatsapp($motorista->telefone_1); @endphp
+                                <option value="{{ $numero }}" @disabled($numero === null)>
+                                    {{ $motorista->nome_curto }}{{ $numero === null ? ' (sem telefone)' : '' }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    </x-select>
+
+                    {{-- Link montado na hora do toque, com o texto já editado. --}}
+                    <a
+                        :href="destino ? 'https://wa.me/' + destino + '?text=' + encodeURIComponent(texto) : null"
+                        :aria-disabled="destino ? 'false' : 'true'"
+                        :class="destino ? '' : 'pointer-events-none opacity-50'"
+                        target="_blank"
+                        rel="noopener"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-marca-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-marca-700"
+                    >
+                        <x-icone nome="whatsapp" class="size-4 shrink-0" />
+                        Enviar para este motorista
+                    </a>
+                    <p class="text-xs text-slate-500">Para mandar a mais de um, escolha outro motorista e toque de novo.</p>
+                </div>
+
+                <div class="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap">
+                    {{-- Sem número: o WhatsApp abre para escolher a conversa ou o grupo. --}}
+                    <a
+                        :href="'https://wa.me/?text=' + encodeURIComponent(texto)"
+                        href="https://wa.me/?text={{ rawurlencode($textoParaMotorista) }}"
+                        target="_blank"
+                        rel="noopener"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition hover:bg-slate-50"
+                    >
+                        <x-icone nome="whatsapp" class="size-4 shrink-0" />
+                        Escolher no WhatsApp
+                    </a>
+
+                    {{-- No celular abre a lista de apps do aparelho, que permite
+                         mandar a vários de uma vez. --}}
+                    <x-botao
+                        x-show="podeCompartilhar"
+                        x-cloak
+                        x-on:click="navigator.share({ text: texto }).catch(() => {})"
+                        variante="secundario"
+                        tamanho="grande"
+                        icone="compartilhar"
+                    >
+                        Compartilhar…
+                    </x-botao>
+
+                    <x-botao
+                        x-on:click="copiarTexto(texto).then(ok => { copiado = ok; setTimeout(() => copiado = false, 2000) })"
+                        variante="secundario"
+                        tamanho="grande"
+                        icone="copiar"
+                    >
+                        <span x-text="copiado ? 'Copiado!' : 'Copiar texto'">Copiar texto</span>
+                    </x-botao>
+                </div>
+
+                <details class="mt-3">
+                    <summary class="cursor-pointer py-1 text-sm font-medium text-marca-700">Ver ou editar a mensagem</summary>
+                    <label for="texto-para-motorista" class="sr-only">Texto da mensagem</label>
+                    <textarea
+                        id="texto-para-motorista"
+                        x-model="texto"
+                        rows="16"
+                        class="mt-2 block w-full rounded-lg border-0 bg-slate-50 px-3 py-2.5 font-mono text-[0.8rem] leading-relaxed text-slate-800 ring-1 ring-inset ring-slate-200 focus:bg-white focus:ring-2 focus:ring-marca-600"
+                    ></textarea>
+                </details>
+            </x-cartao>
+            </div>
+        @endif
+
+        {{-- ------------------------------------------------------------
              Registrar o desfecho
              ------------------------------------------------------------ --}}
 
